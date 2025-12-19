@@ -331,130 +331,80 @@ def metadata_dataframe(graphs, extra_cols=("num_nodes",)):
     return pd.DataFrame(rows)
 
 
-
 # ---------------------------------------------------------------------
-# Add 2-hop edges
+# Subgraphs for oversampling
 # ---------------------------------------------------------------------
+from torch_geometric.data import Data
+from torch_geometric.utils import k_hop_subgraph
+import numpy as np
+import torch
 
-def augment_two_hop_edges(edge_index: torch.Tensor,
-                          num_nodes: int,
-                          include_self_loops: bool = False,
-                          keep_one_hop: bool = True) -> torch.Tensor:
-    """
-    Create (1 ∪ 2)-hop edges by squaring the adjacency in sparse form.
+def build_ego_subgraphs_for_graph(
+    g: Data,
+    num_hops: int = 2,
+    max_centers: int | None = None,
+    rng: np.random.Generator | None = None,
+) -> list[Data]:
+    if rng is None:
+        rng = np.random.default_rng()
 
-    Args
-    ----
-    edge_index : (2, E) long tensor, undirected or directed
-    num_nodes  : N
-    include_self_loops : if True, keep i->i edges in the final graph
-    keep_one_hop : if True, include original 1-hop edges in the union
+    N = g.x.size(0)
 
-    Returns
-    -------
-    edge_index_aug : (2, E') long tensor, undirected, deduped, no self-loops by default
-    """
-    # Make sure it's undirected so A is symmetric
-    ei = to_undirected(edge_index, num_nodes=num_nodes)
-    ei, _ = remove_self_loops(ei)
+    # Start with Python ints, not NumPy ints
+    all_centers = list(range(N))
 
-    # Build sparse adjacency A (N x N). Values are 1.
-    N = num_nodes
-    device = ei.device
-    A = torch.sparse_coo_tensor(ei, torch.ones(ei.size(1), device=device), (N, N))
-
-    # 2-hop: A2 = A @ A  (sparse @ sparse -> sparse)
-    # NOTE: torch.sparse.mm expects (N x N) @ (N x N) dense/sparse mix.
-    # Convert to CSR via to_sparse_csr for speed if available.
-    if hasattr(A, "to_sparse_csr"):
-        A_csr = A.to_sparse_csr()
-        A2 = torch.sparse.mm(A_csr, A_csr).to_sparse_coo()
+    if max_centers is not None and max_centers < N:
+        # rng.choice returns NumPy scalars; convert to Python ints
+        chosen = rng.choice(all_centers, size=max_centers, replace=False)
+        centers = [int(c) for c in chosen]
     else:
-        A2 = torch.sparse.mm(A, A).to_sparse_coo()
+        centers = all_centers
 
-    # Extract indices for 2-hop edges
-    two_hop = A2.coalesce().indices()  # (2, E2)
+    subs: list[Data] = []
+    for c in centers:
+        # c is guaranteed to be a Python int here
+        nodes, edge_index_sub, mapping, mask = k_hop_subgraph(
+            c,
+            num_hops,
+            g.edge_index,
+            relabel_nodes=True,
+        )
 
-    # Optionally keep only *strictly* 2-hop (remove original 1-hop from two_hop)
-    if keep_one_hop:
-        union = torch.cat([ei, two_hop], dim=1)
-    else:
-        # remove edges that are also in 1-hop
-        # coalesce will deduplicate after we subtract self-loops anyway
-        union = torch.cat([two_hop], dim=1)
+        x_sub = g.x[nodes]
+        y_sub = g.y[nodes]
 
-    # Clean up: drop/keep self-loops, coalesce, undirected
-    union = to_undirected(union, num_nodes=N)
-    if not include_self_loops:
-        union, _ = remove_self_loops(union)
-    union = coalesce(union, num_nodes=N)
+        sub = Data(
+            x=x_sub,
+            y=y_sub,
+            edge_index=edge_index_sub,
+        )
 
-    return union
-
-
-def add_two_hop_edges_inplace(data, include_self_loops: bool = False, keep_one_hop: bool = True):
-    """
-    Mutates a PyG Data object to include 2-hop edges.
-    """
-    data.edge_index = augment_two_hop_edges(
-        data.edge_index, num_nodes=data.x.size(0),
-        include_self_loops=include_self_loops,
-        keep_one_hop=keep_one_hop
-    )
-    return data
-
-
-# ==== Inverse-task helpers: curvature -> markers (multi-label) =================
-
-def select_marker_indices(marker_names, selected=None):
-    """
-    Map a user-provided list of marker names to column indices.
-    If selected is None, returns indices for ALL markers.
-    """
-    if selected is None:
-        return list(range(len(marker_names)))
-    name_to_idx = {n: i for i, n in enumerate(marker_names)}
-    idx = []
-    for n in selected:
-        if n not in name_to_idx:
-            raise ValueError(f"Requested marker '{n}' not found in marker_names.")
-        idx.append(name_to_idx[n])
-    return idx
-
-
-def build_inverse_graphs(graphs, marker_names, predict_markers=None, keep_two_hop=False):
-    """
-    Convert graphs for the inverse task:
-      input  x := curvature as single-channel feature -> (N,1)
-      target y := selected marker columns (multi-label) -> (N,K) in {0,1}
-
-    Args
-    ----
-    graphs          : list[Data] with original x=(N,M markers), y=(N,) curvature
-    marker_names    : list[str] length M
-    predict_markers : list[str] or None (None => predict all markers)
-    keep_two_hop    : if True, assumes you already augmented edge_index; do nothing special
-
-    Returns
-    -------
-    inv_graphs : list[Data] with x=(N,1) curvature, y=(N,K) 0/1
-    selected_names : list[str] names of predicted markers
-    """
-    idx = select_marker_indices(marker_names, predict_markers)
-    sel_names = [marker_names[i] for i in idx]
-
-    inv = []
-    for g in graphs:
-        N = g.x.size(0)
-        # x := curvature as (N,1)
-        x_in = g.y.view(N, 1).clone().detach()
-        # y := selected marker columns as float {0,1}
-        y_out = g.x[:, idx].clone().detach().float()
-        gg = type(g)()
-        gg.x = x_in
-        gg.y = y_out
-        gg.edge_index = g.edge_index
         if hasattr(g, "organoid_str"):
-            gg.organoid_str = g.organoid_str
-        inv.append(gg)
-    return inv, sel_names
+            sub.organoid_str = g.organoid_str
+
+        sub.center_idx = int(mapping.item())   # index in subgraph
+        sub.orig_center = int(c)               # index in original graph
+        sub.orig_nodes = nodes                 # tensor of original indices
+
+        subs.append(sub)
+
+    return subs
+
+
+def build_ego_dataset(
+    graphs: list[Data],
+    num_hops: int = 2,
+    max_centers_per_graph: int | None = None,
+    seed: int = 0,
+) -> list[Data]:
+    rng = np.random.default_rng(seed)
+    all_subs: list[Data] = []
+    for g in graphs:
+        subs = build_ego_subgraphs_for_graph(
+            g,
+            num_hops=num_hops,
+            max_centers=max_centers_per_graph,
+            rng=rng,
+        )
+        all_subs.extend(subs)
+    return all_subs

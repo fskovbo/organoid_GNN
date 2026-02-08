@@ -368,6 +368,7 @@ def build_ego_subgraphs_for_graph(
             num_hops,
             g.edge_index,
             relabel_nodes=True,
+            num_nodes=N,
         )
 
         x_sub = g.x[nodes]

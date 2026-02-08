@@ -29,6 +29,15 @@ class TrainConfig:
     calib_mode: str = "corr"         # "corr" (squared Pearson r) or "cov"
 
 
+def gaussian_nll(mu: torch.Tensor, log_var: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """
+    Per-node Gaussian negative log-likelihood (up to an additive constant):
+      0.5 * (log_var + (y - mu)^2 / exp(log_var))
+    """
+    var = torch.exp(log_var)
+    return 0.5 * (log_var + (y - mu) ** 2 / var)
+
+
 def huber_loss(pred, target, delta=1.0):
     """
     Standard Huber loss (smooth L1). Set delta=0 for MSE-ish behavior.
@@ -86,22 +95,22 @@ def make_loaders(train_graphs, val_graphs, cfg):
 
 
 def epoch_pass(model, loader, cfg, optimizer=None):
-    """
-    One full pass over the loader. If 'optimizer' is provided → training step,
-    else evaluation only. Returns (mean_loss, mean_MAE).
-    """
     is_train = optimizer is not None
     model.train(is_train)
 
     total_loss, total_mae, total_n = 0.0, 0.0, 0
     for batch in loader:
         batch = batch.to(cfg.device, non_blocking=True)
-        yhat, _ = model(batch.x, batch.edge_index)
-        res = yhat - batch.y
 
-        base_loss = huber_loss(yhat, batch.y, cfg.huber_delta).mean()
+        (mu, log_var), _ = model(batch.x, batch.edge_index)
+
+        # NLL loss (mean over nodes in batch)
+        nll = gaussian_nll(mu, log_var, batch.y)  # (N,)
+        base_loss = nll.mean()
+
+        # Optional: keep your calibration penalty on residuals of the mean
+        res = mu - batch.y
         calib = calibration_penalty(res, batch.y, mode=cfg.calib_mode)
-
         loss = base_loss + cfg.lambda_calib * calib
 
         if is_train:
@@ -111,7 +120,7 @@ def epoch_pass(model, loader, cfg, optimizer=None):
             optimizer.step()
 
         with torch.no_grad():
-            mae = torch.mean(torch.abs(yhat - batch.y))
+            mae = torch.mean(torch.abs(mu - batch.y))
 
         n = batch.y.numel()
         total_loss += loss.item() * n
@@ -122,12 +131,6 @@ def epoch_pass(model, loader, cfg, optimizer=None):
 
 
 def train(model, train_graphs, val_graphs, cfg=TrainConfig()):
-    """
-    Train `model` on `train_graphs`, validate on `val_graphs`.
-    - Does NOT create/split datasets.
-    - Does NOT instantiate the model (you pass it in).
-    - Returns (model, metrics, history).
-    """
     model = model.to(cfg.device)
     train_loader, val_loader = make_loaders(train_graphs, val_graphs, cfg)
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)

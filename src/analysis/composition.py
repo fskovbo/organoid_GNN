@@ -1,22 +1,5 @@
 import numpy as np
-
-def compute_marker_means(y_true, X):
-    """
-    μ_m = mean(y_true | marker m positive), μ_none for rows with no positives.
-    Returns:
-      mu_pos  : (M,) float64
-      mu_none : float64
-    """
-    K, M = X.shape
-    mu_pos = np.zeros(M, dtype=np.float64)
-    for m in range(M):
-        mask = X[:, m] > 0.5
-        mu_pos[m] = np.mean(y_true[mask]) if np.any(mask) else np.mean(y_true)
-    row_pos = (X > 0.5).sum(axis=1)
-    mu_none = float(np.mean(y_true[row_pos == 0])) if np.any(row_pos == 0) else float(np.mean(y_true))
-    return mu_pos, mu_none
-
-
+from src.analysis.marker_stats import compute_markerwise_means
 
 # ============================================================
 # Neighborhood composition (k-hop)
@@ -52,7 +35,7 @@ def _khop_nodes(adj, start: int, hops: int):
     return seen
 
 
-def neighborhood_composition(
+def compute_neighborhood_composition(
     graphs,
     hops: int = 1,
     mode: str = "fraction",
@@ -119,7 +102,7 @@ def neighborhood_composition(
 # ============================================================
 # Sparse linear influence 
 # ============================================================
-def sparse_neighborhood_influence_improvement(
+def fit_sparse_neighborhood_improvement_models(
     y_true,
     y_pred_mu,
     X_center,
@@ -182,7 +165,7 @@ def sparse_neighborhood_influence_improvement(
         marker_names = [f"m{j}" for j in range(M)]
 
     # Baseline means per marker (A-positive)
-    mu_pos, _ = compute_marker_means(y_true, X_center)
+    mu_pos, _ = compute_markerwise_means(y_true, X_center)
 
     out = {}
     scaler = StandardScaler(with_mean=True, with_std=True)
@@ -232,7 +215,7 @@ def sparse_neighborhood_influence_improvement(
     return out
 
 
-def sparse_neighborhood_influence_uncertainty_reduction(
+def fit_sparse_neighborhood_uncertainty_models(
     y_true,
     X_center,
     X_neigh,
@@ -289,7 +272,7 @@ def sparse_neighborhood_influence_uncertainty_reduction(
     if marker_names is None:
         marker_names = [f"m{j}" for j in range(M)]
 
-    mu_pos, _ = compute_marker_means(y_true, X_center)
+    mu_pos, _ = compute_markerwise_means(y_true, X_center)
     scaler = StandardScaler(with_mean=True, with_std=True)
     out = {}
 

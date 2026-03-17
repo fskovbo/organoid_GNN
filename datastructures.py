@@ -315,16 +315,18 @@ def attach_metadata_to_graphs(graphs, meta_by_key: dict, quiet: bool = True):
 
 
 def metadata_dataframe(graphs, extra_cols=("num_nodes",)):
-    """
-    Build a pandas DataFrame with organoid key + selected metadata fields for quick grouping.
-    """
     import pandas as pd
     rows = []
     for g in graphs:
         key = getattr(g, "organoid_str", None)
         md  = getattr(g, "meta", {}) or {}
         row = {"organoid": key}
-        row.update({k: md.get(k) for k in ["total_surface_area", "total_volume", "complexity_score"]})
+        row.update({
+            "complexity": md.get("complexity"),
+            "dataset": md.get("dataset"),
+            "timepoint": md.get("timepoint"),
+            "num_nodes_meta": md.get("num_nodes"),
+        })
         if "num_nodes" in extra_cols:
             row["num_nodes"] = int(g.x.size(0))
         rows.append(row)

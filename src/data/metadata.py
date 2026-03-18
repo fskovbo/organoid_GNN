@@ -34,12 +34,14 @@ def load_aux_metadata_for_dir(dir_path: str):
     - Values are coerced to Python floats where possible; missing fields are omitted.
     """
     meta = {}
-    # infer stems from existing npz files
+
     for npz_path in sorted(glob.glob(os.path.join(dir_path, "organoid_*.npz"))):
-        stem = os.path.splitext(os.path.basename(npz_path))[0]            # organoid_<id>
+        stem = os.path.splitext(os.path.basename(npz_path))[0]
         aux_path = os.path.join(dir_path, f"{stem}_aux.json")
+
         if not os.path.exists(aux_path):
             continue
+
         try:
             with open(aux_path, "r") as f:
                 raw = json.load(f)
@@ -47,49 +49,79 @@ def load_aux_metadata_for_dir(dir_path: str):
             print(f"Warning: failed reading {aux_path}: {e}")
             continue
 
-        # Coerce values to plain Python floats/ints where possible
         clean = {"organoid_id": str(raw.get("organoid_id", stem.replace("organoid_", "")))}
+
         for k, v in raw.items():
-            if k == "organoid_id": 
+            if k == "organoid_id":
                 continue
+
             try:
-                # Handle numpy scalars/0-D arrays robustly
                 if isinstance(v, (list, tuple)) and len(v) == 1:
                     v = v[0]
                 if hasattr(v, "item"):
                     v = v.item()
-                if isinstance(v, (int, float)):
-                    clean[k] = float(v)
             except Exception:
-                # Keep as-is if not numeric
+                pass
+
+            # keep numeric values as Python floats
+            if isinstance(v, (int, float, np.number)):
+                clean[k] = float(v)
+            else:
+                # keep strings / bools / lists / etc. too
                 clean[k] = v
+
         meta[stem] = clean
+
     return meta
 
 
-def attach_metadata_to_graphs(graphs, meta_by_key: dict, quiet: bool = True):
+def attach_metadata_to_graphs(graphs, meta_by_stem, include_keys=None, exclude_keys=None):
     """
-    Attach metadata dicts to each PyG Data in-place as `data.meta`
-    using the graph's `organoid_str` (filename stem) as the key.
+    Attach metadata dicts to graphs as g.meta.
 
-    Returns the number of graphs that received metadata.
-    Safe: does NOT alter x/y/edge_index; won’t affect training & collate.
+    Parameters
+    ----------
+    graphs : list[Data]
+    meta_by_stem : dict
+        Output of load_aux_metadata_for_dir(...)
+    include_keys : iterable[str] or None
+        If given, only these metadata keys are attached.
+    exclude_keys : iterable[str] or None
+        If given, these keys are removed before attaching.
+
+    Returns
+    -------
+    attached : int
+        Number of graphs that received metadata.
     """
-    count = 0
+    if include_keys is not None and exclude_keys is not None:
+        raise ValueError("Use only one of include_keys or exclude_keys")
+
+    include_keys = set(include_keys) if include_keys is not None else None
+    exclude_keys = set(exclude_keys) if exclude_keys is not None else set()
+
+    attached = 0
+
     for g in graphs:
-        key = getattr(g, "organoid_str", None)
-        if key is None:
-            # fall back to nothing; you can add keys before calling this
+        stem = getattr(g, "organoid_str", None)
+        if stem is None:
             continue
-        md = meta_by_key.get(key)
+
+        md = meta_by_stem.get(stem, None)
         if md is None:
-            if not quiet:
-                print(f"No metadata for {key}")
             continue
-        # attach a shallow copy to avoid accidental mutation
-        g.meta = dict(md)
-        count += 1
-    return count
+
+        md = dict(md)
+
+        if include_keys is not None:
+            md = {k: v for k, v in md.items() if k in include_keys}
+        else:
+            md = {k: v for k, v in md.items() if k not in exclude_keys}
+
+        g.meta = md
+        attached += 1
+
+    return attached
 
 
 def metadata_dataframe(graphs, extra_cols=("num_nodes",)):
@@ -159,5 +191,85 @@ def ensure_metadata_keys(
                 md[key] = value
 
         g.meta = md
+
+    return graphs_out
+
+
+def filter_graphs_by_metadata(
+    graphs,
+    key,
+    keep_values=None,
+    drop_values=None,
+    missing="keep",   # "keep" | "drop"
+    inplace=False,
+):
+    """
+    Filter graphs based on metadata field g.meta[key].
+
+    Parameters
+    ----------
+    graphs : list[Data]
+    key : str
+        Metadata key to filter on (e.g. "timepoint")
+    keep_values : iterable or None
+        If given, only graphs with meta[key] in keep_values are kept.
+    drop_values : iterable or None
+        If given, graphs with meta[key] in drop_values are removed.
+    missing : str
+        How to treat graphs where key is missing or None.
+        "keep" → keep them
+        "drop" → remove them
+    inplace : bool
+        If False, returns shallow copies.
+
+    Returns
+    -------
+    filtered_graphs : list[Data]
+    """
+
+    if keep_values is not None and drop_values is not None:
+        raise ValueError("Specify only one of keep_values or drop_values")
+
+    if keep_values is not None:
+        keep_values = set(keep_values)
+
+    if drop_values is not None:
+        drop_values = set(drop_values)
+
+    out = []
+
+    for g in graphs:
+        md = getattr(g, "meta", {}) or {}
+        val = md.get(key, None)
+
+        if val is None:
+            if missing == "keep":
+                out.append(g if inplace else copy.copy(g))
+            continue
+
+        keep_flag = True
+
+        if keep_values is not None:
+            keep_flag = val in keep_values
+
+        if drop_values is not None:
+            keep_flag = val not in drop_values
+
+        if keep_flag:
+            out.append(g if inplace else copy.copy(g))
+
+    return out
+
+
+def strip_graph_metadata(graphs, attr_names=("meta",), inplace=False):
+    """
+    Remove non-batchable metadata attributes from PyG Data objects.
+    """
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+
+    for g in graphs_out:
+        for attr in attr_names:
+            if hasattr(g, attr):
+                delattr(g, attr)
 
     return graphs_out

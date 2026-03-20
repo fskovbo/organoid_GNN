@@ -6,7 +6,7 @@ from torch_geometric.nn import SAGEConv
 
 class PureSAGECurvature(nn.Module):
     """
-    GraphSAGE-based node model for mean/log-variance prediction.
+    GraphSAGE-based node model for mean + uncertainty prediction.
 
     If num_layers == 0:
         no message passing is used, and predictions depend only on the
@@ -14,6 +14,16 @@ class PureSAGECurvature(nn.Module):
 
     If num_layers > 0:
         GraphSAGE layers aggregate neighborhood information before the head.
+
+    The model always predicts:
+      - mu         : predictive mean
+      - log_scale2 : log(variance-like scale)
+
+    Interpretation of log_scale2 depends on the loss:
+      - Gaussian NLL  : log variance
+      - Student-t NLL : log scale^2
+      - Huber-only    : optional, can be ignored
+      - Huber + calibration : used as variance head, often with detached mean
 
     Args
     ----
@@ -29,8 +39,8 @@ class PureSAGECurvature(nn.Module):
         Whether to use residual connections in the GNN stack.
     norm : {'layer', 'batch', None}
         Normalization after each conv layer.
-    log_var_clamp : tuple[float, float]
-        Clamp range for predicted log-variance.
+    log_scale2_clamp : tuple[float, float]
+        Clamp range for the second output.
     """
     def __init__(
         self,
@@ -40,7 +50,7 @@ class PureSAGECurvature(nn.Module):
         dropout: float = 0.2,
         residual: bool = True,
         norm: str = "layer",
-        log_var_clamp: tuple[float, float] = (-10.0, 10.0),
+        log_scale2_clamp: tuple[float, float] = (-10.0, 10.0),
     ):
         super().__init__()
         assert num_layers >= 0, "num_layers must be >= 0"
@@ -50,7 +60,7 @@ class PureSAGECurvature(nn.Module):
         self.num_layers = num_layers
         self.dropout = dropout
         self.residual = residual
-        self.log_var_clamp = log_var_clamp
+        self.log_scale2_clamp = log_scale2_clamp
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
@@ -76,11 +86,9 @@ class PureSAGECurvature(nn.Module):
             head_in_dim = hidden_dim
 
         else:
-            # No message passing: operate directly on node features
             self.input_proj = None
             head_in_dim = n_markers
 
-        # Slightly richer head than a single linear layer
         self.head = nn.Sequential(
             nn.Linear(head_in_dim, hidden_dim),
             nn.ReLU(),
@@ -104,9 +112,8 @@ class PureSAGECurvature(nn.Module):
                     if i == 0:
                         if self.input_proj is not None:
                             h_new = h_new + self.input_proj(h_in0)
-                        else:
-                            if h_in0.shape[1] == h_new.shape[1]:
-                                h_new = h_new + h_in0
+                        elif h_in0.shape[1] == h_new.shape[1]:
+                            h_new = h_new + h_in0
                     else:
                         if h.shape[1] == h_new.shape[1]:
                             h_new = h_new + h
@@ -116,14 +123,14 @@ class PureSAGECurvature(nn.Module):
 
                 h = h_new
 
-        out = self.head(h)               # (N, 2)
-        mu = out[:, 0].contiguous()      # (N,)
-        log_var = out[:, 1].contiguous() # (N,)
+        out = self.head(h)                    # (N, 2)
+        mu = out[:, 0].contiguous()           # (N,)
+        log_scale2 = out[:, 1].contiguous()   # (N,)
 
-        lo, hi = self.log_var_clamp
-        log_var = torch.clamp(log_var, lo, hi)
+        lo, hi = self.log_scale2_clamp
+        log_scale2 = torch.clamp(log_scale2, lo, hi)
 
-        return (mu, log_var), h
+        return (mu, log_scale2), h
 
     def num_parameters(self, trainable_only: bool = True) -> int:
         if trainable_only:

@@ -90,6 +90,13 @@ def compute_base_loss(mu, log_scale2, y, cfg):
     return per_node.mean()
 
 
+def forward_model(model, batch):
+    try:
+        return model(batch.x, batch.edge_index, data=batch)
+    except TypeError:
+        return model(batch.x, batch.edge_index)
+
+
 def epoch_pass(model, loader, cfg, optimizer=None):
     is_train = optimizer is not None
     model.train(is_train)
@@ -99,7 +106,7 @@ def epoch_pass(model, loader, cfg, optimizer=None):
     for batch in loader:
         batch = batch.to(cfg.device, non_blocking=True)
 
-        (mu, log_scale2), _ = model(batch.x, batch.edge_index)
+        (mu, log_scale2), _ = forward_model(model, batch)
 
         base_loss = compute_base_loss(mu, log_scale2, batch.y, cfg)
 

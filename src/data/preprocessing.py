@@ -1,5 +1,6 @@
 import copy
 import torch
+from torch_geometric.utils import degree
 
 
 def subtract_organoid_mean_curvature(

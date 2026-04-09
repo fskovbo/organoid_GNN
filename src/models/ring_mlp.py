@@ -237,13 +237,16 @@ class PooledKHopMLP(nn.Module):
 class RingSizeMLP(nn.Module):
     """
     MLP that uses:
-      - center-node fate markers
+      - optionally the center-node fate markers
       - ring sizes only (number of nodes in each exact hop ring)
 
     It does NOT use neighborhood marker composition.
 
     Input per node:
-      [x_center_markers, ring_sizes_0, ring_sizes_1, ..., ring_sizes_k]
+      if use_center_markers=True:
+          [x_center_markers, ring_sizes_0, ring_sizes_1, ..., ring_sizes_k]
+      else:
+          [ring_sizes_0, ring_sizes_1, ..., ring_sizes_k]
 
     If `data.ring_sizes` is present, it uses that.
     Otherwise it recomputes ring sizes from (x, edge_index).
@@ -257,6 +260,7 @@ class RingSizeMLP(nn.Module):
         dropout=0.2,
         norm="layer",
         ring_sizes_attr="ring_sizes",
+        use_center_markers=True,
         log_scale2_clamp=(-10.0, 10.0),
     ):
         super().__init__()
@@ -267,9 +271,10 @@ class RingSizeMLP(nn.Module):
         self.dropout = dropout
         self.norm = norm
         self.ring_sizes_attr = ring_sizes_attr
+        self.use_center_markers = use_center_markers
         self.log_scale2_clamp = log_scale2_clamp
 
-        in_dim = n_markers + (k_hops + 1)
+        in_dim = (k_hops + 1) + (n_markers if use_center_markers else 0)
 
         if norm == "layer":
             norm_layer = nn.LayerNorm(hidden_dim)
@@ -291,9 +296,6 @@ class RingSizeMLP(nn.Module):
         self.head = nn.Linear(hidden_dim, 2)
 
     def forward(self, x, edge_index, data=None):
-        # center-node marker identity is always taken from x directly
-        x_center = x.float()
-
         # use precomputed ring sizes if available, otherwise recompute
         if data is not None and hasattr(data, self.ring_sizes_attr):
             ring_sizes_full = getattr(data, self.ring_sizes_attr)
@@ -302,7 +304,11 @@ class RingSizeMLP(nn.Module):
             _, ring_sizes = _compute_ring_fraction_features_and_sizes(x, edge_index, self.k_hops)
             ring_sizes = ring_sizes.float()
 
-        feats = torch.cat([x_center, ring_sizes], dim=1)
+        if self.use_center_markers:
+            x_center = x.float()
+            feats = torch.cat([x_center, ring_sizes], dim=1)
+        else:
+            feats = ring_sizes
 
         h = self.encoder(feats)
         out = self.head(h)

@@ -1,7 +1,12 @@
 import numpy as np
 from scipy.stats import spearmanr
 from src.inference.predict import predict_targets
-from src.analysis.marker_stats import compute_markerwise_residuals, compute_markerwise_nll
+from src.analysis.marker_stats import (
+    compute_markerwise_residuals,
+    compute_markerwise_nll,
+    compute_nodewise_nll,
+)
+
 
 def rescale_distribution_outputs(y, mu, log_var=None, center=0.0, scale=1.0):
     y = np.asarray(y, dtype=np.float64) * scale + center
@@ -59,26 +64,90 @@ def compute_global_uncertainty_correlation(y, mu, log_var):
     return spearmanr(v, r2)
 
 
+def _safe_sem(x):
+    x = np.asarray(x, dtype=np.float64)
+    if x.size <= 1:
+        return np.nan
+    return float(np.std(x, ddof=1) / np.sqrt(x.size))
+
+
+def _aggregate_subset_metrics(y, mu, log_var, X, mask, eps=1e-12):
+    """
+    Aggregate metrics on an arbitrary subset of nodes.
+
+    Baseline mean/variance are estimated from y_true on the same subset.
+    """
+    mask = np.asarray(mask, dtype=bool)
+    n = int(mask.sum())
+
+    if n == 0:
+        return {
+            "n": 0,
+            "mse_model": np.nan,
+            "sem_mse_model": np.nan,
+            "mse_base": np.nan,
+            "sem_mse_base": np.nan,
+            "var_model": np.nan,
+            "sem_var_model": np.nan,
+            "var_base": np.nan,
+            "sem_var_base": np.nan,
+            "nll_model": np.nan,
+            "sem_nll_model": np.nan,
+            "nll_base": np.nan,
+            "sem_nll_base": np.nan,
+            "rho": np.nan,
+            "pval": np.nan,
+        }
+
+    y_s = np.asarray(y[mask], dtype=np.float64)
+    mu_s = np.asarray(mu[mask], dtype=np.float64)
+    log_var_s = np.asarray(log_var[mask], dtype=np.float64)
+    var_s = np.maximum(np.exp(log_var_s), eps)
+
+    # simple subset baseline
+    mu_b = float(np.mean(y_s))
+    var_b = float(np.var(y_s)) + eps
+
+    res_model = y_s - mu_s
+    res_base = y_s - mu_b
+
+    mse_model = float(np.mean(res_model**2))
+    mse_base = float(np.mean(res_base**2))
+
+    nll_model_node = compute_nodewise_nll(y_s, mu_s, var_s)
+    nll_base_node = compute_nodewise_nll(y_s, mu_b, var_b)
+
+    from scipy.stats import spearmanr
+    rho, pval = (np.nan, np.nan)
+    if n >= 10:
+        rho, pval = spearmanr(var_s, res_model**2)
+
+    return {
+        "n": n,
+        "mse_model": mse_model,
+        "sem_mse_model": _safe_sem(res_model**2),
+        "mse_base": mse_base,
+        "sem_mse_base": _safe_sem(res_base**2),
+        "var_model": float(np.mean(var_s)),
+        "sem_var_model": _safe_sem(var_s),
+        "var_base": var_b,
+        "sem_var_base": _safe_sem(np.full_like(y_s, var_b, dtype=np.float64)),
+        "nll_model": float(np.mean(nll_model_node)),
+        "sem_nll_model": _safe_sem(nll_model_node),
+        "nll_base": float(np.mean(nll_base_node)),
+        "sem_nll_base": _safe_sem(nll_base_node),
+        "rho": float(rho) if np.isfinite(rho) else np.nan,
+        "pval": float(pval) if np.isfinite(pval) else np.nan,
+    }
+
 
 def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center_only=False):
     """
-    Evaluate predictive performance and uncertainty calibration of a model
-    on a validation graph, aggregated per marker.
-
-    The function runs the model to obtain predictive means and variances,
-    rescales outputs back to the original data space, and computes a range
-    of marker-wise metrics. These include mean squared error (MSE) and
-    negative log-likelihood (NLL) for both the model and a baseline,
-    standard errors of these estimates, average predicted variance,
-    and diagnostics quantifying how predictive uncertainty correlates
-    with squared residuals. It also reports differences in mean and
-    variance relative to the baseline.
-
-    Returns a dictionary containing all marker-level performance,
-    uncertainty, and calibration statistics, as well as global
-    uncertainty–error correlation measures.
+    Evaluate markerwise metrics, plus aggregate metrics for:
+      - any_marker: nodes with at least one positive marker
+      - no_marker : nodes with no positive markers
+      - all_nodes : all evaluated nodes
     """
-        
     y, mu, log_var, X = predict_targets(
         g_val,
         model,
@@ -143,7 +212,6 @@ def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center
     delta_mean = np.array([np.mean(v) if v.size > 0 else np.nan for v in delta_mean_list])
     delta_var = np.array([np.mean(v) if v.size > 0 else np.nan for v in delta_var_list])
 
-    # --- uncertainty / squared-residual correlation ---
     rho_marker, pval_marker, n_pos_corr = compute_markerwise_uncertainty_correlation(
         y=y,
         mu=mu,
@@ -156,6 +224,18 @@ def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center
         mu=mu,
         log_var=log_var,
     )
+
+    # aggregate masks
+    row_pos = (X > 0.5).sum(axis=1)
+    mask_any = row_pos > 0
+    mask_none = row_pos == 0
+    mask_all = np.ones_like(row_pos, dtype=bool)
+
+    aggregate = {
+        "any_marker": _aggregate_subset_metrics(y, mu, log_var, X, mask_any, eps=eps),
+        "no_marker": _aggregate_subset_metrics(y, mu, log_var, X, mask_none, eps=eps),
+        "all_nodes": _aggregate_subset_metrics(y, mu, log_var, X, mask_all, eps=eps),
+    }
 
     return {
         "mse_model": mse_model,
@@ -177,4 +257,5 @@ def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center
         "n_pos_corr": n_pos_corr,
         "rho_global": rho_global,
         "pval_global": pval_global,
+        "aggregate": aggregate,
     }

@@ -11,17 +11,26 @@ def plot_influence_heatmap(mat, hops, marker_names, title):
       title        : str
 
     Output:
-      matplotlib heatmap
+      fig, ax
     """
 
-    plt.figure(figsize=(0.7 * len(marker_names) + 3, 0.7 * len(hops) + 2))
-    plt.imshow(mat, aspect="auto")
-    plt.colorbar()
-    plt.yticks(range(len(hops)), [f"hop {h}" for h in hops])
-    plt.xticks(range(len(marker_names)), marker_names, rotation=60, ha="right")
-    plt.title(title)
-    plt.tight_layout()
-    plt.show()
+    fig, ax = plt.subplots(
+        figsize=(0.7 * len(marker_names) + 3, 0.7 * len(hops) + 2)
+    )
+
+    im = ax.imshow(mat, aspect="auto")
+    fig.colorbar(im, ax=ax)
+
+    ax.set_yticks(range(len(hops)))
+    ax.set_yticklabels([f"hop {h}" for h in hops])
+
+    ax.set_xticks(range(len(marker_names)))
+    ax.set_xticklabels(marker_names, rotation=60, ha="right")
+
+    ax.set_title(title)
+    fig.tight_layout()
+
+    return fig, ax
 
 
 def plot_influence_center_resolved(
@@ -31,7 +40,7 @@ def plot_influence_center_resolved(
     title,
     center_zero=False,
     sort_center=True,
-    cmap="viridis",        # <-- NEW
+    cmap="viridis",
 ):
     """
     Inputs:
@@ -42,6 +51,9 @@ def plot_influence_center_resolved(
       center_zero  : bool
       sort_center  : bool
       cmap         : str or matplotlib colormap
+
+    Output:
+      fig, axes
     """
 
     mat = np.asarray(mat)
@@ -79,13 +91,13 @@ def plot_influence_center_resolved(
                 aspect="auto",
                 vmin=vmin,
                 vmax=vmax,
-                cmap=cmap,      # <-- USED HERE
+                cmap=cmap,
             )
         else:
             im = ax.imshow(
                 data,
                 aspect="auto",
-                cmap=cmap,      # <-- AND HERE
+                cmap=cmap,
             )
 
         ax.set_xlabel("perturbation marker X", fontsize=13)
@@ -93,14 +105,16 @@ def plot_influence_center_resolved(
 
         ax.set_xticks(range(len(marker_names)))
         ax.set_xticklabels(marker_names, rotation=60, ha="right", fontsize=11)
+
         ax.set_yticks(range(len(center_names)))
         ax.set_yticklabels(center_names, fontsize=11)
 
         ax.set_title(f"hop {hop}", fontsize=14)
 
-        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cbar.ax.tick_params(labelsize=11)
 
     fig.suptitle(title, fontsize=16)
     fig.tight_layout()
-    plt.show()
+
+    return fig, axes

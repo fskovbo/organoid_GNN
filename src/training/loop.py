@@ -7,6 +7,7 @@ from torch_geometric.loader import DataLoader
 
 from src.training.losses import (
     calibration_penalty,
+    edge_difference_loss,
     gaussian_nll,
     student_t_nll,
     huber_plus_variance_calibration,
@@ -38,6 +39,9 @@ class TrainConfig:
     # Optional residual calibration penalty
     lambda_calib: float = 0.0
     calib_mode: str = "corr"      # "corr" or "cov"
+
+    # Optional local contrast-preserving loss on graph edges
+    lambda_edge: float = 0.0
 
 
 def make_loaders(train_graphs, val_graphs, cfg):
@@ -113,7 +117,11 @@ def epoch_pass(model, loader, cfg, optimizer=None):
         # Optional calibration penalty on mean residuals
         res = mu - batch.y
         calib = calibration_penalty(res, batch.y, mode=cfg.calib_mode)
-        loss = base_loss + cfg.lambda_calib * calib
+
+        # Optional local contrast-preserving penalty on graph edges
+        edge_loss = edge_difference_loss(mu, batch.y, batch.edge_index, reduction="mean")
+
+        loss = base_loss + cfg.lambda_calib * calib + cfg.lambda_edge * edge_loss
 
         if is_train:
             optimizer.zero_grad(set_to_none=True)

@@ -128,3 +128,37 @@ def residual_slope(res: torch.Tensor, y: torch.Tensor, eps: float = 1e-12) -> fl
     denom = yt.square().sum().clamp_min(eps)
     b = (res * yt).sum() / denom
     return float(b.detach().cpu())
+
+def edge_difference_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    edge_index: torch.Tensor,
+    reduction: str = "mean",
+) -> torch.Tensor:
+    """
+    Match local contrast across graph edges:
+        (pred_i - pred_j) ~= (target_i - target_j)
+
+    This penalizes overly smooth predictions that flatten sharp local peaks.
+
+    Args:
+        pred: Per-node predictions of shape [N].
+        target: Per-node targets of shape [N].
+        edge_index: Edge list of shape [2, E].
+        reduction: "mean", "sum", or "none".
+    """
+    if edge_index.ndim != 2 or edge_index.shape[0] != 2:
+        raise ValueError("edge_index must have shape [2, E]")
+
+    src, dst = edge_index
+    pred_diff = pred[src] - pred[dst]
+    target_diff = target[src] - target[dst]
+    per_edge = (pred_diff - target_diff).square()
+
+    if reduction == "none":
+        return per_edge
+    if reduction == "sum":
+        return per_edge.sum()
+    if reduction == "mean":
+        return per_edge.mean()
+    raise ValueError("reduction must be one of: 'mean', 'sum', 'none'")

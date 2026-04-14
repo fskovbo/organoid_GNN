@@ -9,24 +9,28 @@ from src.graph.neighborhood import compute_hop_rings
 # Helper: predict (mu, logvar) for center node of each subgraph in a list
 # -----------------------------
 @torch.no_grad()
-def predict_subgraph_center_distribution(subgraphs, model, device=None, batch_size=64, num_workers=0, pin_memory=True):
+def predict_subgraph_center_distribution(
+    subgraphs,
+    model,
+    device=None,
+    batch_size=64,
+    num_workers=0,
+    pin_memory=True,
+):
     """
-    Inputs:
-      subgraphs : list of torch_geometric.data.Data
-                 each must have .x, .edge_index, and .center_idx (int)
-      model     : GNN model; forward returns (mu, logvar) with shape (num_nodes, 1) or (num_nodes,)
-      device    : 'cuda'/'cpu' (optional)
-
-    Outputs:
-      mu_c      : np.ndarray, shape (B,), predicted mean at center node for each subgraph
-      lv_c      : np.ndarray, shape (B,), predicted log-variance at center node for each subgraph
+    Predict mean and log-variance at the center node of each subgraph.
     """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = model.to(device).eval()
-    loader = DataLoader(subgraphs, batch_size=batch_size, shuffle=False,
-                        num_workers=num_workers, pin_memory=pin_memory)
+    loader = DataLoader(
+        subgraphs,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
 
     mu_centers = []
     lv_centers = []
@@ -34,16 +38,15 @@ def predict_subgraph_center_distribution(subgraphs, model, device=None, batch_si
     for batch in loader:
         batch = batch.to(device, non_blocking=True)
 
-        (mu, logvar), _ = model(batch.x, batch.edge_index)
+        try:
+            (mu, logvar), _ = model(batch.x, batch.edge_index, data=batch)
+        except TypeError:
+            (mu, logvar), _ = model(batch.x, batch.edge_index)
 
-        # Ensure shape (num_nodes,)
         mu = mu.view(-1)
         logvar = logvar.view(-1)
 
-        # DataLoader concatenates graphs; need center indices with graph offsets
-        # PyG provides batch.batch (node->graph id) and batch.ptr (graph start pointers)
-        ptr = batch.ptr  # shape (num_graphs+1,)
-        # For each graph i, center node in the batch is ptr[i] + center_idx_of_graph_i
+        ptr = batch.ptr
         centers = []
         for i in range(batch.num_graphs):
             c = int(batch.center_idx[i].item()) if torch.is_tensor(batch.center_idx[i]) else int(batch.center_idx[i])

@@ -1,6 +1,72 @@
 import copy
 import torch
+import numpy as np
 from torch_geometric.utils import degree
+
+
+def weight_targets_by_patch_area(
+    graphs,
+    *,
+    inplace=False,
+    area_key="cell_patch_area",
+    y_attr="y",
+):
+    """
+    Multiply node targets y by corresponding cell_patch_area.
+
+    Parameters
+    ----------
+    graphs : list[Data]
+        PyG graphs with g.y and g.meta[area_key]
+    inplace : bool
+        If False, returns shallow copies of graphs
+    area_key : str
+        Metadata key containing per-node areas
+    y_attr : str
+        Attribute name of target (default: 'y')
+
+    Returns
+    -------
+    graphs_out : list[Data]
+    """
+
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+
+    for i, g in enumerate(graphs_out):
+        if not hasattr(g, y_attr):
+            raise ValueError(f"Graph {i} has no attribute '{y_attr}'")
+
+        y = getattr(g, y_attr)
+        md = getattr(g, "meta", None)
+
+        if md is None:
+            raise ValueError(f"Graph {i} has no metadata (g.meta)")
+
+        if area_key not in md:
+            raise KeyError(
+                f"Graph {i} missing '{area_key}' in metadata"
+            )
+
+        area = np.asarray(md[area_key], dtype=np.float32).reshape(-1)
+
+        # convert y safely
+        y_np = y.detach().cpu().numpy() if hasattr(y, "detach") else np.asarray(y)
+
+        if y_np.shape[0] != area.shape[0]:
+            raise ValueError(
+                f"Shape mismatch in graph {i}: "
+                f"len(y)={y_np.shape[0]} vs len(area)={area.shape[0]}"
+            )
+
+        y_weighted = y_np * area
+
+        # write back (preserve tensor type if needed)
+        if hasattr(y, "new_tensor"):
+            setattr(g, y_attr, y.new_tensor(y_weighted))
+        else:
+            setattr(g, y_attr, y_weighted)
+
+    return graphs_out
 
 
 def subtract_organoid_mean_curvature(

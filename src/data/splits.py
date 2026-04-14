@@ -65,3 +65,58 @@ def standardize_graph_targets(train_graphs, val_graphs=None, robust=False):
         for g in val_graphs:
             g.y = (g.y - center) / scale
     return center, scale
+
+
+def standardize_graph_global_features(
+    train_graphs,
+    val_graphs=None,
+    attr_name="global_feat",
+    robust=False,
+):
+    """
+    Standardize graph-level feature vectors using TRAIN graphs only.
+
+    Assumes each graph stores attr_name with shape (1, D).
+    Returns (center, scale), each of shape (D,).
+    """
+    import numpy as np
+    import torch
+
+    # Collect training graph features as an (N_graphs, D) array
+    X_all = np.concatenate([
+        getattr(g, attr_name).detach().cpu().numpy()
+        for g in train_graphs
+    ], axis=0)
+
+    if robust:
+        center = np.median(X_all, axis=0)
+        iqr = np.percentile(X_all, 75, axis=0) - np.percentile(X_all, 25, axis=0)
+        scale = np.where(iqr > 1e-12, iqr / 1.349, 1.0)
+    else:
+        center = np.mean(X_all, axis=0)
+        std = np.std(X_all, axis=0)
+        scale = np.where(std > 1e-12, std, 1.0)
+
+    center_t = torch.as_tensor(center, dtype=train_graphs[0].global_feat.dtype)
+    scale_t = torch.as_tensor(scale, dtype=train_graphs[0].global_feat.dtype)
+
+    def _apply(graphs):
+        for g in graphs:
+            x = getattr(g, attr_name)
+
+            if x.ndim == 1:
+                x = x.unsqueeze(0)
+
+            if x.ndim != 2 or x.shape[0] != 1:
+                raise ValueError(
+                    f"{attr_name} must have shape (1, D), got {tuple(x.shape)}"
+                )
+
+            x_std = (x - center_t.unsqueeze(0)) / scale_t.unsqueeze(0)
+            setattr(g, attr_name, x_std)
+
+    _apply(train_graphs)
+    if val_graphs is not None:
+        _apply(val_graphs)
+
+    return center, scale

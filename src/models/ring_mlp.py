@@ -97,6 +97,34 @@ def _pooled_from_ring_features(x_ring, ring_sizes, n_markers, k_hops, include_ce
     return weighted_sum / denom
 
 
+
+
+def _broadcast_global_features(data, global_attr: str = "global_feat"):
+    """Broadcast graph-level features to nodes using the PyG batch vector."""
+    if data is None:
+        raise ValueError(
+            "Global features were requested, but no `data` object was passed to the model."
+        )
+
+    if not hasattr(data, global_attr):
+        raise AttributeError(
+            f"Batch has no attribute {global_attr!r}. Attach it to each graph before training."
+        )
+
+    if not hasattr(data, "batch"):
+        raise AttributeError("Batch has no 'batch' attribute")
+
+    gfeat = getattr(data, global_attr)
+    if gfeat.ndim == 1:
+        gfeat = gfeat.unsqueeze(-1)
+
+    if gfeat.ndim != 2:
+        raise ValueError(
+            f"Expected {global_attr!r} to be 2D after batching, got shape {tuple(gfeat.shape)}"
+        )
+
+    return gfeat[data.batch]
+
 # ---------------------------------------------------------------------
 # Shared MLP encoder
 # ---------------------------------------------------------------------
@@ -141,6 +169,8 @@ class RingFractionMLP(nn.Module):
         norm="layer",
         feature_attr="x_ring",
         log_scale2_clamp=(-10.0, 10.0),
+        global_dim=0,
+        global_attr="global_feat",
     ):
         super().__init__()
 
@@ -148,11 +178,13 @@ class RingFractionMLP(nn.Module):
         self.k_hops = k_hops
         self.feature_attr = feature_attr
         self.log_scale2_clamp = log_scale2_clamp
+        self.global_dim = global_dim
+        self.global_attr = global_attr
 
         in_dim = (k_hops + 1) * n_markers
 
         self.encoder = _MLPHead(in_dim, hidden_dim, dropout, norm)
-        self.head = nn.Linear(hidden_dim, 2)
+        self.head = nn.Linear(hidden_dim + global_dim, 2)
 
     def forward(self, x, edge_index, data=None):
         if data is not None and hasattr(data, self.feature_attr):
@@ -163,7 +195,18 @@ class RingFractionMLP(nn.Module):
             ring_x, _ = _compute_ring_fraction_features_and_sizes(x, edge_index, self.k_hops)
 
         h = self.encoder(ring_x)
-        out = self.head(h)
+
+        if self.global_dim > 0:
+            gfeat_node = _broadcast_global_features(data, self.global_attr)
+            if gfeat_node.shape[1] != self.global_dim:
+                raise ValueError(
+                    f"Expected {self.global_dim} global features, got {gfeat_node.shape[1]}"
+                )
+            h_out = torch.cat([h, gfeat_node], dim=1)
+        else:
+            h_out = h
+
+        out = self.head(h_out)
 
         mu = out[:, 0]
         log_scale2 = out[:, 1]
@@ -190,6 +233,8 @@ class PooledKHopMLP(nn.Module):
         feature_attr="x_ring",
         include_center=True,
         log_scale2_clamp=(-10.0, 10.0),
+        global_dim=0,
+        global_attr="global_feat",
     ):
         super().__init__()
 
@@ -198,9 +243,11 @@ class PooledKHopMLP(nn.Module):
         self.feature_attr = feature_attr
         self.include_center = include_center
         self.log_scale2_clamp = log_scale2_clamp
+        self.global_dim = global_dim
+        self.global_attr = global_attr
 
         self.encoder = _MLPHead(n_markers, hidden_dim, dropout, norm)
-        self.head = nn.Linear(hidden_dim, 2)
+        self.head = nn.Linear(hidden_dim + global_dim, 2)
 
     def forward(self, x, edge_index, data=None):
         if data is not None and hasattr(data, self.feature_attr) and hasattr(data, "ring_sizes"):
@@ -218,7 +265,18 @@ class PooledKHopMLP(nn.Module):
         )
 
         h = self.encoder(pooled_x)
-        out = self.head(h)
+
+        if self.global_dim > 0:
+            gfeat_node = _broadcast_global_features(data, self.global_attr)
+            if gfeat_node.shape[1] != self.global_dim:
+                raise ValueError(
+                    f"Expected {self.global_dim} global features, got {gfeat_node.shape[1]}"
+                )
+            h_out = torch.cat([h, gfeat_node], dim=1)
+        else:
+            h_out = h
+
+        out = self.head(h_out)
 
         mu = out[:, 0]
         log_scale2 = out[:, 1]
@@ -262,6 +320,8 @@ class RingSizeMLP(nn.Module):
         ring_sizes_attr="ring_sizes",
         use_center_markers=True,
         log_scale2_clamp=(-10.0, 10.0),
+        global_dim=0,
+        global_attr="global_feat",
     ):
         super().__init__()
 
@@ -273,6 +333,8 @@ class RingSizeMLP(nn.Module):
         self.ring_sizes_attr = ring_sizes_attr
         self.use_center_markers = use_center_markers
         self.log_scale2_clamp = log_scale2_clamp
+        self.global_dim = global_dim
+        self.global_attr = global_attr
 
         in_dim = (k_hops + 1) + (n_markers if use_center_markers else 0)
 
@@ -293,7 +355,7 @@ class RingSizeMLP(nn.Module):
             nn.Dropout(dropout if dropout > 0 else 0.0),
         )
 
-        self.head = nn.Linear(hidden_dim, 2)
+        self.head = nn.Linear(hidden_dim + global_dim, 2)
 
     def forward(self, x, edge_index, data=None):
         # use precomputed ring sizes if available, otherwise recompute
@@ -311,7 +373,18 @@ class RingSizeMLP(nn.Module):
             feats = ring_sizes
 
         h = self.encoder(feats)
-        out = self.head(h)
+
+        if self.global_dim > 0:
+            gfeat_node = _broadcast_global_features(data, self.global_attr)
+            if gfeat_node.shape[1] != self.global_dim:
+                raise ValueError(
+                    f"Expected {self.global_dim} global features, got {gfeat_node.shape[1]}"
+                )
+            h_out = torch.cat([h, gfeat_node], dim=1)
+        else:
+            h_out = h
+
+        out = self.head(h_out)
 
         mu = out[:, 0]
         log_scale2 = out[:, 1]

@@ -1,14 +1,22 @@
-import os, glob, json
 import copy
-import torch
+import glob
+import json
+import os
+from typing import Any
+
 import numpy as np
+import torch
 
 
-def load_marker_names_from_dir(dir_path):
-    """
-    Try to find a *_markers.json sidecar in a directory of NPZs and load marker names.
-    Returns: list[str] or None if not found.
-    """
+"""Utilities for attaching, validating, querying, and promoting graph metadata."""
+
+
+# -----------------------------------------------------------------------------
+# IO / attachment
+# -----------------------------------------------------------------------------
+
+def load_marker_names_from_dir(dir_path: str):
+    """Load marker names from a *_markers.json sidecar if present."""
     jsons = sorted(glob.glob(os.path.join(dir_path, "*_markers.json")))
     if not jsons:
         return None
@@ -17,23 +25,9 @@ def load_marker_names_from_dir(dir_path):
     return list(names)
 
 
+
 def load_aux_metadata_for_dir(dir_path: str):
-    """
-    Scan a directory of organoid NPZs and load per-organoid auxiliary metadata
-    from sidecars named: organoid_<id>_aux.json.
-
-    Returns
-    -------
-    meta_by_key : dict[str, dict]
-        Maps organoid key (filename stem, e.g. "organoid_day4_A01_007")
-        -> {"organoid_id": str, "total_surface_area": float|None,
-            "total_volume": float|None, "complexity_score": float|None, ...}
-
-    Notes
-    -----
-    - Missing sidecars are simply skipped; you’ll still get metadata for the ones present.
-    - Values are coerced to Python floats where possible; missing fields are omitted.
-    """
+    """Load auxiliary per-organoid JSON metadata from a dataset directory."""
     meta = {}
 
     for npz_path in sorted(glob.glob(os.path.join(dir_path, "organoid_*.npz"))):
@@ -51,11 +45,9 @@ def load_aux_metadata_for_dir(dir_path: str):
             continue
 
         clean = {"organoid_id": str(raw.get("organoid_id", stem.replace("organoid_", "")))}
-
         for k, v in raw.items():
             if k == "organoid_id":
                 continue
-
             try:
                 if isinstance(v, (list, tuple)) and len(v) == 1:
                     v = v[0]
@@ -64,11 +56,9 @@ def load_aux_metadata_for_dir(dir_path: str):
             except Exception:
                 pass
 
-            # keep numeric values as Python floats
             if isinstance(v, (int, float, np.number)):
                 clean[k] = float(v)
             else:
-                # keep strings / bools / lists / etc. too
                 clean[k] = v
 
         meta[stem] = clean
@@ -76,31 +66,14 @@ def load_aux_metadata_for_dir(dir_path: str):
     return meta
 
 
+
 def attach_metadata_to_graphs(graphs, meta_by_stem, include_keys=None, exclude_keys=None):
-    """
-    Attach metadata dicts to graphs as g.meta.
-
-    Parameters
-    ----------
-    graphs : list[Data]
-    meta_by_stem : dict
-        Output of load_aux_metadata_for_dir(...)
-    include_keys : iterable[str] or None
-        If given, only these metadata keys are attached.
-    exclude_keys : iterable[str] or None
-        If given, these keys are removed before attaching.
-
-    Returns
-    -------
-    attached : int
-        Number of graphs that received metadata.
-    """
+    """Attach metadata dicts to graphs as ``g.meta``."""
     if include_keys is not None and exclude_keys is not None:
         raise ValueError("Use only one of include_keys or exclude_keys")
 
     include_keys = set(include_keys) if include_keys is not None else None
     exclude_keys = set(exclude_keys) if exclude_keys is not None else set()
-
     attached = 0
 
     for g in graphs:
@@ -108,12 +81,11 @@ def attach_metadata_to_graphs(graphs, meta_by_stem, include_keys=None, exclude_k
         if stem is None:
             continue
 
-        md = meta_by_stem.get(stem, None)
+        md = meta_by_stem.get(stem)
         if md is None:
             continue
 
         md = dict(md)
-
         if include_keys is not None:
             md = {k: v for k, v in md.items() if k in include_keys}
         else:
@@ -125,103 +97,23 @@ def attach_metadata_to_graphs(graphs, meta_by_stem, include_keys=None, exclude_k
     return attached
 
 
-def metadata_dataframe(
-    graphs,
-    *,
-    extra_cols=("num_nodes",),
-    include_meta=True,
-    prefix_meta=False,
-):
-    """
-    Build a dataframe from graphs + metadata.
+# -----------------------------------------------------------------------------
+# Metadata normalization / lookup
+# -----------------------------------------------------------------------------
 
-    Parameters
-    ----------
-    graphs : list[Data]
-    extra_cols : iterable[str]
-        Extra computed columns (e.g. "num_nodes")
-    include_meta : bool
-        If True, include ALL metadata fields dynamically
-    prefix_meta : bool
-        If True, prefix metadata columns with 'meta_'
-
-    Returns
-    -------
-    df : pandas.DataFrame
-    """
-    import pandas as pd
-
-    rows = []
-
-    for g in graphs:
-        key = getattr(g, "organoid_str", None)
-        md = getattr(g, "meta", {}) or {}
-
-        row = {
-            "organoid": key,
-        }
-
-        # --- include all metadata dynamically ---
-        if include_meta:
-            for k, v in md.items():
-                col = f"meta_{k}" if prefix_meta else k
-                row[col] = v
-
-        # --- optional computed columns ---
-        if "num_nodes" in extra_cols:
-            if hasattr(g, "x"):
-                row["num_nodes"] = int(g.x.size(0))
-            elif hasattr(g, "y"):
-                row["num_nodes"] = int(g.y.shape[0])
-
-        rows.append(row)
-
-    return pd.DataFrame(rows)
-
-
-
-def ensure_metadata_keys(
-    graphs,
-    required_keys=None,
-    defaults=None,
-    inplace=False,
-):
-    """
-    Ensure every graph has a .meta dict with the same keys.
-
-    Parameters
-    ----------
-    graphs : list[Data]
-    required_keys : iterable[str] or None
-        Keys that must exist in every g.meta.
-    defaults : dict or None
-        Default values to use for missing keys.
-    inplace : bool
-        If False, returns shallow copies of graphs.
-
-    Returns
-    -------
-    graphs_out : list[Data]
-    """
-    if required_keys is None:
-        required_keys = []
-    if defaults is None:
-        defaults = {}
-
+def ensure_metadata_keys(graphs, required_keys=None, defaults=None, inplace=False):
+    """Ensure every graph has a ``.meta`` dict containing the requested keys."""
+    required_keys = [] if required_keys is None else list(required_keys)
+    defaults = {} if defaults is None else dict(defaults)
     graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
 
     for g in graphs_out:
         md = getattr(g, "meta", None)
-        if md is None:
-            md = {}
-        else:
-            md = dict(md)
+        md = {} if md is None else dict(md)
 
         for key in required_keys:
             if key not in md:
                 md[key] = defaults.get(key, np.nan)
-
-        # also make sure any explicitly provided defaults exist
         for key, value in defaults.items():
             if key not in md:
                 md[key] = value
@@ -231,47 +123,272 @@ def ensure_metadata_keys(
     return graphs_out
 
 
-def filter_graphs_by_metadata(
+
+def snapshot_graph_metadata(graphs, key_attr="organoid_str", meta_attr="meta"):
+    """Create a deep-copied lookup ``{graph_key: metadata_dict}`` from graphs."""
+    out = {}
+    for i, g in enumerate(graphs):
+        key = getattr(g, key_attr, None)
+        if key is None:
+            raise ValueError(f"Graph at index {i} has no {key_attr!r}")
+
+        md = getattr(g, meta_attr, None)
+        if md is None:
+            out[key] = {}
+        elif not isinstance(md, dict):
+            raise TypeError(f"Graph {key!r} has non-dict {meta_attr!r}: {type(md)}")
+        else:
+            out[key] = copy.deepcopy(md)
+    return out
+
+
+
+def restore_graph_metadata(
+    graphs,
+    meta_lookup,
+    *,
+    key_attr="organoid_str",
+    meta_attr="meta",
+    inplace=False,
+    strict=True,
+):
+    """Reattach metadata dicts to graphs from a lookup."""
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+
+    for i, g in enumerate(graphs_out):
+        key = getattr(g, key_attr, None)
+        if key is None:
+            if strict:
+                raise ValueError(f"Graph at index {i} has no {key_attr!r}")
+            continue
+
+        md = meta_lookup.get(key)
+        if md is None:
+            if strict:
+                raise KeyError(f"No metadata found for graph key {key!r}")
+            continue
+
+        setattr(g, meta_attr, copy.deepcopy(md))
+
+    return graphs_out
+
+
+
+def get_graph_metadata(
+    graph,
+    meta_lookup=None,
+    *,
+    key_attr="organoid_str",
+    meta_attr="meta",
+    strict=True,
+    default=None,
+):
+    """Resolve metadata either from ``graph.meta`` or from ``meta_lookup``."""
+    md = getattr(graph, meta_attr, None)
+    if isinstance(md, dict):
+        return md
+
+    if meta_lookup is None:
+        if strict:
+            raise ValueError("Graph has no attached metadata and no metadata_lookup was provided.")
+        return {} if default is None else default
+
+    key = getattr(graph, key_attr, None)
+    if key is None:
+        if strict:
+            raise ValueError(f"Graph has no {key_attr!r} attribute.")
+        return {} if default is None else default
+
+    md = meta_lookup.get(key)
+    if md is None:
+        if strict:
+            raise KeyError(f"No metadata found for graph key {key!r}")
+        return {} if default is None else default
+
+    return md
+
+
+
+def get_graph_metadata_value(
+    graph,
+    key,
+    meta_lookup=None,
+    *,
+    default=None,
+    strict=False,
+    cast=None,
+):
+    """Resolve one metadata field from a graph, optionally casting the value."""
+    md = get_graph_metadata(graph, meta_lookup=meta_lookup, strict=strict)
+    value = md.get(key, default)
+    if cast is not None and value is not None:
+        value = cast(value)
+    return value
+
+
+
+def _graph_num_nodes(graph) -> int:
+    if hasattr(graph, "x") and graph.x is not None:
+        return int(graph.x.shape[0])
+    if hasattr(graph, "y") and graph.y is not None:
+        return int(graph.y.shape[0])
+    raise ValueError("Could not infer number of nodes from graph")
+
+
+
+def get_metadata_array(graphs, key, meta_lookup=None, *, dtype=float, missing_value=np.nan):
+    """Extract one scalar metadata value per graph as a dense array."""
+    out = []
+    for g in graphs:
+        value = get_graph_metadata_value(g, key, meta_lookup=meta_lookup, default=None, strict=False)
+        if value is None:
+            out.append(missing_value)
+        else:
+            out.append(value)
+    return np.asarray(out, dtype=dtype)
+
+
+
+def broadcast_graph_metadata_to_nodes(
     graphs,
     key,
-    keep_values=None,
-    drop_values=None,
-    missing="keep",   # "keep" | "drop"
-    inplace=False,
+    *,
+    meta_lookup=None,
+    dtype=None,
+    missing_value=np.nan,
+    strict=True,
 ):
     """
-    Filter graphs based on metadata field g.meta[key].
+    Broadcast one graph-level metadata field to all nodes in each graph.
 
     Parameters
     ----------
     graphs : list[Data]
     key : str
-        Metadata key to filter on (e.g. "timepoint")
-    keep_values : iterable or None
-        If given, only graphs with meta[key] in keep_values are kept.
-    drop_values : iterable or None
-        If given, graphs with meta[key] in drop_values are removed.
-    missing : str
-        How to treat graphs where key is missing or None.
-        "keep" → keep them
-        "drop" → remove them
-    inplace : bool
-        If False, returns shallow copies.
+        Metadata key to broadcast.
+    meta_lookup : dict or None
+        Optional lookup used when graphs do not have attached .meta.
+    dtype : numpy dtype or None
+        Output dtype. If None, infer from the metadata value.
+        Use dtype=float for numeric fields when desired.
+    missing_value : scalar
+        Value used for missing metadata when strict=False.
+    strict : bool
+        If True, raise on missing metadata. If False, fill with missing_value.
 
     Returns
     -------
-    filtered_graphs : list[Data]
+    values : np.ndarray, shape (total_num_nodes,)
     """
+    out = []
 
+    for gi, g in enumerate(graphs):
+        md = get_graph_metadata(g, meta_lookup=meta_lookup, strict=strict)
+        n_nodes = int(g.y.shape[0])
+
+        if md is None or key not in md or md[key] is None:
+            if strict:
+                organoid_str = getattr(g, "organoid_str", None)
+                raise KeyError(
+                    f"Graph {gi} ({organoid_str}) missing metadata field {key!r}"
+                )
+            value = missing_value
+        else:
+            value = md[key]
+
+        scalar = np.asarray(value).reshape(())
+
+        if dtype is None:
+            arr = np.full(n_nodes, scalar)
+        else:
+            arr = np.full(n_nodes, scalar, dtype=dtype)
+
+        out.append(arr)
+
+    return np.concatenate(out, axis=0)
+
+
+
+def extract_metadata_per_node_min(
+    graphs,
+    field,
+    meta_lookup=None,
+    *,
+    missing_value=np.nan,
+    strict=True,
+):
+    """Extract one scalar per node from a metadata field by taking the minimum over axis 0/1.
+
+    Supported field shapes:
+      - missing / None / empty -> no valid value
+      - (n_nodes,)             -> already reduced
+      - (n_regions, n_nodes)   -> reduce over regions
+      - (n_nodes, n_regions)   -> reduce over regions
+    """
+    values_out = []
+    valid_out = []
+
+    for gi, g in enumerate(graphs):
+        n_nodes = _graph_num_nodes(g)
+        arr = get_graph_metadata_value(g, field, meta_lookup=meta_lookup, default=None, strict=False)
+
+        if arr is None:
+            if strict:
+                raise KeyError(
+                    f"Graph {gi} ({getattr(g, 'organoid_str', None)}) is missing metadata field {field!r}"
+                )
+            values_out.append(np.full(n_nodes, missing_value, dtype=float))
+            valid_out.append(np.zeros(n_nodes, dtype=bool))
+            continue
+
+        arr = np.asarray(arr)
+        if arr.size == 0:
+            values_out.append(np.full(n_nodes, missing_value, dtype=float))
+            valid_out.append(np.zeros(n_nodes, dtype=bool))
+        elif arr.ndim == 1:
+            if arr.shape[0] != n_nodes:
+                raise ValueError(
+                    f"Graph {gi} ({getattr(g, 'organoid_str', None)}): field {field!r} has length {arr.shape[0]}, expected {n_nodes}"
+                )
+            values_out.append(arr.astype(float))
+            valid_out.append(np.ones(n_nodes, dtype=bool))
+        elif arr.ndim == 2:
+            if arr.shape[1] == n_nodes:
+                reduced = np.min(arr, axis=0) if arr.shape[0] > 0 else np.full(n_nodes, missing_value)
+            elif arr.shape[0] == n_nodes:
+                reduced = np.min(arr, axis=1) if arr.shape[1] > 0 else np.full(n_nodes, missing_value)
+            else:
+                raise ValueError(
+                    f"Graph {gi} ({getattr(g, 'organoid_str', None)}): field {field!r} has shape {arr.shape}, expected (n_regions, {n_nodes}) or ({n_nodes}, n_regions)"
+                )
+            values_out.append(np.asarray(reduced, dtype=float))
+            valid_out.append(np.ones(n_nodes, dtype=bool))
+        else:
+            raise ValueError(
+                f"Graph {gi} ({getattr(g, 'organoid_str', None)}): unsupported ndim={arr.ndim} for field {field!r}"
+            )
+
+    return np.concatenate(values_out), np.concatenate(valid_out)
+
+
+# -----------------------------------------------------------------------------
+# Filtering helpers
+# -----------------------------------------------------------------------------
+
+def filter_graphs_by_metadata(
+    graphs,
+    key,
+    keep_values=None,
+    drop_values=None,
+    missing="keep",
+    inplace=False,
+):
+    """Filter graphs by a categorical metadata field."""
     if keep_values is not None and drop_values is not None:
         raise ValueError("Specify only one of keep_values or drop_values")
 
-    if keep_values is not None:
-        keep_values = set(keep_values)
-
-    if drop_values is not None:
-        drop_values = set(drop_values)
-
+    keep_values = set(keep_values) if keep_values is not None else None
+    drop_values = set(drop_values) if drop_values is not None else None
     out = []
 
     for g in graphs:
@@ -284,10 +401,8 @@ def filter_graphs_by_metadata(
             continue
 
         keep_flag = True
-
         if keep_values is not None:
             keep_flag = val in keep_values
-
         if drop_values is not None:
             keep_flag = val not in drop_values
 
@@ -297,190 +412,99 @@ def filter_graphs_by_metadata(
     return out
 
 
-def strip_graph_metadata(graphs, attr_names=("meta",), inplace=False):
-    """
-    Remove non-batchable metadata attributes from PyG Data objects.
-    """
-    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
 
-    for g in graphs_out:
-        for attr in attr_names:
-            if hasattr(g, attr):
-                delattr(g, attr)
-
-    return graphs_out
-
-
-def restore_graph_metadata(
+def filter_graphs_by_numeric_metadata(
     graphs,
-    meta_lookup,
+    key,
+    meta_lookup=None,
     *,
-    key_attr="organoid_str",
-    meta_attr="meta",
+    min_value=None,
+    max_value=None,
+    allow_missing=False,
     inplace=False,
-    strict=True,
 ):
-    """
-    Reattach metadata dicts to graphs from a lookup.
-
-    Parameters
-    ----------
-    graphs : list[Data]
-    meta_lookup : dict[str, dict]
-        Output of snapshot_graph_metadata(...)
-    key_attr : str
-        Graph attribute used as stable identifier
-    meta_attr : str
-        Attribute to write metadata into
-    inplace : bool
-        If False, shallow-copy graphs before attaching metadata
-    strict : bool
-        If True, raise if a graph key is missing from meta_lookup
-
-    Returns
-    -------
-    graphs_out : list[Data]
-    """
-    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
-
-    for i, g in enumerate(graphs_out):
-        key = getattr(g, key_attr, None)
-        if key is None:
-            if strict:
-                raise ValueError(f"Graph at index {i} has no {key_attr!r}")
-            continue
-
-        md = meta_lookup.get(key, None)
-        if md is None:
-            if strict:
-                raise KeyError(f"No metadata found for graph key {key!r}")
-            continue
-
-        setattr(g, meta_attr, copy.deepcopy(md))
-
-    return graphs_out
-
-
-
-def print_graph_and_metadata_fields(graphs):
-    """
-    Print:
-      - graph attribute names
-      - metadata keys (inside g.meta)
-    """
-    graph_keys = set()
-    meta_keys = set()
-
+    """Filter graphs by a numeric metadata field such as complexity."""
+    out = []
     for g in graphs:
-        graph_keys.update(vars(g).keys())
+        val = get_graph_metadata_value(g, key, meta_lookup=meta_lookup, default=None, strict=False)
+        keep = True
 
-        md = getattr(g, "meta", None)
-        if isinstance(md, dict):
-            meta_keys.update(md.keys())
-
-    print("Graph fields:")
-    for k in sorted(graph_keys):
-        print(f"  - {k}")
-
-    print("\nMetadata fields (g.meta):")
-    for k in sorted(meta_keys):
-        print(f"  - {k}")
-
-
-
-def snapshot_graph_metadata(graphs, key_attr="organoid_str", meta_attr="meta"):
-    """
-    Save all metadata dicts from graphs into a lookup keyed by `key_attr`.
-
-    Parameters
-    ----------
-    graphs : list[Data]
-    key_attr : str
-        Graph attribute used as stable identifier, usually 'organoid_str'
-    meta_attr : str
-        Attribute containing metadata dict, usually 'meta'
-
-    Returns
-    -------
-    meta_lookup : dict[str, dict]
-        Maps graph id -> deep-copied metadata dict
-    """
-    out = {}
-
-    for i, g in enumerate(graphs):
-        key = getattr(g, key_attr, None)
-        if key is None:
-            raise ValueError(f"Graph at index {i} has no {key_attr!r}")
-
-        md = getattr(g, meta_attr, None)
-        if md is None:
-            out[key] = {}
-        elif not isinstance(md, dict):
-            raise TypeError(
-                f"Graph {key!r} has non-dict {meta_attr!r}: {type(md)}"
-            )
+        if val is None:
+            keep = allow_missing
         else:
-            out[key] = copy.deepcopy(md)
+            val = float(val)
+            if not np.isfinite(val):
+                keep = allow_missing
+            if min_value is not None and np.isfinite(val):
+                keep = keep and (val >= float(min_value))
+            if max_value is not None and np.isfinite(val):
+                keep = keep and (val <= float(max_value))
+
+        if keep:
+            out.append(g if inplace else copy.copy(g))
 
     return out
 
 
 
-def promote_metadata_to_graph_tensors(
+def filter_graphs_by_complexity(graphs, min_complexity=2.0, meta_lookup=None, *, allow_missing=False, inplace=False):
+    """Filter graphs by ``meta['complexity']`` using a single project-level helper."""
+    return filter_graphs_by_numeric_metadata(
+        graphs,
+        key="complexity",
+        meta_lookup=meta_lookup,
+        min_value=min_complexity,
+        allow_missing=allow_missing,
+        inplace=inplace,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Graph attribute utilities
+# -----------------------------------------------------------------------------
+
+def strip_graph_metadata(graphs, attr_names=("meta",), inplace=False):
+    """Remove non-batchable metadata attributes from PyG Data objects."""
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+    for g in graphs_out:
+        for attr in attr_names:
+            if hasattr(g, attr):
+                delattr(g, attr)
+    return graphs_out
+
+
+
+def add_log_metadata_features(
     graphs,
-    field_specs,
     *,
-    meta_attr="meta",
+    meta_lookup=None,
+    area_key="total_surface_area",
+    volume_key="total_volume",
+    num_nodes_key="num_nodes",
+    eps=1e-12,
     inplace=False,
 ):
-    """
-    Copy selected metadata fields from g.meta onto PyG graphs as tensor attributes.
+    """Add commonly used log-transformed global metadata fields into ``g.meta``."""
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
 
-    This is useful for quantities that should survive metadata stripping and be
-    batchable during training, such as:
-      - node-level fields: cell_patch_area
-      - graph-level scalars: total_surface_area
-      - graph-level vectors: global_feat built from multiple metadata fields
+    for g in graphs_out:
+        md = dict(get_graph_metadata(g, meta_lookup=meta_lookup, strict=True))
+        area = float(md[area_key])
+        volume = float(md[volume_key])
+        num_nodes = float(md[num_nodes_key])
 
-    Parameters
-    ----------
-    graphs : list[Data]
-        PyG graphs.
-    field_specs : list[dict]
-        Each spec must be one of the following forms.
+        md["log_surface_area"] = np.log(area + eps)
+        md["log_volume"] = np.log(volume + eps)
+        md["log_volume_over_area"] = np.log((volume + eps) / (area + eps))
+        md["log_num_cells"] = np.log(num_nodes + eps)
+        g.meta = md
 
-        1) Single metadata field -> one graph attribute
-           {
-               "meta_key": "cell_patch_area",
-               "attr_name": "cell_patch_area",   # optional; defaults to meta_key
-               "kind": "node" | "graph",
-               "dtype": torch.float32,           # optional
-           }
+    return graphs_out
 
-        2) Multiple metadata fields -> one graph-level vector attribute
-           {
-               "meta_keys": ["total_surface_area", "total_volume"],
-               "attr_name": "global_feat",
-               "kind": "graph_vector",
-               "dtype": torch.float32,           # optional
-           }
 
-    meta_attr : str
-        Name of the metadata attribute on each graph, usually "meta".
-    inplace : bool
-        If False, returns shallow copies of the graphs.
 
-    Returns
-    -------
-    graphs_out : list[Data]
-        Graphs with new tensor attributes added.
-
-    Notes
-    -----
-    - "node" fields must have length equal to the number of nodes.
-    - "graph" fields are stored as shape (1,) tensors so PyG batches them cleanly.
-    - "graph_vector" fields are stored as shape (D,) tensors.
-    """
+def promote_metadata_to_graph_tensors(graphs, field_specs, *, meta_attr="meta", inplace=False):
+    """Copy selected metadata fields from ``g.meta`` to batchable tensor attributes."""
     graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
 
     for i, g in enumerate(graphs_out):
@@ -498,112 +522,104 @@ def promote_metadata_to_graph_tensors(
             dtype = spec.get("dtype", torch.float32)
             kind = spec.get("kind", None)
 
-            # ----------------------------------------------------------
-            # Case 1: one metadata field -> one tensor attribute
-            # ----------------------------------------------------------
             if "meta_key" in spec:
                 meta_key = spec["meta_key"]
                 attr_name = spec.get("attr_name", meta_key)
-
                 if kind is None:
-                    raise ValueError(
-                        f"Spec for meta_key={meta_key!r} is missing required 'kind'"
-                    )
-
+                    raise ValueError(f"Spec for meta_key={meta_key!r} is missing required 'kind'")
                 if meta_key not in md:
                     raise KeyError(f"Graph {i} missing metadata field {meta_key!r}")
 
                 value = md[meta_key]
-
                 if kind == "node":
                     arr = np.asarray(value).reshape(-1)
-
                     if n_nodes is None:
-                        raise ValueError(
-                            f"Graph {i}: cannot validate node field {meta_key!r} "
-                            "because neither x nor y is present"
-                        )
-
+                        raise ValueError(f"Graph {i}: cannot validate node field {meta_key!r}")
                     if arr.shape[0] != n_nodes:
                         raise ValueError(
-                            f"Graph {i}: node field {meta_key!r} has length {arr.shape[0]} "
-                            f"but graph has {n_nodes} nodes"
+                            f"Graph {i}: node field {meta_key!r} has length {arr.shape[0]} but graph has {n_nodes} nodes"
                         )
-
                     tensor = torch.as_tensor(arr, dtype=dtype)
-
                 elif kind == "graph":
-                    arr = np.asarray([value])
-                    tensor = torch.as_tensor(arr, dtype=dtype)
-
+                    tensor = torch.as_tensor(np.asarray([value]), dtype=dtype)
                 else:
-                    raise ValueError(
-                        f"Unknown kind={kind!r} for single-field spec; "
-                        "expected 'node' or 'graph'"
-                    )
-
+                    raise ValueError(f"Unknown kind={kind!r}; expected 'node' or 'graph'")
                 setattr(g, attr_name, tensor)
 
-            # ----------------------------------------------------------
-            # Case 2: many metadata fields -> one graph vector
-            # ----------------------------------------------------------
             elif "meta_keys" in spec:
                 meta_keys = list(spec["meta_keys"])
                 attr_name = spec.get("attr_name", None)
-
                 if kind != "graph_vector":
-                    raise ValueError(
-                        "Specs with 'meta_keys' must use kind='graph_vector'"
-                    )
+                    raise ValueError("Specs with 'meta_keys' must use kind='graph_vector'")
                 if not attr_name:
-                    raise ValueError(
-                        "Specs with 'meta_keys' must provide 'attr_name'"
-                    )
-                if len(meta_keys) == 0:
-                    raise ValueError("meta_keys must not be empty")
-
-                values = []
-                for key in meta_keys:
-                    if key not in md:
-                        raise KeyError(f"Graph {i} missing metadata field {key!r}")
-                    values.append(md[key])
-
-                arr = np.asarray(values).reshape(1, -1)
-                tensor = torch.as_tensor(arr, dtype=dtype)
+                    raise ValueError("Specs with 'meta_keys' must provide 'attr_name'")
+                values = [md[key] for key in meta_keys]
+                tensor = torch.as_tensor(np.asarray(values).reshape(1, -1), dtype=dtype)
                 setattr(g, attr_name, tensor)
-
             else:
-                raise ValueError(
-                    "Each field spec must contain either 'meta_key' or 'meta_keys'"
-                )
+                raise ValueError("Each field spec must contain either 'meta_key' or 'meta_keys'")
 
     return graphs_out
 
 
+
 def infer_global_dim(graphs, attr_name="global_feat"):
-    """
-    Infer the dimensionality of graph-level features.
-    Returns 0 if the attribute does not exist.
-    """
+    """Infer the dimensionality of a graph-level tensor attribute."""
     if len(graphs) == 0:
         return 0
-
     g0 = graphs[0]
-
     if not hasattr(g0, attr_name):
         return 0
-
     x = getattr(g0, attr_name)
-
     if x is None:
         return 0
-
-    # handle shapes: (D,), (1, D)
     if x.ndim == 1:
         return int(x.shape[0])
-    elif x.ndim == 2:
+    if x.ndim == 2:
         return int(x.shape[-1])
-    else:
-        raise ValueError(
-            f"{attr_name} has unexpected shape {tuple(x.shape)}"
-        )
+    raise ValueError(f"{attr_name} has unexpected shape {tuple(x.shape)}")
+
+
+# -----------------------------------------------------------------------------
+# Tabular inspection
+# -----------------------------------------------------------------------------
+
+def metadata_dataframe(graphs, *, extra_cols=("num_nodes",), include_meta=True, prefix_meta=False, meta_lookup=None):
+    """Build a dataframe from graphs and their metadata."""
+    import pandas as pd
+
+    rows = []
+    for g in graphs:
+        row = {"organoid": getattr(g, "organoid_str", None)}
+
+        if include_meta:
+            md = get_graph_metadata(g, meta_lookup=meta_lookup, strict=False, default={})
+            for k, v in md.items():
+                row[f"meta_{k}" if prefix_meta else k] = v
+
+        if "num_nodes" in extra_cols:
+            row["num_nodes"] = _graph_num_nodes(g)
+
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+
+def print_graph_and_metadata_fields(graphs):
+    """Print graph attribute names and the union of all metadata keys."""
+    graph_keys = set()
+    meta_keys = set()
+    for g in graphs:
+        graph_keys.update(vars(g).keys())
+        md = getattr(g, "meta", None)
+        if isinstance(md, dict):
+            meta_keys.update(md.keys())
+
+    print("Graph fields:")
+    for k in sorted(graph_keys):
+        print(f"  - {k}")
+
+    print("\nMetadata fields (g.meta):")
+    for k in sorted(meta_keys):
+        print(f"  - {k}")

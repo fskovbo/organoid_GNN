@@ -1,5 +1,14 @@
 import numpy as np
 
+
+def append_none_marker_column(X, marker_names, *, name="None"):
+    """Append a binary 'no marker positive' column to a marker matrix."""
+    X = np.asarray(X, dtype=float)
+    none_mask = (X.sum(axis=1) == 0).astype(float)
+    X_ext = np.concatenate([X, none_mask[:, None]], axis=1)
+    return X_ext, list(marker_names) + [name]
+
+
 def compute_markerwise_means(y_true, X):
     """
     μ_m = mean(y_true | marker m positive), μ_none for rows with no positives.

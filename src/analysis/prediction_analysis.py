@@ -1,40 +1,87 @@
 import numpy as np
+import pandas as pd
 from scipy.stats import spearmanr
-from src.inference.predict import predict_targets
+
 from src.analysis.marker_stats import (
-    compute_markerwise_residuals,
     compute_markerwise_nll,
+    compute_markerwise_residuals,
     compute_nodewise_nll,
 )
+from src.data.metadata import get_graph_metadata
+from src.inference.predict import predict_targets, rescale_distribution_outputs
 
 
-def rescale_distribution_outputs(y, mu, log_var=None, center=0.0, scale=1.0):
-    y = np.asarray(y, dtype=np.float64) * scale + center
-    mu = np.asarray(mu, dtype=np.float64) * scale + center
+"""Utilities for evaluating curvature predictions and building analysis tables."""
 
-    if log_var is not None:
-        log_var = np.asarray(log_var, dtype=np.float64) + 2.0 * np.log(scale)
-            
-    return y, mu, log_var
 
+# -----------------------------------------------------------------------------
+# Existing helpers
+# -----------------------------------------------------------------------------
+
+
+def get_graph_slice_bounds(graphs, graph_index):
+    """Return ``(start, end)`` indices into concatenated node arrays for one graph."""
+    sizes = [int(g.y.shape[0]) for g in graphs]
+    start = int(np.sum(sizes[:graph_index]))
+    end = start + sizes[graph_index]
+    return start, end
+
+
+
+def split_node_arrays_by_graph(graphs, *arrays):
+    """Split concatenated node-wise arrays into per-graph chunks."""
+    sizes = [int(g.y.shape[0]) for g in graphs]
+    total = int(np.sum(sizes))
+
+    split_arrays = []
+    for arr in arrays:
+        arr = np.asarray(arr)
+        if len(arr) != total:
+            raise ValueError(f"Array length mismatch: expected {total}, got {len(arr)}")
+        parts = []
+        offset = 0
+        for n in sizes:
+            parts.append(arr[offset:offset + n])
+            offset += n
+        split_arrays.append(parts)
+
+    return split_arrays if len(split_arrays) > 1 else split_arrays[0]
+
+
+
+def build_graph_prediction_dataframe(graphs, y_true, y_pred, *, meta_lookup=None, include_metadata=True):
+    """Build a per-graph performance table from node-wise predictions."""
+    node_abs_err = np.abs(np.asarray(y_pred) - np.asarray(y_true))
+    y_true_split, y_pred_split, err_split = split_node_arrays_by_graph(graphs, y_true, y_pred, node_abs_err)
+
+    rows = []
+    for i, (g, yt, yp, err) in enumerate(zip(graphs, y_true_split, y_pred_split, err_split)):
+        row = {
+            "graph_index": i,
+            "organoid_str": getattr(g, "organoid_str", None),
+            "num_nodes": int(len(yt)),
+            "graph_mae": float(np.mean(err)),
+            "graph_mse": float(np.mean((yp - yt) ** 2)),
+            "graph_rmse": float(np.sqrt(np.mean((yp - yt) ** 2))),
+        }
+
+        if include_metadata:
+            row.update(get_graph_metadata(g, meta_lookup=meta_lookup, strict=False, default={}))
+
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+# -----------------------------------------------------------------------------
+# Existing markerwise evaluation code
+# -----------------------------------------------------------------------------
 
 def compute_markerwise_uncertainty_correlation(y, mu, log_var, X):
-    """
-    For each marker (positives only):
-        compute correlation between predicted variance and squared residual.
-
-    Returns
-    -------
-    rho : (M,) Spearman correlation
-    pval : (M,) p-value
-    n_pos : (M,) number of samples
-    """
-
     y = np.asarray(y)
     mu = np.asarray(mu)
     var = np.exp(np.asarray(log_var))
     X = np.asarray(X)
-
     M = X.shape[1]
 
     rho = np.full(M, np.nan)
@@ -45,23 +92,19 @@ def compute_markerwise_uncertainty_correlation(y, mu, log_var, X):
         mask = X[:, m] > 0.5
         n = int(mask.sum())
         n_pos[m] = n
-
         if n < 10:
             continue
-
         r2 = (y[mask] - mu[mask]) ** 2
         v = var[mask]
-
         rho[m], pval[m] = spearmanr(v, r2)
 
     return rho, pval, n_pos
 
 
-def compute_global_uncertainty_correlation(y, mu, log_var):
-    r2 = (y - mu) ** 2
-    v = np.exp(log_var)
 
-    return spearmanr(v, r2)
+def compute_global_uncertainty_correlation(y, mu, log_var):
+    return spearmanr(np.exp(log_var), (y - mu) ** 2)
+
 
 
 def _safe_sem(x):
@@ -71,15 +114,10 @@ def _safe_sem(x):
     return float(np.std(x, ddof=1) / np.sqrt(x.size))
 
 
-def _aggregate_subset_metrics(y, mu, log_var, X, mask, eps=1e-12):
-    """
-    Aggregate metrics on an arbitrary subset of nodes.
 
-    Baseline mean/variance are estimated from y_true on the same subset.
-    """
+def _aggregate_subset_metrics(y, mu, log_var, X, mask, eps=1e-12):
     mask = np.asarray(mask, dtype=bool)
     n = int(mask.sum())
-
     if n == 0:
         return {
             "n": 0,
@@ -104,29 +142,24 @@ def _aggregate_subset_metrics(y, mu, log_var, X, mask, eps=1e-12):
     log_var_s = np.asarray(log_var[mask], dtype=np.float64)
     var_s = np.maximum(np.exp(log_var_s), eps)
 
-    # simple subset baseline
     mu_b = float(np.mean(y_s))
     var_b = float(np.var(y_s)) + eps
 
     res_model = y_s - mu_s
     res_base = y_s - mu_b
 
-    mse_model = float(np.mean(res_model**2))
-    mse_base = float(np.mean(res_base**2))
-
     nll_model_node = compute_nodewise_nll(y_s, mu_s, var_s)
     nll_base_node = compute_nodewise_nll(y_s, mu_b, var_b)
 
-    from scipy.stats import spearmanr
     rho, pval = (np.nan, np.nan)
     if n >= 10:
         rho, pval = spearmanr(var_s, res_model**2)
 
     return {
         "n": n,
-        "mse_model": mse_model,
+        "mse_model": float(np.mean(res_model**2)),
         "sem_mse_model": _safe_sem(res_model**2),
-        "mse_base": mse_base,
+        "mse_base": float(np.mean(res_base**2)),
         "sem_mse_base": _safe_sem(res_base**2),
         "var_model": float(np.mean(var_s)),
         "sem_var_model": _safe_sem(var_s),
@@ -141,13 +174,8 @@ def _aggregate_subset_metrics(y, mu, log_var, X, mask, eps=1e-12):
     }
 
 
+
 def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center_only=False):
-    """
-    Evaluate markerwise metrics, plus aggregate metrics for:
-      - any_marker: nodes with at least one positive marker
-      - no_marker : nodes with no positive markers
-      - all_nodes : all evaluated nodes
-    """
     y, mu, log_var, X = predict_targets(
         g_val,
         model,
@@ -156,33 +184,20 @@ def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center
         center_only=center_only,
     )
 
-    y, mu, log_var = rescale_distribution_outputs(
-        y, mu, log_var=log_var, center=center, scale=scale
-    )
+    y, mu, log_var = rescale_distribution_outputs(y, mu, log_var=log_var, center=center, scale=scale)
     var = np.exp(log_var)
 
     residuals_model, residuals_base, n_pos_resid, mu_pos_resid = compute_markerwise_residuals(y, mu, X)
-
     mse_model = np.array([np.mean(r**2) if r.size > 0 else np.nan for r in residuals_model])
     mse_base = np.array([np.mean(r**2) if r.size > 0 else np.nan for r in residuals_base])
 
-    sem_mse_model = np.array([
-        np.std(r**2, ddof=1) / np.sqrt(r.size) if r.size > 1 else np.nan
-        for r in residuals_model
-    ])
-    sem_mse_base = np.array([
-        np.std(r**2, ddof=1) / np.sqrt(r.size) if r.size > 1 else np.nan
-        for r in residuals_base
-    ])
+    sem_mse_model = np.array([np.std(r**2, ddof=1) / np.sqrt(r.size) if r.size > 1 else np.nan for r in residuals_model])
+    sem_mse_base = np.array([np.std(r**2, ddof=1) / np.sqrt(r.size) if r.size > 1 else np.nan for r in residuals_base])
 
     Xb = X > 0.5
-    var_model = np.array([
-        np.mean(var[Xb[:, m]]) if np.any(Xb[:, m]) else np.nan
-        for m in range(X.shape[1])
-    ])
+    var_model = np.array([np.mean(var[Xb[:, m]]) if np.any(Xb[:, m]) else np.nan for m in range(X.shape[1])])
     sem_var_model = np.array([
-        np.std(var[Xb[:, m]], ddof=1) / np.sqrt(np.sum(Xb[:, m]))
-        if np.sum(Xb[:, m]) > 1 else np.nan
+        np.std(var[Xb[:, m]], ddof=1) / np.sqrt(np.sum(Xb[:, m])) if np.sum(Xb[:, m]) > 1 else np.nan
         for m in range(X.shape[1])
     ])
 
@@ -199,42 +214,20 @@ def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center
 
     nll_model = np.array([np.mean(v) if v.size > 0 else np.nan for v in nll_model_list])
     nll_base = np.array([np.mean(v) if v.size > 0 else np.nan for v in nll_base_list])
-
-    sem_nll_model = np.array([
-        np.std(v, ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan
-        for v in nll_model_list
-    ])
-    sem_nll_base = np.array([
-        np.std(v, ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan
-        for v in nll_base_list
-    ])
+    sem_nll_model = np.array([np.std(v, ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan for v in nll_model_list])
+    sem_nll_base = np.array([np.std(v, ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan for v in nll_base_list])
 
     delta_mean = np.array([np.mean(v) if v.size > 0 else np.nan for v in delta_mean_list])
     delta_var = np.array([np.mean(v) if v.size > 0 else np.nan for v in delta_var_list])
 
-    rho_marker, pval_marker, n_pos_corr = compute_markerwise_uncertainty_correlation(
-        y=y,
-        mu=mu,
-        log_var=log_var,
-        X=X,
-    )
+    rho_marker, pval_marker, n_pos_corr = compute_markerwise_uncertainty_correlation(y=y, mu=mu, log_var=log_var, X=X)
+    rho_global, pval_global = compute_global_uncertainty_correlation(y=y, mu=mu, log_var=log_var)
 
-    rho_global, pval_global = compute_global_uncertainty_correlation(
-        y=y,
-        mu=mu,
-        log_var=log_var,
-    )
-
-    # aggregate masks
     row_pos = (X > 0.5).sum(axis=1)
-    mask_any = row_pos > 0
-    mask_none = row_pos == 0
-    mask_all = np.ones_like(row_pos, dtype=bool)
-
     aggregate = {
-        "any_marker": _aggregate_subset_metrics(y, mu, log_var, X, mask_any, eps=eps),
-        "no_marker": _aggregate_subset_metrics(y, mu, log_var, X, mask_none, eps=eps),
-        "all_nodes": _aggregate_subset_metrics(y, mu, log_var, X, mask_all, eps=eps),
+        "any_marker": _aggregate_subset_metrics(y, mu, log_var, X, row_pos > 0, eps=eps),
+        "no_marker": _aggregate_subset_metrics(y, mu, log_var, X, row_pos == 0, eps=eps),
+        "all_nodes": _aggregate_subset_metrics(y, mu, log_var, X, np.ones_like(row_pos, dtype=bool), eps=eps),
     }
 
     return {

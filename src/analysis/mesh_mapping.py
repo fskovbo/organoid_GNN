@@ -95,3 +95,100 @@ def project_predictions_to_mesh(graph_index, graphs, y_true_all, y_pred_all, *, 
         fill_value=fill_value,
         return_debug=return_debug,
     )
+
+
+
+def project_node_categories_to_mesh(
+    graph,
+    node_categories,
+    *,
+    meta_lookup=None,
+    mesh_path=None,
+    vertex_owner=None,
+    normalize_mesh=True,
+    missing_category=None,
+):
+    """Project one categorical node label per cell onto mesh vertices via vertex ownership.
+
+    Parameters
+    ----------
+    missing_category : object or None
+        Category assigned to mesh vertices with no owning node (vertex_owner < 0).
+        If None, those vertices remain unassigned.
+    """
+    md = get_graph_metadata(graph, meta_lookup=meta_lookup, strict=True)
+
+    if mesh_path is None:
+        mesh_path = md.get("mesh_path")
+    if vertex_owner is None:
+        vertex_owner = md.get("voronoi_vertex_owner")
+
+    if mesh_path is None:
+        raise ValueError("Missing mesh_path")
+    if vertex_owner is None:
+        raise ValueError("Missing voronoi_vertex_owner")
+
+    mesh = OrganoidMesh(mesh_path)
+    if normalize_mesh:
+        mesh.normalize_inplace()
+
+    vertex_owner = np.asarray(vertex_owner, dtype=np.int64).reshape(-1)
+    node_categories = np.asarray(node_categories, dtype=object).reshape(-1)
+
+    n_nodes = int(graph.y.shape[0])
+    if node_categories.shape[0] != n_nodes:
+        raise ValueError(
+            f"node_categories has length {node_categories.shape[0]}, expected {n_nodes}"
+        )
+
+    mesh_categories = np.empty(vertex_owner.shape[0], dtype=object)
+    mesh_categories[:] = missing_category
+
+    valid = vertex_owner >= 0
+    mesh_categories[valid] = node_categories[vertex_owner[valid]]
+
+    return {
+        "mesh": mesh,
+        "mesh_categories": mesh_categories,
+        "vertex_owner": vertex_owner,
+        "organoid_str": getattr(graph, "organoid_str", None),
+        "missing_category": missing_category,
+    }
+
+
+
+def categories_to_vertex_regions(mesh_categories, category_order=None):
+    """Convert per-vertex categorical labels into vertex regions for plot_mesh_by_regions.
+
+    Parameters
+    ----------
+    mesh_categories : array-like, shape (V,)
+        One categorical label per mesh vertex. Missing/unassigned entries can be None.
+    category_order : sequence or None
+        If provided, regions are returned in this order. Otherwise the order of first
+        appearance among non-missing categories is used.
+
+    Returns
+    -------
+    regions : list[np.ndarray]
+        One vertex-index array per category.
+    category_order : list
+        Category names corresponding to `regions`.
+    """
+    cats = np.asarray(mesh_categories, dtype=object).reshape(-1)
+
+    if category_order is None:
+        seen = []
+        seen_set = set()
+        for c in cats:
+            if c is None:
+                continue
+            if c not in seen_set:
+                seen.append(c)
+                seen_set.add(c)
+        category_order = seen
+    else:
+        category_order = list(category_order)
+
+    regions = [np.where(cats == cat)[0].astype(np.int64) for cat in category_order]
+    return regions, category_order

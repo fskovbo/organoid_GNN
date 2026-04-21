@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from src.data.metadata import broadcast_graph_metadata_to_nodes, extract_metadata_per_node_min
 from src.data.subgraphs import build_ego_subgraphs_for_center_specs
 
 
@@ -45,17 +44,6 @@ def cluster_marker_distribution(X, labels, *, center_mask=None, threshold=0.5):
 
 
 
-def cluster_prediction_boxplot_data(y_true, y_pred, labels):
-    """Pack per-cluster true and predicted arrays for boxplots."""
-    labels = np.asarray(labels, dtype=int)
-    K = int(labels.max()) + 1
-    clusters = np.arange(K)
-    true_data = [np.asarray(y_true)[labels == k] for k in clusters]
-    pred_data = [np.asarray(y_pred)[labels == k] for k in clusters]
-    return clusters, true_data, pred_data
-
-
-
 def cluster_order_from_values(labels, values, reducer=np.mean):
     """Order clusters by an aggregate of some node-wise value."""
     labels = np.asarray(labels, dtype=int)
@@ -70,49 +58,6 @@ def cluster_order_from_values(labels, values, reducer=np.mean):
 
 
 
-def cluster_min_metadata_dataframe(graphs, labels, field, *, meta_lookup=None, missing_value=np.nan):
-    """Build a dataframe for one per-node min-reduced metadata field, e.g. d_crypts_graph."""
-    values, valid = extract_metadata_per_node_min(
-        graphs,
-        field=field,
-        meta_lookup=meta_lookup,
-        missing_value=missing_value,
-        strict=False,
-    )
-    return pd.DataFrame({"cluster": np.asarray(labels, dtype=int), field: values, f"has_{field}": valid})
-
-
-
-def cluster_broadcast_metadata_dataframe(
-    graphs,
-    labels,
-    *,
-    fields,
-    meta_lookup=None,
-    transforms=None,
-):
-    transforms = {} if transforms is None else dict(transforms)
-
-    data = {
-        "cluster": np.asarray(labels),
-    }
-
-    for field in fields:
-        values = broadcast_graph_metadata_to_nodes(
-            graphs,
-            field,
-            meta_lookup=meta_lookup,
-            dtype=None,          # important
-            strict=True,
-        )
-        if field in transforms:
-            values = transforms[field](values)
-        data[field] = values
-
-    return pd.DataFrame(data)
-
-
-
 def build_binned_cluster_fraction_table(
     labels,
     values,
@@ -123,33 +68,7 @@ def build_binned_cluster_fraction_table(
     cluster_order_by="median_valid_value",
     include_all=True,
 ):
-    """
-    Build a table of per-cluster fractions across user-defined bins.
-
-    Parameters
-    ----------
-    labels : array-like, shape (N,)
-        Cluster labels per node.
-    values : array-like, shape (N,)
-        Scalar value per node to bin.
-    valid_mask : array-like[bool], shape (N,)
-        Boolean mask indicating whether the value is valid.
-    bin_func : callable
-        Function with signature bin_func(value, valid) -> str
-    bin_order : list[str]
-        Desired column order of the bins.
-    cluster_order_by : str
-        Currently supports:
-            - "median_valid_value"
-    include_all : bool
-        If True, prepend an "All" row.
-
-    Returns
-    -------
-    plot_table : pd.DataFrame
-    cluster_order : pd.Index
-    df : pd.DataFrame
-    """
+    """Build a table of per-cluster fractions across user-defined bins."""
     labels = np.asarray(labels)
     values = np.asarray(values)
     valid_mask = np.asarray(valid_mask, dtype=bool)
@@ -300,6 +219,3 @@ def marker_labels_for_subgraph(subgraph, marker_names, threshold=0.5):
     """Convert all nodes in one subgraph to text marker labels."""
     X = subgraph.x.detach().cpu().numpy()
     return [marker_label_from_x(X[i], marker_names, threshold=threshold) for i in range(X.shape[0])]
-
-
-

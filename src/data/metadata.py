@@ -253,6 +253,58 @@ def get_metadata_array(graphs, key, meta_lookup=None, *, dtype=float, missing_va
 # Filtering helpers
 # -----------------------------------------------------------------------------
 
+import copy
+from collections import defaultdict
+
+import numpy as np
+
+# assumes get_graph_metadata_value is already available
+
+
+def _print_filter_summary(graphs, kept_mask, *, meta_lookup=None, label="Filter summary"):
+    """
+    Print kept/total counts per (dataset, timepoint).
+
+    Parameters
+    ----------
+    graphs : list
+    kept_mask : array-like[bool], shape (len(graphs),)
+    meta_lookup : dict or None
+    label : str
+    """
+    kept_mask = np.asarray(kept_mask, dtype=bool)
+    if kept_mask.shape[0] != len(graphs):
+        raise ValueError("kept_mask must have length len(graphs)")
+
+    counts = defaultdict(lambda: {"kept": 0, "total": 0})
+
+    for keep, g in zip(kept_mask, graphs):
+        dataset = get_graph_metadata_value(
+            g, "dataset", meta_lookup=meta_lookup, default="MISSING", strict=False
+        )
+        timepoint = get_graph_metadata_value(
+            g, "timepoint", meta_lookup=meta_lookup, default="MISSING", strict=False
+        )
+        key = (dataset, timepoint)
+
+        counts[key]["total"] += 1
+        if keep:
+            counts[key]["kept"] += 1
+
+    n_kept = int(kept_mask.sum())
+    n_total = len(graphs)
+
+    print(f"{label}: kept {n_kept} / {n_total} graphs\n")
+    print(f"{'dataset':<16} {'timepoint':<16} {'kept':>6} {'total':>6} {'frac':>8}")
+    print("-" * 58)
+
+    for (dataset, timepoint) in sorted(counts.keys(), key=lambda x: (str(x[0]), str(x[1]))):
+        kept = counts[(dataset, timepoint)]["kept"]
+        total = counts[(dataset, timepoint)]["total"]
+        frac = kept / total if total > 0 else np.nan
+        print(f"{str(dataset):<16} {str(timepoint):<16} {kept:>6} {total:>6} {frac:>8.3f}")
+
+
 def filter_graphs_by_metadata(
     graphs,
     key,
@@ -260,35 +312,68 @@ def filter_graphs_by_metadata(
     drop_values=None,
     missing="keep",
     inplace=False,
+    *,
+    meta_lookup=None,
+    print_summary=False,
 ):
-    """Filter graphs by a categorical metadata field."""
+    """
+    Filter graphs by a categorical metadata field.
+
+    Parameters
+    ----------
+    graphs : list
+    key : str
+        Metadata key to filter on.
+    keep_values : iterable or None
+        Keep only graphs whose metadata value is in this set.
+    drop_values : iterable or None
+        Drop graphs whose metadata value is in this set.
+    missing : {"keep", "drop"}
+        What to do when the metadata key is missing.
+    inplace : bool
+    meta_lookup : dict or None
+        Optional metadata lookup.
+    print_summary : bool
+        If True, print kept/total counts per (dataset, timepoint).
+    """
     if keep_values is not None and drop_values is not None:
         raise ValueError("Specify only one of keep_values or drop_values")
+    if missing not in ("keep", "drop"):
+        raise ValueError("missing must be 'keep' or 'drop'")
 
     keep_values = set(keep_values) if keep_values is not None else None
     drop_values = set(drop_values) if drop_values is not None else None
+
     out = []
+    kept_mask = []
 
     for g in graphs:
-        md = getattr(g, "meta", {}) or {}
-        val = md.get(key, None)
+        val = get_graph_metadata_value(
+            g, key, meta_lookup=meta_lookup, default=None, strict=False
+        )
 
         if val is None:
-            if missing == "keep":
-                out.append(g if inplace else copy.copy(g))
-            continue
+            keep_flag = (missing == "keep")
+        else:
+            keep_flag = True
+            if keep_values is not None:
+                keep_flag = val in keep_values
+            if drop_values is not None:
+                keep_flag = val not in drop_values
 
-        keep_flag = True
-        if keep_values is not None:
-            keep_flag = val in keep_values
-        if drop_values is not None:
-            keep_flag = val not in drop_values
-
+        kept_mask.append(keep_flag)
         if keep_flag:
             out.append(g if inplace else copy.copy(g))
 
-    return out
+    if print_summary:
+        _print_filter_summary(
+            graphs,
+            kept_mask,
+            meta_lookup=meta_lookup,
+            label=f"filter_graphs_by_metadata(key={key!r})",
+        )
 
+    return out
 
 
 def filter_graphs_by_numeric_metadata(
@@ -300,11 +385,32 @@ def filter_graphs_by_numeric_metadata(
     max_value=None,
     allow_missing=False,
     inplace=False,
+    print_summary=False,
 ):
-    """Filter graphs by a numeric metadata field such as complexity."""
+    """
+    Filter graphs by a numeric metadata field such as complexity.
+
+    Parameters
+    ----------
+    graphs : list
+    key : str
+        Metadata key to filter on.
+    meta_lookup : dict or None
+    min_value : float or None
+    max_value : float or None
+    allow_missing : bool
+        Whether missing / non-finite values should be kept.
+    inplace : bool
+    print_summary : bool
+        If True, print kept/total counts per (dataset, timepoint).
+    """
     out = []
+    kept_mask = []
+
     for g in graphs:
-        val = get_graph_metadata_value(g, key, meta_lookup=meta_lookup, default=None, strict=False)
+        val = get_graph_metadata_value(
+            g, key, meta_lookup=meta_lookup, default=None, strict=False
+        )
         keep = True
 
         if val is None:
@@ -313,29 +419,173 @@ def filter_graphs_by_numeric_metadata(
             val = float(val)
             if not np.isfinite(val):
                 keep = allow_missing
-            if min_value is not None and np.isfinite(val):
-                keep = keep and (val >= float(min_value))
-            if max_value is not None and np.isfinite(val):
-                keep = keep and (val <= float(max_value))
+            else:
+                if min_value is not None:
+                    keep = keep and (val >= float(min_value))
+                if max_value is not None:
+                    keep = keep and (val <= float(max_value))
 
+        kept_mask.append(keep)
         if keep:
             out.append(g if inplace else copy.copy(g))
+
+    if print_summary:
+        _print_filter_summary(
+            graphs,
+            kept_mask,
+            meta_lookup=meta_lookup,
+            label=(
+                f"filter_graphs_by_numeric_metadata("
+                f"key={key!r}, min_value={min_value}, max_value={max_value})"
+            ),
+        )
 
     return out
 
 
+def filter_graphs_by_sphericity(
+    graphs,
+    meta_lookup=None,
+    *,
+    area_key="total_surface_area",
+    volume_key="total_volume",
+    max_sphericity=0.95,
+    allow_missing=False,
+    inplace=False,
+    print_summary=False,
+    return_scores=False,
+):
+    """
+    Filter out graphs that are too close to being a sphere using the
+    isoperimetric quotient
 
-def filter_graphs_by_complexity(graphs, min_complexity=2.0, meta_lookup=None, *, allow_missing=False, inplace=False):
-    """Filter graphs by ``meta['complexity']`` using a single project-level helper."""
-    return filter_graphs_by_numeric_metadata(
-        graphs,
-        key="complexity",
-        meta_lookup=meta_lookup,
-        min_value=min_complexity,
-        allow_missing=allow_missing,
-        inplace=inplace,
-    )
+        Q = 36 * pi * V^2 / A^3
 
+    where Q = 1 for a perfect sphere and Q < 1 otherwise.
+
+    Parameters
+    ----------
+    graphs : list
+    meta_lookup : dict or None
+    area_key : str
+        Metadata key for surface area.
+    volume_key : str
+        Metadata key for volume.
+    max_sphericity : float
+        Keep only graphs with Q < max_sphericity.
+        Example: max_sphericity=0.95 removes graphs with Q >= 0.95.
+    allow_missing : bool
+        If True, keep graphs with missing/non-finite metadata.
+    inplace : bool
+    print_summary : bool
+        If True, print kept/total counts per (dataset, timepoint).
+    return_scores : bool
+        If True, also return the per-graph Q values.
+
+    Returns
+    -------
+    filtered_graphs : list
+    scores : np.ndarray, optional
+        Returned only if return_scores=True.
+    """
+    out = []
+    kept_mask = []
+    scores = []
+
+    for g in graphs:
+        area = get_graph_metadata_value(
+            g, area_key, meta_lookup=meta_lookup, default=None, strict=False
+        )
+        volume = get_graph_metadata_value(
+            g, volume_key, meta_lookup=meta_lookup, default=None, strict=False
+        )
+
+        keep = True
+        q = np.nan
+
+        if area is None or volume is None:
+            keep = allow_missing
+        else:
+            area = float(area)
+            volume = float(volume)
+
+            if (not np.isfinite(area)) or (not np.isfinite(volume)) or area <= 0.0 or volume <= 0.0:
+                keep = allow_missing
+            else:
+                q = 36.0 * np.pi * (volume ** 2) / (area ** 3)
+                keep = (q < float(max_sphericity))
+
+        scores.append(q)
+        kept_mask.append(keep)
+
+        if keep:
+            out.append(g if inplace else copy.copy(g))
+
+    if print_summary:
+        _print_filter_summary(
+            graphs,
+            kept_mask,
+            meta_lookup=meta_lookup,
+            label=f"filter_graphs_by_sphericity(max_sphericity={max_sphericity})",
+        )
+
+    scores = np.asarray(scores, dtype=float)
+    if return_scores:
+        return out, scores
+    return out
+
+
+
+def fill_missing_metadata_for_group(
+    graphs,
+    field,
+    fill_value,
+    *,
+    dataset,
+    timepoint,
+    inplace=False,
+):
+    """
+    Fill missing metadata field for graphs belonging to a specific (dataset, timepoint).
+
+    Parameters
+    ----------
+    graphs : list
+    field : str
+        Metadata field to fill.
+    fill_value : any
+        Value to assign if the field is missing or None.
+    dataset : str
+    timepoint : str
+    inplace : bool
+
+    Returns
+    -------
+    list
+        Updated graphs.
+    """
+    out = []
+
+    for g in graphs:
+        md = getattr(g, "meta", None)
+        if md is None:
+            md = {}
+            g.meta = md
+
+        g_dataset = md.get("dataset", None)
+        g_timepoint = md.get("timepoint", None)
+
+        g_out = g if inplace else copy.copy(g)
+
+        # Only act on specified group
+        if g_dataset == dataset and g_timepoint == timepoint:
+            val = md.get(field, None)
+            if val is None:
+                g_out.meta[field] = fill_value
+
+        out.append(g_out)
+
+    return out
 
 # -----------------------------------------------------------------------------
 # Graph attribute utilities

@@ -57,28 +57,92 @@ def plot_cluster_marker_heatmap(
     return fig, ax
 
 
-def plot_cluster_prediction_boxplots(
-    y_true,
-    y_pred,
+def plot_cluster_boxplots(
+    data_list,
     labels,
     *,
+    data_labels=None,
+    colors=None,
     clusters=None,
+    cluster_order=None,
     show_outliers=False,
     figsize=(12, 5),
     ax=None,
+    ylabel=None,
+    title=None,
+    xlabel="cluster",
 ):
-    """Plot side-by-side boxplots of true and prediction per cluster."""
+    """
+    General cluster-wise boxplot function.
+
+    Parameters
+    ----------
+    data_list : list of array-like
+        List of arrays to plot, e.g. [y_true, y_pred, log_var].
+        Each array must have shape (N,).
+    labels : array-like
+        Cluster labels of shape (N,).
+    data_labels : list of str, optional
+        Labels for legend. Must match len(data_list).
+    colors : list, optional
+        Colors for each dataset. Must match len(data_list).
+    clusters : array-like, optional
+        Subset of clusters to plot. If None, plot all clusters present.
+    cluster_order : array-like, optional
+        Order in which to plot the selected clusters, e.g. output of
+        `cluster_order_from_values(...)`.
+        If provided together with `clusters`, only the clusters in `clusters`
+        are kept, in the order specified by `cluster_order`.
+    show_outliers : bool
+        Whether to show outlier points in the boxplots.
+    figsize : tuple
+        Figure size if ax is None.
+    ax : matplotlib.axes.Axes, optional
+        Existing axis to plot into.
+    ylabel : str, optional
+        Y-axis label.
+    title : str, optional
+        Plot title.
+    xlabel : str, optional
+        X-axis label.
+
+    Returns
+    -------
+    fig, ax
+    """
     labels = np.asarray(labels, dtype=int)
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
+    data_list = [np.asarray(d) for d in data_list]
+
+    n = len(labels)
+    for i, d in enumerate(data_list):
+        if len(d) != n:
+            raise ValueError(f"data_list[{i}] has length {len(d)}, expected {n}")
 
     if clusters is None:
-        clusters = np.arange(int(labels.max()) + 1)
+        clusters = np.array(sorted(np.unique(labels)), dtype=int)
     else:
         clusters = np.asarray(clusters, dtype=int)
 
-    true_data = [y_true[labels == k] for k in clusters]
-    pred_data = [y_pred[labels == k] for k in clusters]
+    if cluster_order is not None:
+        cluster_order = np.asarray(cluster_order, dtype=int)
+        cluster_set = set(clusters.tolist())
+        clusters = np.array([k for k in cluster_order if k in cluster_set], dtype=int)
+
+    if len(clusters) == 0:
+        raise ValueError("No clusters selected for plotting.")
+
+    K = len(data_list)
+
+    if data_labels is None:
+        data_labels = [f"data_{i}" for i in range(K)]
+    if len(data_labels) != K:
+        raise ValueError("data_labels must have the same length as data_list")
+
+    if colors is None:
+        cmap = plt.get_cmap("tab10")
+        colors = [cmap(i % cmap.N) for i in range(K)]
+    if len(colors) != K:
+        raise ValueError("colors must have the same length as data_list")
 
     created_fig = ax is None
     if ax is None:
@@ -86,44 +150,49 @@ def plot_cluster_prediction_boxplots(
     else:
         fig = ax.figure
 
-    offset = 0.18
-    pos_true = clusters - offset
-    pos_pred = clusters + offset
+    # Collect per-cluster data in the requested order
+    clustered_data = [
+        [d[labels == k] for k in clusters]
+        for d in data_list
+    ]
 
-    bp_true = ax.boxplot(
-        true_data,
-        positions=pos_true,
-        widths=0.3,
-        patch_artist=True,
-        showfliers=show_outliers,
-        manage_ticks=False,
-    )
-    bp_pred = ax.boxplot(
-        pred_data,
-        positions=pos_pred,
-        widths=0.3,
-        patch_artist=True,
-        showfliers=show_outliers,
-        manage_ticks=False,
-    )
+    # Use ordinal x positions so arbitrary cluster order works cleanly
+    x = np.arange(len(clusters), dtype=float)
 
-    for box in bp_true["boxes"]:
-        box.set_facecolor("lightblue")
-    for box in bp_pred["boxes"]:
-        box.set_facecolor("lightgreen")
+    width = 0.8 / K
+    offsets = (np.arange(K) - (K - 1) / 2.0) * width
 
-    ax.axhline(0.0, linestyle="--")
-    ax.set_xticks(clusters)
+    for data_k, offset, color, label in zip(clustered_data, offsets, colors, data_labels):
+        pos = x + offset
+
+        bp = ax.boxplot(
+            data_k,
+            positions=pos,
+            widths=width * 0.9,
+            patch_artist=True,
+            showfliers=show_outliers,
+            manage_ticks=False,
+        )
+
+        for box in bp["boxes"]:
+            box.set_facecolor(color)
+
+        ax.plot([], [], color=color, linewidth=8, label=label)
+
+    ax.set_xticks(x)
     ax.set_xticklabels([f"C{k}" for k in clusters])
-    ax.set_xlabel("cluster")
-    ax.set_ylabel("target")
-    ax.set_title("True vs prediction by cluster")
-    ax.plot([], [], color="lightblue", linewidth=8, label="true")
-    ax.plot([], [], color="lightgreen", linewidth=8, label="predicted")
+    ax.set_xlabel(xlabel)
+
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    if title is not None:
+        ax.set_title(title)
+
     ax.legend()
 
     if created_fig:
         fig.tight_layout()
+
     return fig, ax
 
 

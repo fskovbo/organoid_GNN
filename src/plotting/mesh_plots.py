@@ -3,12 +3,205 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
 from plotly.subplots import make_subplots
 
-from src.analysis.mesh_mapping import project_node_categories_to_mesh
+from organograph.mesh.OrganoidMesh import OrganoidMesh
 from organograph.plotting.meshes import plot_organoid_mesh, plot_mesh_by_regions
+from src.data.metadata import get_graph_metadata
 
 
-"""Plotly utilities for mesh-projected quantities."""
+"""Plotly utilities for mesh-projected quantities.
 
+This module now contains both:
+- projection helpers from graph/node quantities to mesh vertices
+- plotting helpers for those mesh-projected quantities
+"""
+
+
+# -----------------------------------------------------------------------------
+# Projection helpers
+# -----------------------------------------------------------------------------
+
+
+def get_graph_slice_bounds(graphs, graph_index):
+    """Return [start, end) bounds into concatenated node arrays for one graph."""
+    sizes = [int(g.y.shape[0]) for g in graphs]
+    start = sum(sizes[:graph_index])
+    end = start + sizes[graph_index]
+    return start, end
+
+
+
+def project_node_quantities_to_mesh(
+    graph,
+    *,
+    node_pred,
+    node_true,
+    meta_lookup=None,
+    mesh_path=None,
+    vertex_owner=None,
+    proj_vertex_ids=None,
+    fill_value=np.nan,
+    normalize_mesh=True,
+    return_debug=False,
+):
+    """Map node-level targets/predictions to mesh vertices using stored ownership arrays."""
+    md = get_graph_metadata(graph, meta_lookup=meta_lookup, strict=True)
+
+    if mesh_path is None:
+        mesh_path = md.get("mesh_path")
+    if vertex_owner is None:
+        vertex_owner = md.get("voronoi_vertex_owner")
+    if proj_vertex_ids is None:
+        proj_vertex_ids = md.get("proj_vertex_ids")
+
+    if mesh_path is None:
+        raise ValueError("mesh_path could not be resolved from inputs or metadata")
+    if vertex_owner is None:
+        raise ValueError("vertex_owner could not be resolved from inputs or metadata")
+
+    mesh = OrganoidMesh(mesh_path)
+    if normalize_mesh:
+        mesh.normalize_inplace()
+
+    vertex_owner = np.asarray(vertex_owner, dtype=np.int64).reshape(-1)
+    node_pred = np.asarray(node_pred, dtype=np.float32).reshape(-1)
+    node_true = np.asarray(node_true, dtype=np.float32).reshape(-1)
+
+    if vertex_owner.shape[0] != mesh.v.shape[0]:
+        raise ValueError(
+            f"vertex_owner length mismatch: {vertex_owner.shape[0]} vs {mesh.v.shape[0]} mesh vertices"
+        )
+
+    n_nodes_meta = int(np.max(vertex_owner)) + 1 if np.any(vertex_owner >= 0) else 0
+    n_nodes_graph = int(graph.y.shape[0]) if hasattr(graph, "y") else None
+
+    if len(node_pred) != n_nodes_meta:
+        raise ValueError(f"Prediction length mismatch: {len(node_pred)} vs {n_nodes_meta}")
+    if len(node_true) != n_nodes_meta:
+        raise ValueError(f"Target length mismatch: {len(node_true)} vs {n_nodes_meta}")
+    if n_nodes_graph is not None and n_nodes_graph != n_nodes_meta:
+        raise ValueError(f"Graph node count mismatch: {n_nodes_graph} vs {n_nodes_meta}")
+
+    mesh_pred = np.full(vertex_owner.shape, fill_value, dtype=np.float32)
+    mesh_true = np.full(vertex_owner.shape, fill_value, dtype=np.float32)
+    valid = vertex_owner >= 0
+    mesh_pred[valid] = node_pred[vertex_owner[valid]]
+    mesh_true[valid] = node_true[vertex_owner[valid]]
+
+    result = {
+        "mesh": mesh,
+        "mesh_pred": mesh_pred,
+        "mesh_true": mesh_true,
+        "vertex_owner": vertex_owner,
+        "mesh_path": mesh_path,
+        "organoid_str": getattr(graph, "organoid_str", None),
+    }
+
+    if return_debug:
+        result["proj_vertex_ids"] = None if proj_vertex_ids is None else np.asarray(proj_vertex_ids, dtype=np.int64)
+        result["meta"] = md
+
+    return result
+
+
+
+def project_predictions_to_mesh(graph_index, graphs, y_true_all, y_pred_all, *, meta_lookup=None, fill_value=np.nan, return_debug=False):
+    """Project one graph from concatenated prediction arrays onto its mesh."""
+    graph = graphs[graph_index]
+    start, end = get_graph_slice_bounds(graphs, graph_index)
+    return project_node_quantities_to_mesh(
+        graph,
+        node_true=y_true_all[start:end],
+        node_pred=y_pred_all[start:end],
+        meta_lookup=meta_lookup,
+        fill_value=fill_value,
+        return_debug=return_debug,
+    )
+
+
+
+def project_node_categories_to_mesh(
+    graph,
+    node_categories,
+    *,
+    meta_lookup=None,
+    mesh_path=None,
+    vertex_owner=None,
+    normalize_mesh=True,
+    missing_category=None,
+):
+    """Project one categorical node label per cell onto mesh vertices via vertex ownership.
+
+    Parameters
+    ----------
+    missing_category : object or None
+        Category assigned to mesh vertices with no owning node (vertex_owner < 0).
+        If None, those vertices remain unassigned.
+    """
+    md = get_graph_metadata(graph, meta_lookup=meta_lookup, strict=True)
+
+    if mesh_path is None:
+        mesh_path = md.get("mesh_path")
+    if vertex_owner is None:
+        vertex_owner = md.get("voronoi_vertex_owner")
+
+    if mesh_path is None:
+        raise ValueError("Missing mesh_path")
+    if vertex_owner is None:
+        raise ValueError("Missing voronoi_vertex_owner")
+
+    mesh = OrganoidMesh(mesh_path)
+    if normalize_mesh:
+        mesh.normalize_inplace()
+
+    vertex_owner = np.asarray(vertex_owner, dtype=np.int64).reshape(-1)
+    node_categories = np.asarray(node_categories, dtype=object).reshape(-1)
+
+    n_nodes = int(graph.y.shape[0])
+    if node_categories.shape[0] != n_nodes:
+        raise ValueError(
+            f"node_categories has length {node_categories.shape[0]}, expected {n_nodes}"
+        )
+
+    mesh_categories = np.empty(vertex_owner.shape[0], dtype=object)
+    mesh_categories[:] = missing_category
+
+    valid = vertex_owner >= 0
+    mesh_categories[valid] = node_categories[vertex_owner[valid]]
+
+    return {
+        "mesh": mesh,
+        "mesh_categories": mesh_categories,
+        "vertex_owner": vertex_owner,
+        "organoid_str": getattr(graph, "organoid_str", None),
+        "missing_category": missing_category,
+    }
+
+
+
+def categories_to_vertex_regions(mesh_categories, category_order=None):
+    """Convert per-vertex categorical labels into vertex regions for plot_mesh_by_regions."""
+    cats = np.asarray(mesh_categories, dtype=object).reshape(-1)
+
+    if category_order is None:
+        seen = []
+        seen_set = set()
+        for c in cats:
+            if c is None:
+                continue
+            if c not in seen_set:
+                seen.append(c)
+                seen_set.add(c)
+        category_order = seen
+    else:
+        category_order = list(category_order)
+
+    regions = [np.where(cats == cat)[0].astype(np.int64) for cat in category_order]
+    return regions, category_order
+
+
+# -----------------------------------------------------------------------------
+# Numeric mesh plotting
+# -----------------------------------------------------------------------------
 
 
 def plot_projected_true_vs_pred(
@@ -95,16 +288,7 @@ def plot_projected_true_vs_pred(
 
 
 def marker_name_from_x_row(x_row, marker_names, threshold=0.5, priority_names=None):
-    """Return the first positive marker name in priority order, else 'none'.
-
-    Parameters
-    ----------
-    marker_names : sequence[str]
-        Marker names in the exact column order of x_row / graph.x.
-    priority_names : sequence[str] or None
-        Marker priority order for resolving multi-positive cells. If None,
-        marker_names order is used.
-    """
+    """Return the first positive marker name in priority order, else 'none'."""
     x_row = np.asarray(x_row)
     marker_to_col = {name: j for j, name in enumerate(marker_names)}
     ordered = marker_names if priority_names is None else list(priority_names)
@@ -120,11 +304,7 @@ def marker_name_from_x_row(x_row, marker_names, threshold=0.5, priority_names=No
 
 
 def marker_categories_for_graph(graph, marker_names, threshold=0.5, priority_names=None):
-    """Map each node in a graph to one marker category using priority order.
-
-    marker_names must match graph.x column order. priority_names controls the
-    first-hit assignment when a node is positive for multiple markers.
-    """
+    """Map each node in a graph to one marker category using priority order."""
     X = graph.x.detach().cpu().numpy()
     if X.ndim != 2:
         raise ValueError(f"graph.x must be 2-D, got shape {X.shape}")
@@ -148,15 +328,6 @@ def marker_categories_for_graph(graph, marker_names, threshold=0.5, priority_nam
 
 
 
-def get_graph_slice_bounds(graphs, graph_index):
-    """Return [start, end) bounds into concatenated node arrays for one graph."""
-    sizes = [int(g.y.shape[0]) for g in graphs]
-    start = sum(sizes[:graph_index])
-    end = start + sizes[graph_index]
-    return start, end
-
-
-
 def cluster_color_map(K, cmap_name="tab10"):
     """Return cluster_id -> hex color using the same matplotlib cmap as the TSNE plot."""
     cmap = plt.get_cmap(cmap_name, K)
@@ -165,7 +336,6 @@ def cluster_color_map(K, cmap_name="tab10"):
 
 
 def _prepare_regions_from_projected_categories(mesh_categories, category_order):
-    """Convert projected per-vertex categories into one vertex-region per category."""
     mesh_categories = np.asarray(mesh_categories, dtype=object)
     regions = []
     names = []
@@ -180,7 +350,6 @@ def _prepare_regions_from_projected_categories(mesh_categories, category_order):
 
 
 def _filter_empty_regions(regions, names, colors):
-    """Filter regions/names/colors together so plot_mesh_by_regions sees matching lengths."""
     regions_f = []
     names_f = []
     colors_f = []
@@ -200,7 +369,6 @@ def _filter_empty_regions(regions, names, colors):
 
 
 def _prefix_plotly_region_legend(fig, prefix):
-    """Prefix legend names so marker/cluster legends remain distinguishable after combining figs."""
     for tr in fig.data:
         name = getattr(tr, "name", None)
         if name:
@@ -218,11 +386,7 @@ def project_marker_categories_for_graph(
     normalize_mesh=True,
     missing_category="none",
 ):
-    """Project graph marker categories to mesh vertices using graph-consistent priority.
-
-    Marker assignment priority follows the order of marker_colors (excluding
-    the special 'none' category), matching graph plots built from the same dict.
-    """
+    """Project graph marker categories to mesh vertices using graph-consistent priority."""
     priority_names = [m for m in marker_colors.keys() if m != "none"]
     node_categories = marker_categories_for_graph(
         graph,
@@ -329,11 +493,7 @@ def plot_marker_mesh(
     normalize_mesh=True,
     add_legend=True,
 ):
-    """Plot one graph's marker categories projected onto its mesh.
-
-    Uses the same marker priority as graph plots: the order of marker_colors,
-    with 'none' reserved as the fallback category.
-    """
+    """Plot one graph's marker categories projected onto its mesh."""
     proj = project_marker_categories_for_graph(
         graph,
         marker_names=marker_names,
@@ -343,7 +503,7 @@ def plot_marker_mesh(
         normalize_mesh=normalize_mesh,
         missing_category="none",
     )
-    category_order = [m for m in marker_colors.keys() if m != "none" and m in marker_names] + ["none"]
+    category_order = [m for m in marker_colors.keys() if m != "none" and m in marker_names]
     return plot_categorical_mesh(
         proj["mesh"],
         proj["mesh_categories"],
@@ -393,7 +553,7 @@ def plot_cluster_mesh(
         fig_size=fig_size,
         view=view,
         baseline_color="lightgray",
-        baseline_name="unassigned",
+        baseline_name=None,
         add_legend=add_legend,
         title=getattr(graph, "organoid_str", None),
     )
@@ -425,7 +585,7 @@ def plot_marker_vs_cluster_mesh(
     fig_marker = plot_categorical_mesh(
         marker_proj["mesh"],
         marker_proj["mesh_categories"],
-        category_order=[m for m in marker_colors.keys() if m != "none" and m in marker_names] + ["none"],
+        category_order=[m for m in marker_colors.keys() if m != "none" and m in marker_names],
         category_colors=marker_colors,
         fig_size=fig_size,
         view=view,
@@ -454,7 +614,7 @@ def plot_marker_vs_cluster_mesh(
         fig_size=fig_size,
         view=view,
         baseline_color="lightgray",
-        baseline_name="unassigned",
+        baseline_name=None,
         add_legend=True,
         title=None,
     )
@@ -469,8 +629,13 @@ def plot_marker_vs_cluster_mesh(
     )
 
     for tr in fig_marker.data:
+        tr.legendgroup = "markers"
+        tr.showlegend = True
         fig.add_trace(tr, row=1, col=1)
+
     for tr in fig_cluster.data:
+        tr.legendgroup = "clusters"
+        tr.showlegend = True
         fig.add_trace(tr, row=1, col=2)
 
     scene1 = fig_marker.layout.scene.to_plotly_json() if fig_marker.layout.scene else {}
@@ -482,12 +647,7 @@ def plot_marker_vs_cluster_mesh(
         width=int(fig_size[0]),
         height=int(fig_size[1]),
         title=getattr(g, "organoid_str", None),
-        legend=dict(
-            x=1.02,
-            y=1.0,
-            xanchor="left",
-            yanchor="top",
-        ),
+        legend=dict(x=0.45, y=1.0),
     )
 
     return fig

@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from organograph.plotting.graphs import add_region_overlays, plot_graph_by_markers
 from organograph.mesh.OrganoidMesh import OrganoidMesh
 
-from src.data.metadata import get_graph_metadata
+from src.data.nxgraphs import pyg_graph_to_nx_with_centroids
 
 
 """Plotting helpers for subgraph motifs and exemplar organoids."""
@@ -163,46 +163,6 @@ def plot_marker_color_legend(marker_colors=DEFAULT_MARKER_COLORS, ncols=5):
     ax.axis("off")
     plt.tight_layout()
     return fig, ax
-
-
-
-def pyg_graph_to_nx_with_centroids(pyg_graph, *, marker_names, meta_lookup=None, normalize_mesh=True):
-    """Convert one PyG graph to NetworkX and reconstruct centroids from mesh projection IDs."""
-    md = get_graph_metadata(pyg_graph, meta_lookup=meta_lookup, strict=True)
-    mesh_path = md.get("mesh_path")
-    proj_vertex_ids = md.get("proj_vertex_ids")
-
-    if mesh_path is None:
-        raise ValueError(f"{getattr(pyg_graph, 'organoid_str', None)} missing meta['mesh_path']")
-    if proj_vertex_ids is None:
-        raise ValueError(f"{getattr(pyg_graph, 'organoid_str', None)} missing meta['proj_vertex_ids']")
-
-    proj_vertex_ids = np.asarray(proj_vertex_ids, dtype=np.int64).reshape(-1)
-    n_nodes = int(pyg_graph.x.shape[0])
-    if proj_vertex_ids.shape[0] != n_nodes:
-        raise ValueError(f"proj_vertex_ids length mismatch: {proj_vertex_ids.shape[0]} vs {n_nodes}")
-
-    mesh = OrganoidMesh(mesh_path)
-    if normalize_mesh:
-        mesh.normalize_inplace()
-
-    centroids = np.asarray(mesh.v[proj_vertex_ids], dtype=float)
-    G = nx.Graph()
-    G.graph["organoid_str"] = getattr(pyg_graph, "organoid_str", None)
-    G.graph["marker_names"] = list(marker_names)
-
-    X = pyg_graph.x.detach().cpu().numpy()
-    for i in range(n_nodes):
-        G.add_node(i, centroid=centroids[i, :3], x=X[i].copy(), marker_bin=X[i].copy(), markers_bin=X[i].copy())
-
-    edge_index = pyg_graph.edge_index.detach().cpu().numpy()
-    for u, v in edge_index.T:
-        u = int(u)
-        v = int(v)
-        if u != v:
-            G.add_edge(u, v)
-    return G
-
 
 
 def plot_cluster_exemplars_full_organoid(

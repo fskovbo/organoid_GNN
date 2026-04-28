@@ -8,6 +8,10 @@ from torch_geometric.loader import DataLoader
 from src.training.losses import CompositeLoss, make_base_loss
 
 
+def _as_matrix(x: torch.Tensor) -> torch.Tensor:
+    return x.unsqueeze(-1) if x.ndim == 1 else x
+
+
 @dataclass
 class TrainConfig:
     """Store training hyperparameters and the list of auxiliary loss terms."""
@@ -74,7 +78,7 @@ def epoch_pass(model, loader, cfg, loss_fn, optimizer=None):
             optimizer.step()
 
         with torch.no_grad():
-            mae = torch.mean(torch.abs(mu - batch.y))
+            mae = torch.mean(torch.abs(_as_matrix(mu) - _as_matrix(batch.y)))
 
         n = batch.y.numel()
         total_loss += loss.item() * n

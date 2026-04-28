@@ -2,6 +2,30 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+
+def select_target_from_result(values, target_index=None, *, expected_ndim=None, name="values"):
+    """Select trailing target dimension from depth-scan result arrays.
+
+    Existing arrays with no target dimension are returned unchanged. If an array
+    has one extra trailing target dimension, pass ``target_index``.
+    """
+    arr = np.asarray(values, dtype=float)
+    if expected_ndim is not None and arr.ndim == expected_ndim:
+        return arr
+    if expected_ndim is not None and arr.ndim == expected_ndim + 1:
+        if arr.shape[-1] == 1 and target_index is None:
+            return arr[..., 0]
+        if target_index is None:
+            raise ValueError(
+                f"{name} has a target dimension with shape {arr.shape}; pass target_index."
+            )
+        return arr[..., int(target_index)]
+    if target_index is not None and arr.ndim >= 1:
+        return arr[..., int(target_index)]
+    return arr
+
+
 def plot_markerwise_metric_vs_depth(
     all_results,
     depths,
@@ -23,6 +47,7 @@ def plot_markerwise_metric_vs_depth(
     sharex=True,
     sharey=False,
     baseline_hline=None,
+    target_index=None,
     legend_fontsize=7,
     fill_alpha=0.14,
     baseline_fill_alpha=0.18,
@@ -72,7 +97,13 @@ def plot_markerwise_metric_vs_depth(
     for ax, mi, mname in zip(axes, selected_idx, selected_marker_names):
 
         for family in available_families:
-            y = np.asarray(all_results[family][metric_key])[:, mi]
+            y_all = select_target_from_result(
+                all_results[family][metric_key],
+                target_index=target_index,
+                expected_ndim=2,
+                name=f"{family}.{metric_key}",
+            )
+            y = y_all[:, mi]
             color = family_colors.get(family, None)
 
             ax.plot(
@@ -86,7 +117,13 @@ def plot_markerwise_metric_vs_depth(
             )
 
             if sem_key is not None:
-                s = np.asarray(all_results[family][sem_key])[:, mi]
+                s_all = select_target_from_result(
+                    all_results[family][sem_key],
+                    target_index=target_index,
+                    expected_ndim=2,
+                    name=f"{family}.{sem_key}",
+                )
+                s = s_all[:, mi]
                 ax.fill_between(
                     depths,
                     y - s,
@@ -97,7 +134,13 @@ def plot_markerwise_metric_vs_depth(
 
         # baseline
         if baseline_key is not None:
-            y0 = np.asarray(all_results[ref_family][baseline_key])[mi]
+            y0_all = select_target_from_result(
+                all_results[ref_family][baseline_key],
+                target_index=target_index,
+                expected_ndim=1,
+                name=f"{ref_family}.{baseline_key}",
+            )
+            y0 = y0_all[mi]
 
             ax.axhline(
                 y0,
@@ -108,7 +151,13 @@ def plot_markerwise_metric_vs_depth(
             )
 
             if baseline_sem_key is not None:
-                s0 = np.asarray(all_results[ref_family][baseline_sem_key])[mi]
+                s0_all = select_target_from_result(
+                    all_results[ref_family][baseline_sem_key],
+                    target_index=target_index,
+                    expected_ndim=1,
+                    name=f"{ref_family}.{baseline_sem_key}",
+                )
+                s0 = s0_all[mi]
                 ax.fill_between(
                     depths,
                     y0 - s0,
@@ -179,6 +228,7 @@ def plot_aggregate_metric_vs_depth(
     family_colors=None,
     baseline_color="#888888",
     baseline_hline=None,
+    target_index=None,
     legend_fontsize=8,
     fill_alpha=0.14,
     baseline_fill_alpha=0.18,
@@ -226,7 +276,12 @@ def plot_aggregate_metric_vs_depth(
     fig, ax = plt.subplots(figsize=figsize)
 
     for family in available_families:
-        y = np.asarray(all_results[family]["aggregate"][aggregate_key][metric_key], dtype=float)
+        y = select_target_from_result(
+            all_results[family]["aggregate"][aggregate_key][metric_key],
+            target_index=target_index,
+            expected_ndim=1,
+            name=f"{family}.aggregate.{aggregate_key}.{metric_key}",
+        )
         color = family_colors.get(family, None)
 
         ax.plot(
@@ -240,7 +295,12 @@ def plot_aggregate_metric_vs_depth(
         )
 
         if sem_key is not None:
-            s = np.asarray(all_results[family]["aggregate"][aggregate_key][sem_key], dtype=float)
+            s = select_target_from_result(
+                all_results[family]["aggregate"][aggregate_key][sem_key],
+                target_index=target_index,
+                expected_ndim=1,
+                name=f"{family}.aggregate.{aggregate_key}.{sem_key}",
+            )
             ax.fill_between(
                 depths,
                 y - s,
@@ -251,9 +311,13 @@ def plot_aggregate_metric_vs_depth(
 
     # baseline
     if baseline_key is not None:
-        y0 = float(all_results[ref_family]["aggregate"][aggregate_key][baseline_key][0]) \
-            if np.ndim(all_results[ref_family]["aggregate"][aggregate_key][baseline_key]) > 0 \
-            else float(all_results[ref_family]["aggregate"][aggregate_key][baseline_key])
+        y0_arr = select_target_from_result(
+            all_results[ref_family]["aggregate"][aggregate_key][baseline_key],
+            target_index=target_index,
+            expected_ndim=1,
+            name=f"{ref_family}.aggregate.{aggregate_key}.{baseline_key}",
+        )
+        y0 = float(y0_arr[0]) if np.ndim(y0_arr) > 0 else float(y0_arr)
 
         ax.axhline(
             y0,
@@ -264,7 +328,12 @@ def plot_aggregate_metric_vs_depth(
         )
 
         if baseline_sem_key is not None:
-            s0_arr = all_results[ref_family]["aggregate"][aggregate_key][baseline_sem_key]
+            s0_arr = select_target_from_result(
+                all_results[ref_family]["aggregate"][aggregate_key][baseline_sem_key],
+                target_index=target_index,
+                expected_ndim=1,
+                name=f"{ref_family}.aggregate.{aggregate_key}.{baseline_sem_key}",
+            )
             s0 = float(s0_arr[0]) if np.ndim(s0_arr) > 0 else float(s0_arr)
             ax.fill_between(
                 depths,
@@ -307,6 +376,7 @@ def plot_all_aggregates_metric_vs_depth(
     family_colors=None,
     baseline_color="#888888",
     baseline_hline=None,
+    target_index=None,
     n_cols=2,
     panel_height=3.6,
     panel_width=5.2,
@@ -355,7 +425,12 @@ def plot_all_aggregates_metric_vs_depth(
 
     for ax, aggregate_key in zip(axes, aggregate_keys):
         for family in available_families:
-            y = np.asarray(all_results[family]["aggregate"][aggregate_key][metric_key], dtype=float)
+            y = select_target_from_result(
+                all_results[family]["aggregate"][aggregate_key][metric_key],
+                target_index=target_index,
+                expected_ndim=1,
+                name=f"{family}.aggregate.{aggregate_key}.{metric_key}",
+            )
             color = family_colors.get(family, None)
 
             ax.plot(
@@ -369,7 +444,12 @@ def plot_all_aggregates_metric_vs_depth(
             )
 
             if sem_key is not None:
-                s = np.asarray(all_results[family]["aggregate"][aggregate_key][sem_key], dtype=float)
+                s = select_target_from_result(
+                    all_results[family]["aggregate"][aggregate_key][sem_key],
+                    target_index=target_index,
+                    expected_ndim=1,
+                    name=f"{family}.aggregate.{aggregate_key}.{sem_key}",
+                )
                 ax.fill_between(
                     depths,
                     y - s,
@@ -379,9 +459,13 @@ def plot_all_aggregates_metric_vs_depth(
                 )
 
         if baseline_key is not None:
-            y0 = float(all_results[ref_family]["aggregate"][aggregate_key][baseline_key][0]) \
-                if np.ndim(all_results[ref_family]["aggregate"][aggregate_key][baseline_key]) > 0 \
-                else float(all_results[ref_family]["aggregate"][aggregate_key][baseline_key])
+            y0_arr = select_target_from_result(
+                all_results[ref_family]["aggregate"][aggregate_key][baseline_key],
+                target_index=target_index,
+                expected_ndim=1,
+                name=f"{ref_family}.aggregate.{aggregate_key}.{baseline_key}",
+            )
+            y0 = float(y0_arr[0]) if np.ndim(y0_arr) > 0 else float(y0_arr)
 
             ax.axhline(
                 y0,
@@ -392,7 +476,12 @@ def plot_all_aggregates_metric_vs_depth(
             )
 
             if baseline_sem_key is not None:
-                s0_arr = all_results[ref_family]["aggregate"][aggregate_key][baseline_sem_key]
+                s0_arr = select_target_from_result(
+                    all_results[ref_family]["aggregate"][aggregate_key][baseline_sem_key],
+                    target_index=target_index,
+                    expected_ndim=1,
+                    name=f"{ref_family}.aggregate.{aggregate_key}.{baseline_sem_key}",
+                )
                 s0 = float(s0_arr[0]) if np.ndim(s0_arr) > 0 else float(s0_arr)
                 ax.fill_between(
                     depths,

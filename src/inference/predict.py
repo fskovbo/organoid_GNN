@@ -3,6 +3,26 @@ import torch
 from torch_geometric.loader import DataLoader
 
 
+def _as_numpy_diagonal_log_var(scale):
+    """Return diagonal log-variance from either log_var or Cholesky outputs."""
+    arr = scale.detach().cpu().numpy() if torch.is_tensor(scale) else np.asarray(scale)
+    if arr.ndim == 3:
+        cov = arr @ np.swapaxes(arr, -1, -2)
+        return np.log(np.maximum(np.diagonal(cov, axis1=-2, axis2=-1), 1e-12))
+    return arr
+
+
+def distribution_to_diagonal_outputs(mu, scale):
+    """Convert diagonal or full-covariance outputs to old-compatible (mu, log_var)."""
+    log_var = _as_numpy_diagonal_log_var(scale)
+    mu = mu.detach().cpu().numpy() if torch.is_tensor(mu) else np.asarray(mu)
+    if mu.ndim == 2 and mu.shape[1] == 1:
+        mu = mu.reshape(-1)
+    if log_var.ndim == 2 and log_var.shape[1] == 1:
+        log_var = log_var.reshape(-1)
+    return mu, log_var
+
+
 @torch.no_grad()
 def predict_targets(
     graphs,
@@ -106,7 +126,7 @@ def predict_targets(
                     raise ValueError(
                         "Model did not return (mu, log_var) but return_log_var=True was requested."
                     )
-                Ylv.append(log_var[centers].detach().cpu().numpy())
+                Ylv.append(_as_numpy_diagonal_log_var(log_var[centers]))
 
         else:
             Ys.append(batch.y.detach().cpu().numpy())
@@ -118,7 +138,7 @@ def predict_targets(
                     raise ValueError(
                         "Model did not return (mu, log_var) but return_log_var=True was requested."
                     )
-                Ylv.append(log_var.detach().cpu().numpy())
+                Ylv.append(_as_numpy_diagonal_log_var(log_var))
 
     y_true = np.concatenate(Ys, axis=0).astype(np.float64)
     y_pred = np.concatenate(Ymu, axis=0).astype(np.float64)

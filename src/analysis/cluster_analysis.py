@@ -4,6 +4,35 @@ import pandas as pd
 from src.data.subgraphs import build_ego_subgraphs_for_center_specs
 
 
+def _select_exemplar_scalar(value, target_index=None, name="value"):
+    """Return a scalar for exemplar display from scalar or multi-target values.
+
+    If `target_index` is None and `value` is multi-dimensional, the first
+    target is used for backwards-compatible display titles. The full arrays can
+    still be stored separately by callers.
+    """
+    arr = np.asarray(value)
+    if arr.ndim == 0 or arr.size == 1:
+        return float(arr.reshape(-1)[0])
+    if target_index is None:
+        target_index = 0
+    try:
+        return float(arr.reshape(-1)[int(target_index)])
+    except Exception as exc:
+        raise ValueError(
+            f"Could not select scalar {name} from shape {arr.shape} "
+            f"with target_index={target_index!r}."
+        ) from exc
+
+
+def _as_serializable_target_value(value):
+    """Convert scalar or vector target value to a Python float/list for storage."""
+    arr = np.asarray(value)
+    if arr.ndim == 0 or arr.size == 1:
+        return float(arr.reshape(-1)[0])
+    return arr.astype(float).tolist()
+
+
 # ---------------------------------------------------------------------------------
 # Cluster-level summary utilities for marker, curvature, and metadata analyses.
 # ---------------------------------------------------------------------------------
@@ -167,8 +196,21 @@ def build_cluster_exemplar_subgraphs(
     num_hops=2,
     require_assigned_label=True,
     copy_graph_level_attrs=True,
+    target_index=None,
+    store_all_targets=True,
 ):
-    """Build ego-subgraphs around the most confident examples in each cluster."""
+    """Build ego-subgraphs around the most confident examples in each cluster.
+
+    Parameters
+    ----------
+    target_index : int or None
+        Target used for scalar display fields ``y_true`` and ``y_pred`` when
+        extraction targets are multi-dimensional. If None, target 0 is used for
+        backwards-compatible plot titles.
+    store_all_targets : bool
+        If True, also store full vector values as ``y_true_all`` and
+        ``y_pred_all`` for multi-target extractions.
+    """
     top_idx = get_top_cluster_exemplar_indices_unique_graphs(
         extraction,
         clustering_result,
@@ -193,15 +235,22 @@ def build_cluster_exemplar_subgraphs(
 
         items = []
         for i, sub in zip(rows, subs):
-            items.append({
+            y_true_i = extraction.y_true[i]
+            y_pred_i = extraction.y_pred[i]
+            item = {
                 "row_index": int(i),
                 "probability": float(probs[i, k]),
                 "graph_index": int(extraction.graph_index[i]),
                 "node_index": int(extraction.local_node_index[i]),
-                "y_true": float(extraction.y_true[i]),
-                "y_pred": float(extraction.y_pred[i]),
+                # Scalar display fields used by existing plotting code.
+                "y_true": _select_exemplar_scalar(y_true_i, target_index, name="y_true"),
+                "y_pred": _select_exemplar_scalar(y_pred_i, target_index, name="y_pred"),
                 "subgraph": sub,
-            })
+            }
+            if store_all_targets:
+                item["y_true_all"] = _as_serializable_target_value(y_true_i)
+                item["y_pred_all"] = _as_serializable_target_value(y_pred_i)
+            items.append(item)
         exemplars[k] = items
 
     return exemplars

@@ -88,29 +88,68 @@ def _broadcast_global_features(data, global_attr: str = "global_feat"):
 
 
 class _FinalHead(nn.Module):
-    """Map node embeddings to mean and log-variance outputs."""
-    def __init__(self, in_dim: int, hidden_dim: int, dropout: float):
+    """Map node embeddings to Gaussian distribution outputs."""
+    def __init__(self, in_dim: int, hidden_dim: int, dropout: float, target_dim: int = 1, covariance_mode: str = "diagonal"):
         super().__init__()
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
+        self.out_dim = _gaussian_head_output_dim(self.target_dim, self.covariance_mode)
         self.net = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout if dropout > 0 else 0.0),
-            nn.Linear(hidden_dim, 2),
+            nn.Linear(hidden_dim, self.out_dim),
         )
 
     def forward(self, h):
-        """Predict per-node mean and log-variance from the input embedding."""
         return self.net(h)
 
 
-def _finalize_distribution_outputs(out: torch.Tensor, log_scale2_clamp):
-    """Split head outputs into mean and clamped log-variance."""
-    mu = out[:, 0].contiguous()
-    log_scale2 = out[:, 1].contiguous()
+def _normalize_covariance_mode(mode: str) -> str:
+    mode = str(mode).lower()
+    if mode not in {"diagonal", "full"}:
+        raise ValueError("covariance_mode must be 'diagonal' or 'full'")
+    return mode
 
+
+def _gaussian_head_output_dim(target_dim: int = 1, covariance_mode: str = "diagonal") -> int:
+    target_dim = int(target_dim)
+    if target_dim < 1:
+        raise ValueError("target_dim must be >= 1")
+    covariance_mode = _normalize_covariance_mode(covariance_mode)
+    return 2 * target_dim if covariance_mode == "diagonal" else target_dim + target_dim * (target_dim + 1) // 2
+
+
+def _finalize_distribution_outputs(out: torch.Tensor, log_scale2_clamp, target_dim: int = 1, covariance_mode: str = "diagonal"):
+    """Split head outputs into means and either log-variances or Cholesky factors."""
+    target_dim = int(target_dim)
+    covariance_mode = _normalize_covariance_mode(covariance_mode)
+    mu = out[:, :target_dim].contiguous()
     lo, hi = log_scale2_clamp
-    log_scale2 = torch.clamp(log_scale2, lo, hi)
-    return mu, log_scale2
+    if covariance_mode == "diagonal":
+        log_scale2 = torch.clamp(out[:, target_dim:2 * target_dim].contiguous(), lo, hi)
+        if target_dim == 1:
+            return mu.reshape(-1), log_scale2.reshape(-1)
+        return mu, log_scale2
+    raw = out[:, target_dim:]
+    L = out.new_zeros((out.shape[0], target_dim, target_dim))
+    tril_i, tril_j = torch.tril_indices(target_dim, target_dim, device=out.device)
+    L[:, tril_i, tril_j] = raw
+    diag = torch.arange(target_dim, device=out.device)
+    L[:, diag, diag] = torch.exp(0.5 * torch.clamp(L[:, diag, diag], lo, hi)).clamp_min(1e-6)
+    return mu, L
+
+
+def distribution_to_diagonal_outputs(mu: torch.Tensor, scale: torch.Tensor):
+    """Convert diagonal or full-covariance outputs to independent (mu, log_var) outputs."""
+    if scale.ndim == 3:
+        cov = scale @ scale.transpose(-1, -2)
+        scale = torch.log(torch.diagonal(cov, dim1=-2, dim2=-1).clamp_min(1e-12))
+    if mu.ndim == 2 and mu.shape[1] == 1:
+        mu = mu.reshape(-1)
+    if scale.ndim == 2 and scale.shape[1] == 1:
+        scale = scale.reshape(-1)
+    return mu, scale
 
 
 # ---------------------------------------------------------------------
@@ -130,6 +169,8 @@ class PureSAGECurvature(nn.Module):
         log_scale2_clamp: tuple[float, float] = (-10.0, 10.0),
         global_dim: int = 0,
         global_attr: str = "global_feat",
+        target_dim: int = 1,
+        covariance_mode: str = "diagonal",
     ):
         super().__init__()
         assert num_layers >= 0, "num_layers must be >= 0"
@@ -143,6 +184,8 @@ class PureSAGECurvature(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
@@ -164,7 +207,7 @@ class PureSAGECurvature(nn.Module):
             node_head_dim = n_markers
 
         head_in_dim = node_head_dim + global_dim
-        self.head = _FinalHead(head_in_dim, hidden_dim, dropout)
+        self.head = _FinalHead(head_in_dim, hidden_dim, dropout, target_dim=self.target_dim, covariance_mode=self.covariance_mode)
 
     def forward(self, x, edge_index, data=None):
         """Run GraphSAGE message passing and predict nodewise mean and log-variance."""
@@ -202,7 +245,7 @@ class PureSAGECurvature(nn.Module):
             h = torch.cat([h, gfeat_node], dim=1)
 
         out = self.head(h)
-        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp)
+        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp, self.target_dim, self.covariance_mode)
         return (mu, log_scale2), h
 
     def num_parameters(self, trainable_only: bool = True) -> int:
@@ -228,6 +271,8 @@ class GINCurvature(nn.Module):
         log_scale2_clamp: tuple[float, float] = (-10.0, 10.0),
         global_dim: int = 0,
         global_attr: str = "global_feat",
+        target_dim: int = 1,
+        covariance_mode: str = "diagonal",
     ):
         super().__init__()
         assert num_layers >= 0, "num_layers must be >= 0"
@@ -242,6 +287,8 @@ class GINCurvature(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
@@ -268,7 +315,7 @@ class GINCurvature(nn.Module):
             node_head_dim = n_markers
 
         head_in_dim = node_head_dim + global_dim
-        self.head = _FinalHead(head_in_dim, hidden_dim, dropout)
+        self.head = _FinalHead(head_in_dim, hidden_dim, dropout, target_dim=self.target_dim, covariance_mode=self.covariance_mode)
 
     def forward(self, x, edge_index, data=None):
         """Run GIN message passing and predict nodewise mean and log-variance."""
@@ -306,7 +353,7 @@ class GINCurvature(nn.Module):
             h = torch.cat([h, gfeat_node], dim=1)
 
         out = self.head(h)
-        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp)
+        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp, self.target_dim, self.covariance_mode)
         return (mu, log_scale2), h
 
     def num_parameters(self, trainable_only: bool = True) -> int:
@@ -333,6 +380,8 @@ class GATCurvature(nn.Module):
         log_scale2_clamp: tuple[float, float] = (-10.0, 10.0),
         global_dim: int = 0,
         global_attr: str = "global_feat",
+        target_dim: int = 1,
+        covariance_mode: str = "diagonal",
     ):
         super().__init__()
         assert num_layers >= 0, "num_layers must be >= 0"
@@ -349,6 +398,8 @@ class GATCurvature(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
@@ -378,7 +429,7 @@ class GATCurvature(nn.Module):
             node_head_dim = n_markers
 
         head_in_dim = node_head_dim + global_dim
-        self.head = _FinalHead(head_in_dim, hidden_dim, dropout)
+        self.head = _FinalHead(head_in_dim, hidden_dim, dropout, target_dim=self.target_dim, covariance_mode=self.covariance_mode)
 
     def forward(self, x, edge_index, data=None):
         """Run GAT message passing and predict nodewise mean and log-variance."""
@@ -416,7 +467,7 @@ class GATCurvature(nn.Module):
             h = torch.cat([h, gfeat_node], dim=1)
 
         out = self.head(h)
-        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp)
+        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp, self.target_dim, self.covariance_mode)
         return (mu, log_scale2), h
 
     def num_parameters(self, trainable_only: bool = True) -> int:
@@ -442,6 +493,8 @@ class JKGraphSAGECurvature(nn.Module):
         log_scale2_clamp: tuple[float, float] = (-10.0, 10.0),
         global_dim: int = 0,
         global_attr: str = "global_feat",
+        target_dim: int = 1,
+        covariance_mode: str = "diagonal",
     ):
         super().__init__()
         assert num_layers >= 0, "num_layers must be >= 0"
@@ -457,6 +510,8 @@ class JKGraphSAGECurvature(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
@@ -484,7 +539,7 @@ class JKGraphSAGECurvature(nn.Module):
             node_head_dim = n_markers
 
         head_in_dim = node_head_dim + global_dim
-        self.head = _FinalHead(head_in_dim, hidden_dim, dropout)
+        self.head = _FinalHead(head_in_dim, hidden_dim, dropout, target_dim=self.target_dim, covariance_mode=self.covariance_mode)
 
     def forward(self, x, edge_index, data=None):
         """Run JK-GraphSAGE message passing and predict nodewise mean and log-variance."""
@@ -526,7 +581,7 @@ class JKGraphSAGECurvature(nn.Module):
             h = torch.cat([h, gfeat_node], dim=1)
 
         out = self.head(h)
-        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp)
+        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp, self.target_dim, self.covariance_mode)
         return (mu, log_scale2), h
 
     def num_parameters(self, trainable_only: bool = True) -> int:
@@ -549,6 +604,8 @@ class JKGINCurvature(nn.Module):
         log_scale2_clamp: tuple[float, float] = (-10.0, 10.0),
         global_dim: int = 0,
         global_attr: str = "global_feat",
+        target_dim: int = 1,
+        covariance_mode: str = "diagonal",
     ):
         super().__init__()
         assert num_layers >= 0, "num_layers must be >= 0"
@@ -565,6 +622,8 @@ class JKGINCurvature(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
@@ -597,7 +656,7 @@ class JKGINCurvature(nn.Module):
             node_head_dim = n_markers
 
         head_in_dim = node_head_dim + global_dim
-        self.head = _FinalHead(head_in_dim, hidden_dim, dropout)
+        self.head = _FinalHead(head_in_dim, hidden_dim, dropout, target_dim=self.target_dim, covariance_mode=self.covariance_mode)
 
     def forward(self, x, edge_index, data=None):
         """Run JK-GIN message passing and predict nodewise mean and log-variance."""
@@ -640,7 +699,7 @@ class JKGINCurvature(nn.Module):
             h = torch.cat([h, gfeat_node], dim=1)
 
         out = self.head(h)
-        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp)
+        mu, log_scale2 = _finalize_distribution_outputs(out, self.log_scale2_clamp, self.target_dim, self.covariance_mode)
         return (mu, log_scale2), h
 
     def num_parameters(self, trainable_only: bool = True) -> int:

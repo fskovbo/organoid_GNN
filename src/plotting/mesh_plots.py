@@ -17,13 +17,52 @@ This module now contains both:
 
 
 # -----------------------------------------------------------------------------
+# Target/array helpers
+# -----------------------------------------------------------------------------
+
+def _as_numpy_array(x):
+    """Convert tensors/arrays to a NumPy array without changing shape."""
+    if hasattr(x, "detach"):
+        x = x.detach().cpu().numpy()
+    return np.asarray(x)
+
+
+def select_target_column(values, target_index=None, *, keep_1d=True, name="values"):
+    """Select one target from node-wise values.
+
+    Existing single-target behavior is unchanged. For multi-target arrays with
+    shape ``(N, T)``, pass ``target_index`` to select one target.
+    """
+    arr = _as_numpy_array(values)
+    if arr.ndim == 0:
+        raise ValueError(f"{name} must be node-wise, got scalar")
+    if arr.ndim == 1:
+        return arr.reshape(-1) if keep_1d else arr
+    if arr.ndim == 2:
+        if arr.shape[1] == 1 and target_index is None:
+            return arr[:, 0] if keep_1d else arr
+        if target_index is None:
+            raise ValueError(
+                f"{name} has multiple target columns with shape {arr.shape}; "
+                "pass target_index to select one."
+            )
+        return arr[:, int(target_index)]
+    raise ValueError(f"{name} must have shape (N,), (N,1), or (N,T); got {arr.shape}")
+
+
+def _num_nodes(graph):
+    if hasattr(graph, "y") and getattr(graph, "y") is not None:
+        return int(_as_numpy_array(graph.y).shape[0])
+    return int(graph.x.shape[0])
+
+# -----------------------------------------------------------------------------
 # Projection helpers
 # -----------------------------------------------------------------------------
 
 
 def get_graph_slice_bounds(graphs, graph_index):
     """Return [start, end) bounds into concatenated node arrays for one graph."""
-    sizes = [int(g.y.shape[0]) for g in graphs]
+    sizes = [_num_nodes(g) for g in graphs]
     start = sum(sizes[:graph_index])
     end = start + sizes[graph_index]
     return start, end
@@ -35,6 +74,7 @@ def project_node_quantities_to_mesh(
     *,
     node_pred,
     node_true,
+    target_index=None,
     meta_lookup=None,
     mesh_path=None,
     vertex_owner=None,
@@ -43,7 +83,12 @@ def project_node_quantities_to_mesh(
     normalize_mesh=True,
     return_debug=False,
 ):
-    """Map node-level targets/predictions to mesh vertices using stored ownership arrays."""
+    """Map node-level targets/predictions to mesh vertices using stored ownership arrays.
+
+    ``node_true`` and ``node_pred`` may be 1-D arrays or multi-target ``(N, T)``
+    arrays. Pass ``target_index`` for internal target selection, or pass already
+    selected 1-D arrays and leave ``target_index=None``.
+    """
     md = get_graph_metadata(graph, meta_lookup=meta_lookup, strict=True)
 
     if mesh_path is None:
@@ -63,8 +108,8 @@ def project_node_quantities_to_mesh(
         mesh.normalize_inplace()
 
     vertex_owner = np.asarray(vertex_owner, dtype=np.int64).reshape(-1)
-    node_pred = np.asarray(node_pred, dtype=np.float32).reshape(-1)
-    node_true = np.asarray(node_true, dtype=np.float32).reshape(-1)
+    node_pred = select_target_column(node_pred, target_index, name="node_pred").astype(np.float32, copy=False)
+    node_true = select_target_column(node_true, target_index, name="node_true").astype(np.float32, copy=False)
 
     if vertex_owner.shape[0] != mesh.v.shape[0]:
         raise ValueError(
@@ -72,7 +117,7 @@ def project_node_quantities_to_mesh(
         )
 
     n_nodes_meta = int(np.max(vertex_owner)) + 1 if np.any(vertex_owner >= 0) else 0
-    n_nodes_graph = int(graph.y.shape[0]) if hasattr(graph, "y") else None
+    n_nodes_graph = _num_nodes(graph) if hasattr(graph, "x") else None
 
     if len(node_pred) != n_nodes_meta:
         raise ValueError(f"Prediction length mismatch: {len(node_pred)} vs {n_nodes_meta}")
@@ -104,14 +149,29 @@ def project_node_quantities_to_mesh(
 
 
 
-def project_predictions_to_mesh(graph_index, graphs, y_true_all, y_pred_all, *, meta_lookup=None, fill_value=np.nan, return_debug=False):
-    """Project one graph from concatenated prediction arrays onto its mesh."""
+def project_predictions_to_mesh(
+    graph_index,
+    graphs,
+    y_true_all,
+    y_pred_all,
+    *,
+    target_index=None,
+    meta_lookup=None,
+    fill_value=np.nan,
+    return_debug=False,
+):
+    """Project one graph from concatenated prediction arrays onto its mesh.
+
+    Pass ``target_index`` when the supplied arrays are multi-target. Passing
+    already-selected 1-D arrays remains the recommended, most general workflow.
+    """
     graph = graphs[graph_index]
     start, end = get_graph_slice_bounds(graphs, graph_index)
     return project_node_quantities_to_mesh(
         graph,
         node_true=y_true_all[start:end],
         node_pred=y_pred_all[start:end],
+        target_index=target_index,
         meta_lookup=meta_lookup,
         fill_value=fill_value,
         return_debug=return_debug,
@@ -156,7 +216,7 @@ def project_node_categories_to_mesh(
     vertex_owner = np.asarray(vertex_owner, dtype=np.int64).reshape(-1)
     node_categories = np.asarray(node_categories, dtype=object).reshape(-1)
 
-    n_nodes = int(graph.y.shape[0])
+    n_nodes = _num_nodes(graph)
     if node_categories.shape[0] != n_nodes:
         raise ValueError(
             f"node_categories has length {node_categories.shape[0]}, expected {n_nodes}"
@@ -212,6 +272,8 @@ def plot_projected_true_vs_pred(
     fig_size=(1200, 550),
     view=None,
     title=None,
+    true_title="Ground truth",
+    pred_title="Prediction",
 ):
     """Plot ground-truth and predicted vertex values side-by-side on the same mesh."""
     mesh = result["mesh"]
@@ -263,7 +325,7 @@ def plot_projected_true_vs_pred(
         rows=1,
         cols=2,
         specs=[[{"type": "scene"}, {"type": "scene"}]],
-        subplot_titles=("Ground truth", "Prediction"),
+        subplot_titles=(true_title, pred_title),
         horizontal_spacing=0.03,
     )
     for tr in fig_true.data:

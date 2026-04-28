@@ -1,6 +1,13 @@
 import numpy as np
 
 
+def _select_target(a, target_index=0):
+    a = np.asarray(a, dtype=np.float64)
+    if a.ndim == 2:
+        return a[:, int(target_index)]
+    return a.reshape(-1)
+
+
 def append_none_marker_column(X, marker_names, *, name="None"):
     """Append a binary 'no marker positive' column to a marker matrix."""
     X = np.asarray(X, dtype=float)
@@ -9,13 +16,14 @@ def append_none_marker_column(X, marker_names, *, name="None"):
     return X_ext, list(marker_names) + [name]
 
 
-def compute_markerwise_means(y_true, X):
+def compute_markerwise_means(y_true, X, target_index=0):
     """
     μ_m = mean(y_true | marker m positive), μ_none for rows with no positives.
     Returns:
       mu_pos  : (M,) float64
       mu_none : float64
     """
+    y_true = _select_target(y_true, target_index=target_index)
     K, M = X.shape
     mu_pos = np.zeros(M, dtype=np.float64)
     for m in range(M):
@@ -26,7 +34,7 @@ def compute_markerwise_means(y_true, X):
     return mu_pos, mu_none
 
 
-def compute_markerwise_residuals(y_true, y_pred, X):
+def compute_markerwise_residuals(y_true, y_pred, X, target_index=0):
     """
     Build residual arrays per marker (positives only). Means are computed inside.
       r_model_list[m]    = y_true[+m] - y_pred[+m]
@@ -37,6 +45,8 @@ def compute_markerwise_residuals(y_true, y_pred, X):
       n_pos           : (M,) int64 positives per marker
       mu_pos          : (M,) float64 (returned for convenience)
     """
+    y_true = _select_target(y_true, target_index=target_index)
+    y_pred = _select_target(y_pred, target_index=target_index)
     mu_pos, _ = compute_markerwise_means(y_true, X)
     M = X.shape[1]
     r_model_list, r_base_list = [], []
@@ -53,7 +63,7 @@ def compute_markerwise_residuals(y_true, y_pred, X):
     return r_model_list, r_base_list, n_pos, mu_pos
 
 
-def estimate_marker_conditional_gaussians(y_true, X):
+def estimate_marker_conditional_gaussians(y_true, X, target_index=0):
     """
     For each marker m, compute baseline Gaussian params using marker-positive cells:
       mu_pos[m]  = mean(y_true | marker m positive)
@@ -110,7 +120,7 @@ def compute_nodewise_nll(y_true, mu, var):
     return 0.5 * (np.log(2.0 * np.pi * var) + (y_true - mu) ** 2 / var)
 
 
-def compute_markerwise_nll(y_true, mu_model, log_var_model, X, eps=1e-12):
+def compute_markerwise_nll(y_true, mu_model, log_var_model, X, eps=1e-12, target_index=0):
     """
     Compute per-node NLL arrays per marker (positives only) for:
       - model: N(mu_model, exp(log_var_model))
@@ -131,9 +141,9 @@ def compute_markerwise_nll(y_true, mu_model, log_var_model, X, eps=1e-12):
         Delta_var  = 0.5 * log(var_b / var_model)
         Delta_mean = 0.5 * [ (y-mu_b)^2/var_b - (y-mu_model)^2/var_model ]
     """
-    y_true = np.asarray(y_true, dtype=np.float64).reshape(-1)
-    mu_model = np.asarray(mu_model, dtype=np.float64).reshape(-1)
-    log_var_model = np.asarray(log_var_model, dtype=np.float64).reshape(-1)
+    y_true = _select_target(y_true, target_index=target_index)
+    mu_model = _select_target(mu_model, target_index=target_index)
+    log_var_model = _select_target(log_var_model, target_index=target_index)
     X = np.asarray(X)
 
     M = X.shape[1]

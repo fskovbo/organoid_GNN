@@ -98,8 +98,13 @@ def extract_node_embeddings(
         except TypeError:
             (mu, log_var), h = model(batch.x, batch.edge_index)
 
-        mu = mu.view(-1)
-        log_var = log_var.view(-1) if log_var is not None else None
+        if log_var is not None and getattr(log_var, "ndim", 0) == 3:
+            cov = log_var @ log_var.transpose(-1, -2)
+            log_var = torch.log(torch.diagonal(cov, dim1=-2, dim2=-1).clamp_min(1e-12))
+        if mu.ndim == 2 and mu.shape[1] == 1:
+            mu = mu.view(-1)
+        if log_var is not None and log_var.ndim == 2 and log_var.shape[1] == 1:
+            log_var = log_var.view(-1)
 
         if center_only:
             if not hasattr(batch, "center_idx"):

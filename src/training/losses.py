@@ -52,18 +52,55 @@ class CompositeLoss:
         return total, breakdown
 
 
+def _as_matrix(x: torch.Tensor) -> torch.Tensor:
+    return x.unsqueeze(-1) if x.ndim == 1 else x
+
+
 def gaussian_nll(mu: torch.Tensor, log_var: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-    """Compute the per-node Gaussian negative log-likelihood."""
+    """Compute diagonal Gaussian NLL per node and target.
+
+    Supports old one-target shapes (N,) and new multi-target shapes (N, D).
+    """
+    mu = _as_matrix(mu)
+    log_var = _as_matrix(log_var)
+    y = _as_matrix(y)
+    if mu.shape != y.shape:
+        raise ValueError(f"mu and y shape mismatch: {tuple(mu.shape)} vs {tuple(y.shape)}")
     var = torch.exp(log_var).clamp_min(1e-12)
     return 0.5 * (log_var + (y - mu).square() / var)
 
 
+def multivariate_gaussian_nll(mu: torch.Tensor, chol: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Compute full-covariance Gaussian NLL per node using Cholesky factors.
+
+    ``chol`` is (N, D, D), lower triangular, with positive diagonal.
+    Constants are omitted, matching ``gaussian_nll``.
+    """
+    mu = _as_matrix(mu)
+    y = _as_matrix(y)
+    if chol.ndim != 3:
+        raise ValueError(f"Expected chol shape (N, D, D), got {tuple(chol.shape)}")
+    if mu.shape != y.shape or chol.shape[0] != y.shape[0] or chol.shape[1] != y.shape[1] or chol.shape[2] != y.shape[1]:
+        raise ValueError(f"Incompatible shapes: mu={tuple(mu.shape)}, y={tuple(y.shape)}, chol={tuple(chol.shape)}")
+    diff = (y - mu).unsqueeze(-1)
+    sol = torch.linalg.solve_triangular(chol, diff, upper=False).squeeze(-1)
+    maha = sol.square().sum(dim=-1)
+    log_det_cov = 2.0 * torch.log(torch.diagonal(chol, dim1=-2, dim2=-1).clamp_min(1e-12)).sum(dim=-1)
+    return 0.5 * (log_det_cov + maha)
+
+
+def gaussian_loss_from_outputs(mu: torch.Tensor, scale: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Return mean NLL for diagonal or full-covariance outputs."""
+    if scale.ndim == 3:
+        return multivariate_gaussian_nll(mu, scale, y).mean()
+    return gaussian_nll(mu, scale, y).mean()
+
+
 def make_base_loss(_cfg=None) -> Callable:
-    """Build the base training loss, which is the batch-mean Gaussian NLL."""
+    """Build the base training loss, diagonal by default and full when model outputs Cholesky factors."""
 
     def base_loss(*, mu: torch.Tensor, log_scale2: torch.Tensor, batch) -> torch.Tensor:
-        per_node = gaussian_nll(mu, log_scale2, batch.y)
-        return per_node.mean()
+        return gaussian_loss_from_outputs(mu, log_scale2, batch.y)
 
     return base_loss
 
@@ -203,8 +240,8 @@ def graph_sum_matching_loss(
     reduction: str = "mean",
 ) -> torch.Tensor:
     """Penalize mismatch between per-graph sums of predictions and targets."""
-    pred = pred.reshape(-1)
-    target = target.reshape(-1)
+    pred = _as_matrix(pred)
+    target = _as_matrix(target)
     batch_index = batch_index.reshape(-1)
 
     if pred.shape[0] != target.shape[0]:
@@ -218,10 +255,11 @@ def graph_sum_matching_loss(
     if n_graphs == 0:
         return pred.new_zeros(())
 
-    pred_sum = torch.zeros(n_graphs, device=pred.device, dtype=pred.dtype)
-    true_sum = torch.zeros(n_graphs, device=target.device, dtype=target.dtype)
-    pred_sum.scatter_add_(0, batch_index, pred)
-    true_sum.scatter_add_(0, batch_index, target)
+    pred_sum = torch.zeros((n_graphs, pred.shape[1]), device=pred.device, dtype=pred.dtype)
+    true_sum = torch.zeros((n_graphs, target.shape[1]), device=target.device, dtype=target.dtype)
+    idx = batch_index.unsqueeze(-1).expand_as(pred)
+    pred_sum.scatter_add_(0, idx, pred)
+    true_sum.scatter_add_(0, idx, target)
 
     per_graph = (pred_sum - true_sum).square()
 
@@ -278,6 +316,7 @@ def integrated_curvature_term(
     log_scale2: torch.Tensor,
     batch,
     reduction: str = "mean",
+    target_index: int = 0,
 ) -> torch.Tensor:
     """Compute the auxiliary 4π integrated-curvature penalty for each graph."""
     del log_scale2
@@ -285,8 +324,9 @@ def integrated_curvature_term(
         raise AttributeError(
             "Batch has no 'cell_patch_area'. Materialize it onto graphs before training."
         )
+    pred = _as_matrix(mu)[:, int(target_index)]
     return integrated_curvature_loss(
-        pred=mu,
+        pred=pred,
         cell_patch_area=batch.cell_patch_area,
         batch_index=batch.batch,
         reduction=reduction,

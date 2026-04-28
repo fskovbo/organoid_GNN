@@ -1,13 +1,18 @@
 import copy
 import numpy as np
+import torch
 
-
-def organoid_stat(graph, stat="median"):
+def organoid_stat(graph, stat="median", target_index=0):
     """
     Reduce a graph's node targets y to a scalar summary for filtering.
+    For multi-target y, use target_index (default 0 = Gaussian curvature).
     stat ∈ {'median','mean'}.
     """
-    y = graph.y.detach().cpu().numpy().reshape(-1)
+    y = graph.y.detach().cpu().numpy()
+    if y.ndim == 2:
+        y = y[:, int(target_index)]
+    else:
+        y = y.reshape(-1)
     if stat == "median":
         return float(np.median(y))
     elif stat == "mean":
@@ -270,23 +275,35 @@ def train_val_split_graphs(
 def standardize_graph_targets(train_graphs, val_graphs=None, robust=False):
     """
     Compute global target standardization on TRAIN only and apply to provided lists.
-    robust=False → mean/std; robust=True → median/IQR/1.349.
-    Returns (center, scale).
+    Supports old y=(N,) and new y=(N,D). Returns scalar center/scale for D=1,
+    otherwise arrays of shape (D,).
     """
-    y_all = np.concatenate([g.y.detach().cpu().numpy().reshape(-1) for g in train_graphs], axis=0)
-    if robust:
-        center = float(np.median(y_all))
-        iqr = float(np.percentile(y_all, 75) - np.percentile(y_all, 25))
-        scale = float(iqr / 1.349) if iqr > 1e-12 else 1.0
-    else:
-        center = float(np.mean(y_all))
-        std = float(np.std(y_all))
-        scale = std if std > 1e-12 else 1.0
+    ys = []
     for g in train_graphs:
-        g.y = (g.y - center) / scale
+        y = g.y.detach().cpu().numpy()
+        ys.append(y[:, None] if y.ndim == 1 else y)
+    y_all = np.concatenate(ys, axis=0)
+
+    if robust:
+        center = np.median(y_all, axis=0)
+        iqr = np.percentile(y_all, 75, axis=0) - np.percentile(y_all, 25, axis=0)
+        scale = np.where(iqr > 1e-12, iqr / 1.349, 1.0)
+    else:
+        center = np.mean(y_all, axis=0)
+        std = np.std(y_all, axis=0)
+        scale = np.where(std > 1e-12, std, 1.0)
+
+    center_t = torch.as_tensor(center, dtype=train_graphs[0].y.dtype, device=train_graphs[0].y.device)
+    scale_t = torch.as_tensor(scale, dtype=train_graphs[0].y.dtype, device=train_graphs[0].y.device)
+
+    for g in train_graphs:
+        g.y = (g.y - center_t) / scale_t
     if val_graphs is not None:
         for g in val_graphs:
-            g.y = (g.y - center) / scale
+            g.y = (g.y - center_t.to(g.y.device)) / scale_t.to(g.y.device)
+
+    if center.shape[0] == 1:
+        return float(center[0]), float(scale[0])
     return center, scale
 
 

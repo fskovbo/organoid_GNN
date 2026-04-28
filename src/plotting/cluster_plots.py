@@ -9,6 +9,30 @@ from src.data.metadata import get_graph_metadata_value
 """Reusable matplotlib plots for cluster-level summaries."""
 
 
+
+
+def select_target_column(values, target_index=None, *, name="values"):
+    """Return a 1-D target array for plotting.
+
+    Single-target arrays are unchanged. For arrays with shape ``(N, T)``, pass
+    ``target_index`` to select the target to plot.
+    """
+    if hasattr(values, "detach"):
+        values = values.detach().cpu().numpy()
+    arr = np.asarray(values)
+    if arr.ndim == 1:
+        return arr.reshape(-1)
+    if arr.ndim == 2:
+        if arr.shape[1] == 1 and target_index is None:
+            return arr[:, 0]
+        if target_index is None:
+            raise ValueError(
+                f"{name} has multiple target columns with shape {arr.shape}; pass target_index."
+            )
+        return arr[:, int(target_index)]
+    raise ValueError(f"{name} must have shape (N,), (N,1), or (N,T); got {arr.shape}")
+
+
 def plot_cluster_marker_heatmap(
     values,
     marker_names,
@@ -61,6 +85,7 @@ def plot_cluster_boxplots(
     data_list,
     labels,
     *,
+    target_index=None,
     data_labels=None,
     colors=None,
     clusters=None,
@@ -79,7 +104,8 @@ def plot_cluster_boxplots(
     ----------
     data_list : list of array-like
         List of arrays to plot, e.g. [y_true, y_pred, log_var].
-        Each array must have shape (N,).
+        Each array may have shape (N,), (N,1), or (N,T). For multi-target
+        arrays, pass target_index or preselect a 1-D target before calling.
     labels : array-like
         Cluster labels of shape (N,).
     data_labels : list of str, optional
@@ -111,7 +137,10 @@ def plot_cluster_boxplots(
     fig, ax
     """
     labels = np.asarray(labels, dtype=int)
-    data_list = [np.asarray(d) for d in data_list]
+    data_list = [
+        select_target_column(d, target_index=target_index, name=f"data_list[{i}]")
+        for i, d in enumerate(data_list)
+    ]
 
     n = len(labels)
     for i, d in enumerate(data_list):

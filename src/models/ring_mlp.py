@@ -125,6 +125,55 @@ def _broadcast_global_features(data, global_attr: str = "global_feat"):
 
     return gfeat[data.batch]
 
+
+# ---------------------------------------------------------------------
+# Gaussian output helpers
+# ---------------------------------------------------------------------
+
+def _normalize_covariance_mode(mode: str) -> str:
+    mode = str(mode).lower()
+    if mode not in {"diagonal", "full"}:
+        raise ValueError("covariance_mode must be 'diagonal' or 'full'")
+    return mode
+
+
+def _gaussian_head_output_dim(target_dim: int = 1, covariance_mode: str = "diagonal") -> int:
+    target_dim = int(target_dim)
+    if target_dim < 1:
+        raise ValueError("target_dim must be >= 1")
+    covariance_mode = _normalize_covariance_mode(covariance_mode)
+    return 2 * target_dim if covariance_mode == "diagonal" else target_dim + target_dim * (target_dim + 1) // 2
+
+
+def _finalize_distribution_outputs(out, log_scale2_clamp, target_dim: int = 1, covariance_mode: str = "diagonal"):
+    target_dim = int(target_dim)
+    covariance_mode = _normalize_covariance_mode(covariance_mode)
+    mu = out[:, :target_dim].contiguous()
+    lo, hi = log_scale2_clamp
+    if covariance_mode == "diagonal":
+        log_scale2 = torch.clamp(out[:, target_dim:2 * target_dim].contiguous(), lo, hi)
+        if target_dim == 1:
+            return mu.reshape(-1), log_scale2.reshape(-1)
+        return mu, log_scale2
+    raw = out[:, target_dim:]
+    L = out.new_zeros((out.shape[0], target_dim, target_dim))
+    tril_i, tril_j = torch.tril_indices(target_dim, target_dim, device=out.device)
+    L[:, tril_i, tril_j] = raw
+    diag = torch.arange(target_dim, device=out.device)
+    L[:, diag, diag] = torch.exp(0.5 * torch.clamp(L[:, diag, diag], lo, hi)).clamp_min(1e-6)
+    return mu, L
+
+
+def distribution_to_diagonal_outputs(mu, scale):
+    if scale.ndim == 3:
+        cov = scale @ scale.transpose(-1, -2)
+        scale = torch.log(torch.diagonal(cov, dim1=-2, dim2=-1).clamp_min(1e-12))
+    if mu.ndim == 2 and mu.shape[1] == 1:
+        mu = mu.reshape(-1)
+    if scale.ndim == 2 and scale.shape[1] == 1:
+        scale = scale.reshape(-1)
+    return mu, scale
+
 # ---------------------------------------------------------------------
 # Shared MLP encoder
 # ---------------------------------------------------------------------
@@ -171,6 +220,8 @@ class RingFractionMLP(nn.Module):
         log_scale2_clamp=(-10.0, 10.0),
         global_dim=0,
         global_attr="global_feat",
+        target_dim=1,
+        covariance_mode="diagonal",
     ):
         super().__init__()
 
@@ -180,11 +231,13 @@ class RingFractionMLP(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         in_dim = (k_hops + 1) * n_markers
 
         self.encoder = _MLPHead(in_dim, hidden_dim, dropout, norm)
-        self.head = nn.Linear(hidden_dim + global_dim, 2)
+        self.head = nn.Linear(hidden_dim + global_dim, _gaussian_head_output_dim(self.target_dim, self.covariance_mode))
 
     def forward(self, x, edge_index, data=None):
         if data is not None and hasattr(data, self.feature_attr):
@@ -208,11 +261,12 @@ class RingFractionMLP(nn.Module):
 
         out = self.head(h_out)
 
-        mu = out[:, 0]
-        log_scale2 = out[:, 1]
-
-        lo, hi = self.log_scale2_clamp
-        log_scale2 = torch.clamp(log_scale2, lo, hi)
+        mu, log_scale2 = _finalize_distribution_outputs(
+            out,
+            self.log_scale2_clamp,
+            self.target_dim,
+            self.covariance_mode,
+        )
 
         return (mu, log_scale2), h
 
@@ -235,6 +289,8 @@ class PooledKHopMLP(nn.Module):
         log_scale2_clamp=(-10.0, 10.0),
         global_dim=0,
         global_attr="global_feat",
+        target_dim=1,
+        covariance_mode="diagonal",
     ):
         super().__init__()
 
@@ -245,9 +301,11 @@ class PooledKHopMLP(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.encoder = _MLPHead(n_markers, hidden_dim, dropout, norm)
-        self.head = nn.Linear(hidden_dim + global_dim, 2)
+        self.head = nn.Linear(hidden_dim + global_dim, _gaussian_head_output_dim(self.target_dim, self.covariance_mode))
 
     def forward(self, x, edge_index, data=None):
         if data is not None and hasattr(data, self.feature_attr) and hasattr(data, "ring_sizes"):
@@ -278,11 +336,12 @@ class PooledKHopMLP(nn.Module):
 
         out = self.head(h_out)
 
-        mu = out[:, 0]
-        log_scale2 = out[:, 1]
-
-        lo, hi = self.log_scale2_clamp
-        log_scale2 = torch.clamp(log_scale2, lo, hi)
+        mu, log_scale2 = _finalize_distribution_outputs(
+            out,
+            self.log_scale2_clamp,
+            self.target_dim,
+            self.covariance_mode,
+        )
 
         return (mu, log_scale2), h
     
@@ -322,6 +381,8 @@ class RingSizeMLP(nn.Module):
         log_scale2_clamp=(-10.0, 10.0),
         global_dim=0,
         global_attr="global_feat",
+        target_dim=1,
+        covariance_mode="diagonal",
     ):
         super().__init__()
 
@@ -335,6 +396,8 @@ class RingSizeMLP(nn.Module):
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         in_dim = (k_hops + 1) + (n_markers if use_center_markers else 0)
 
@@ -355,7 +418,7 @@ class RingSizeMLP(nn.Module):
             nn.Dropout(dropout if dropout > 0 else 0.0),
         )
 
-        self.head = nn.Linear(hidden_dim + global_dim, 2)
+        self.head = nn.Linear(hidden_dim + global_dim, _gaussian_head_output_dim(self.target_dim, self.covariance_mode))
 
     def forward(self, x, edge_index, data=None):
         # use precomputed ring sizes if available, otherwise recompute
@@ -386,11 +449,12 @@ class RingSizeMLP(nn.Module):
 
         out = self.head(h_out)
 
-        mu = out[:, 0]
-        log_scale2 = out[:, 1]
-
-        lo, hi = self.log_scale2_clamp
-        log_scale2 = torch.clamp(log_scale2, lo, hi)
+        mu, log_scale2 = _finalize_distribution_outputs(
+            out,
+            self.log_scale2_clamp,
+            self.target_dim,
+            self.covariance_mode,
+        )
 
         return (mu, log_scale2), h
 

@@ -58,7 +58,7 @@ def weight_targets_by_patch_area(
                 f"len(y)={y_np.shape[0]} vs len(area)={area.shape[0]}"
             )
 
-        y_weighted = y_np * area
+        y_weighted = y_np * (area[:, None] if getattr(y_np, "ndim", 1) == 2 else area)
 
         # write back (preserve tensor type if needed)
         if hasattr(y, "new_tensor"):
@@ -105,7 +105,7 @@ def subtract_organoid_mean_curvature(
         if y.numel() == 0:
             continue
 
-        mean_val = torch.mean(y)
+        mean_val = torch.mean(y, dim=0) if y.ndim == 2 else torch.mean(y)
 
         g.y = y - mean_val
 
@@ -159,9 +159,9 @@ def robust_zscore_organoid_targets(
         if y.numel() == 0:
             continue
 
-        med = torch.median(y)
+        med = torch.median(y, dim=0).values if y.ndim == 2 else torch.median(y)
 
-        mad = torch.median(torch.abs(y - med))
+        mad = torch.median(torch.abs(y - med), dim=0).values if y.ndim == 2 else torch.median(torch.abs(y - med))
 
         if scale_consistency:
             mad = mad * 1.4826
@@ -175,3 +175,178 @@ def robust_zscore_organoid_targets(
             setattr(g, mad_attr, mad)
 
     return graphs_out
+
+
+
+def interpolate_target_outliers_from_neighbors(
+    graphs,
+    *,
+    target_indices=None,
+    clip_quantiles=(0.001, 0.999),
+    min_neighbors=1,
+    fallback="global_median",
+    inplace=False,
+    report=True,
+):
+    """
+    Replace extreme target outliers with neighbor-interpolated values.
+
+    Parameters
+    ----------
+    graphs : list[torch_geometric.data.Data]
+        Graphs with g.y and g.edge_index.
+    target_indices : list[int] or None
+        Which target columns to process. None = all targets.
+    clip_quantiles : tuple[float, float]
+        Outliers are values outside these global quantiles per target.
+    min_neighbors : int
+        Minimum finite non-outlier neighbors required for interpolation.
+    fallback : {"global_median", "node_median", "keep"}
+        What to do if an outlier node has too few usable neighbors.
+    inplace : bool
+        If False, returns copied graphs.
+    report : bool
+        Print outlier counts.
+
+    Returns
+    -------
+    graphs_out : list[Data]
+    info : dict
+    """
+
+    if fallback not in {"global_median", "node_median", "keep"}:
+        raise ValueError("fallback must be one of: 'global_median', 'node_median', 'keep'")
+
+    graphs_out = graphs if inplace else [copy.deepcopy(g) for g in graphs]
+
+    # -------------------------
+    # Collect all targets
+    # -------------------------
+    ys = []
+    graph_slices = []
+    offset = 0
+
+    for g in graphs_out:
+        y = g.y.detach().cpu()
+        if y.ndim == 1:
+            y = y[:, None]
+        ys.append(y)
+
+        n = y.shape[0]
+        graph_slices.append(slice(offset, offset + n))
+        offset += n
+
+    Y = torch.cat(ys, dim=0).numpy().astype(float)  # (total_nodes, target_dim)
+    n_total, target_dim = Y.shape
+
+    if target_indices is None:
+        target_indices = list(range(target_dim))
+    else:
+        target_indices = list(target_indices)
+
+    # -------------------------
+    # Global outlier thresholds
+    # -------------------------
+    q_lo, q_hi = clip_quantiles
+    thresholds = {}
+
+    for t in target_indices:
+        vals = Y[:, t]
+        vals = vals[np.isfinite(vals)]
+        lo = np.quantile(vals, q_lo)
+        hi = np.quantile(vals, q_hi)
+        thresholds[t] = (lo, hi)
+
+    # -------------------------
+    # Replace outliers graphwise
+    # -------------------------
+    info = {
+        "clip_quantiles": clip_quantiles,
+        "thresholds": thresholds,
+        "n_replaced": {t: 0 for t in target_indices},
+        "n_outliers": {t: 0 for t in target_indices},
+        "n_fallback": {t: 0 for t in target_indices},
+    }
+
+    for gi, g in enumerate(graphs_out):
+        y = g.y.detach().clone()
+        original_was_1d = y.ndim == 1
+
+        if y.ndim == 1:
+            y2 = y[:, None]
+        else:
+            y2 = y
+
+        y_new = y2.clone()
+        n_nodes = y2.shape[0]
+
+        edge_index = g.edge_index.detach().cpu()
+        src = edge_index[0].numpy()
+        dst = edge_index[1].numpy()
+
+        neighbors = [[] for _ in range(n_nodes)]
+        for u, v in zip(src, dst):
+            u = int(u)
+            v = int(v)
+            if u != v:
+                neighbors[u].append(v)
+
+        for t in target_indices:
+            lo, hi = thresholds[t]
+
+            vals = y2[:, t].detach().cpu().numpy().astype(float)
+            finite = np.isfinite(vals)
+            outlier = finite & ((vals < lo) | (vals > hi))
+
+            info["n_outliers"][t] += int(outlier.sum())
+
+            non_outlier = finite & (~outlier)
+            global_median = float(np.median(Y[np.isfinite(Y[:, t]), t]))
+
+            for i in np.where(outlier)[0]:
+                neigh = np.asarray(neighbors[i], dtype=int)
+
+                if neigh.size > 0:
+                    neigh_vals = vals[neigh]
+                    good = np.isfinite(neigh_vals)
+
+                    # Prefer non-outlier neighbors
+                    good = good & non_outlier[neigh]
+
+                    if good.sum() >= min_neighbors:
+                        replacement = float(np.mean(neigh_vals[good]))
+                    else:
+                        replacement = None
+                else:
+                    replacement = None
+
+                if replacement is None:
+                    info["n_fallback"][t] += 1
+
+                    if fallback == "global_median":
+                        replacement = global_median
+                    elif fallback == "node_median":
+                        good_vals = vals[non_outlier]
+                        replacement = float(np.median(good_vals)) if good_vals.size else global_median
+                    elif fallback == "keep":
+                        continue
+
+                y_new[i, t] = y_new.new_tensor(replacement)
+                info["n_replaced"][t] += 1
+
+        g.y = y_new[:, 0].contiguous() if original_was_1d else y_new.contiguous()
+
+    if report:
+        print("=== Target outlier interpolation report ===")
+        print(f"Quantiles: {clip_quantiles}")
+        for t in target_indices:
+            lo, hi = thresholds[t]
+            print(
+                f"target {t}: "
+                f"range=[{lo:.6g}, {hi:.6g}] | "
+                f"outliers={info['n_outliers'][t]} | "
+                f"replaced={info['n_replaced'][t]} | "
+                f"fallback={info['n_fallback'][t]}"
+            )
+
+    return graphs_out, info

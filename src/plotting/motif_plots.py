@@ -76,6 +76,35 @@ def node_color_from_marker_priority(x_row, marker_names, marker_colors):
 
 
 
+
+
+def _select_scalar_from_item(item, key, target_index=None):
+    """Extract a scalar from an exemplar item, selecting target columns if needed."""
+    val = item.get(key, np.nan)
+    arr = np.asarray(val)
+    if arr.ndim == 0:
+        try:
+            return float(arr)
+        except Exception:
+            return np.nan
+    arr = arr.reshape(-1)
+    if arr.size == 1:
+        return float(arr[0])
+    if target_index is None:
+        raise ValueError(
+            f"Exemplar item[{key!r}] has multiple targets; pass target_index for plotting."
+        )
+    return float(arr[int(target_index)])
+
+
+def _exemplar_value_title(item, *, target_index=None, target_name=None):
+    """Build a short y/ŷ title suffix for exemplar plots."""
+    y = _select_scalar_from_item(item, "y_true", target_index=target_index)
+    yp = _select_scalar_from_item(item, "y_pred", target_index=target_index)
+    prefix = "" if target_name is None else f"{target_name}: "
+    return f"{prefix}y={y:.3f}, ŷ={yp:.3f}"
+
+
 def plot_cluster_exemplar_subgraphs_radial(
     cluster_exemplars,
     cluster_id,
@@ -86,6 +115,8 @@ def plot_cluster_exemplar_subgraphs_radial(
     center_node_size=1100,
     other_node_size=500,
     edge_width=1.2,
+    target_index=None,
+    target_name=None,
 ):
     """Plot exemplar ego-subgraphs for one cluster using a radial hop layout."""
     items = cluster_exemplars[cluster_id]
@@ -132,7 +163,7 @@ def plot_cluster_exemplar_subgraphs_radial(
         title = (
             f"C{cluster_id} | p={item['probability']:.3f}\n"
             f"g={item['graph_index']} node={item['node_index']}\n"
-            f"y={item['y_true']:.3f}, ŷ={item['y_pred']:.3f}"
+            f"{_exemplar_value_title(item, target_index=target_index, target_name=target_name)}"
         )
         if organoid_str is not None:
             title = f"{organoid_str}\n" + title
@@ -181,6 +212,8 @@ def plot_cluster_exemplars_full_organoid(
     fig_size=(900, 700),
     view=None,
     show_center_as_separate_overlay=True,
+    target_index=None,
+    target_name=None,
 ):
     """Plot full organoids with exemplar regions overlaid for each cluster."""
     marker_map = [
@@ -237,7 +270,7 @@ def plot_cluster_exemplars_full_organoid(
                 title=(
                     f"Cluster C{k} | exemplar {j+1}/{min(len(items), max_graphs_per_cluster)} | {organoid_str}<br>"
                     f"graph={gi}, node={item['node_index']}, p={item['probability']:.3f}, "
-                    f"y={item['y_true']:.3f}, ŷ={item['y_pred']:.3f}"
+                    f"{_exemplar_value_title(item, target_index=target_index, target_name=target_name)}"
                 )
             )
             figs_k.append(fig)
@@ -298,6 +331,8 @@ def plot_cluster_exemplars_full_organoid_rows(
     show_center_as_separate_overlay=True,
     width_per_fig=420,
     row_height=420,
+    target_index=None,
+    target_name=None,
 ):
     """Create one combined Plotly row per cluster for full-organoid exemplar plots."""
     figs_by_cluster = plot_cluster_exemplars_full_organoid(
@@ -315,6 +350,8 @@ def plot_cluster_exemplars_full_organoid_rows(
         fig_size=fig_size_single,
         view=view,
         show_center_as_separate_overlay=show_center_as_separate_overlay,
+        target_index=target_index,
+        target_name=target_name,
     )
 
     row_figs_by_cluster = {}
@@ -327,7 +364,8 @@ def plot_cluster_exemplars_full_organoid_rows(
             gi = item["graph_index"]
             organoid_str = getattr(graphs[gi], "organoid_str", None) or f"g{gi}"
             subplot_titles.append(
-                f"{organoid_str}<br>p={item['probability']:.3f}, y={item['y_true']:.3f}, ŷ={item['y_pred']:.3f}"
+                f"{organoid_str}<br>p={item['probability']:.3f}, "
+                f"{_exemplar_value_title(item, target_index=target_index, target_name=target_name)}"
             )
 
         row_fig = combine_plotly_3d_figures_in_row(figs, subplot_titles=subplot_titles, width_per_fig=width_per_fig, height=row_height)

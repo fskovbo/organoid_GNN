@@ -8,7 +8,7 @@ from src.analysis.marker_stats import (
     compute_nodewise_nll,
 )
 from src.data.metadata import get_graph_metadata
-from src.inference.predict import predict_targets, rescale_distribution_outputs
+from src.inference.predict import predict_targets
 
 
 """Utilities for evaluating curvature predictions and building analysis tables."""
@@ -185,16 +185,16 @@ def _aggregate_subset_metrics(y, mu, log_var, X, mask, eps=1e-12, target_index=0
 
 
 
-def eval_model_per_marker(model, g_val, device, scale, center, eps=1e-12, center_only=False, target_index=0):
+def eval_model_per_marker(model, g_val, device, target_transform=None, eps=1e-12, center_only=False, target_index=0):
     y, mu, log_var, X = predict_targets(
         g_val,
         model,
         device=device,
         return_log_var=True,
         center_only=center_only,
+        target_transform=target_transform,
     )
 
-    y, mu, log_var = rescale_distribution_outputs(y, mu, log_var=log_var, center=center, scale=scale)
     y_eval = _select_target(y, target_index=target_index)
     mu_eval = _select_target(mu, target_index=target_index)
     log_var_eval = _select_target(log_var, target_index=target_index)

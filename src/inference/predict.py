@@ -33,52 +33,22 @@ def predict_targets(
     pin_memory=True,
     return_log_var=False,
     center_only=False,
-    rescale=False,
-    center=None,
-    scale=None,
+    target_transform=None,
 ):
     """
     Run the model on a list of graphs and return concatenated predictions.
 
-    Parameters
-    ----------
-    graphs : list
-        List of PyG graphs.
-    model : torch.nn.Module
-        Trained model.
-    device : str or None
-        Device for inference. If None, choose CUDA when available.
-    batch_size : int
-        Batch size for DataLoader.
-    num_workers : int
-        Number of DataLoader workers.
-    pin_memory : bool
-        Whether to use pinned memory in the DataLoader.
-    return_log_var : bool
-        If True, also return predicted log-variance.
-    center_only : bool
-        If True, only return predictions for subgraph center nodes.
-        Requires each graph to have a .center_idx attribute.
-    rescale : bool
-        If True, transform targets and predictions back to original target scale
-        using y = y * scale + center, and log_var = log_var + 2*log(scale).
-    center : float or array-like or None
-        Target center used during standardization.
-    scale : float or array-like or None
-        Target scale used during standardization.
-
-    Returns
-    -------
-    if return_log_var:
-        y_true, y_pred, log_var, X
-    else:
-        y_true, y_pred, X
+    If target_transform is provided, y_true, y_pred, and optional log_var are
+    inverse-transformed back to the original target units using
+    target_transform.inverse_distribution(...).
     """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    if rescale and (center is None or scale is None):
-        raise ValueError("rescale=True requires both center and scale.")
+    if target_transform is not None and not hasattr(target_transform, "inverse_distribution"):
+        raise TypeError(
+            "target_transform must provide inverse_distribution(y, mu, log_var=None)."
+        )
 
     model = model.to(device).eval()
 
@@ -148,43 +118,12 @@ def predict_targets(
     if return_log_var:
         log_var = np.concatenate(Ylv, axis=0).astype(np.float64)
 
-    if rescale:
-        if center is None or scale is None:
-            raise ValueError(
-                "rescale=True requires both 'center' and 'scale' to be provided."
-            )
-
-        y_true, y_pred, log_var = rescale_distribution_outputs(
-            y_true,
-            y_pred,
-            log_var=log_var,
-            center=center,
-            scale=scale,
+    if target_transform is not None:
+        y_true, y_pred, log_var = target_transform.inverse_distribution(
+            y_true, y_pred, log_var=log_var
         )
 
     if return_log_var:
         return y_true, y_pred, log_var, X
 
     return y_true, y_pred, X
-
-
-
-def rescale_distribution_outputs(y, mu, log_var=None, center=0.0, scale=1.0):
-    """Undo target standardization for predictions and optional log-variance."""
-
-    y = np.asarray(y, dtype=np.float64)
-    mu = np.asarray(mu, dtype=np.float64)
-
-    scale = np.asarray(scale, dtype=np.float64)
-    center = np.asarray(center, dtype=np.float64)
-
-    y = y * scale + center
-    mu = mu * scale + center
-
-    if log_var is not None:
-        log_var = np.asarray(log_var, dtype=np.float64)
-        log_var = log_var + 2.0 * np.log(scale)
-
-    return y, mu, log_var
-
-

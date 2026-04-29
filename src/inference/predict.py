@@ -186,3 +186,5 @@ def rescale_distribution_outputs(y, mu, log_var=None, center=0.0, scale=1.0):
         log_var = log_var + 2.0 * np.log(scale)
 
     return y, mu, log_var
+
+

@@ -152,14 +152,57 @@ def build_binned_cluster_fraction_table(
 # Helpers for selecting representative cluster exemplars and building ego-subgraphs.
 # -------------------------------------------------------------------------------------
 
-def get_top_cluster_exemplar_indices_unique_graphs(extraction, clustering_result, top_k_per_cluster=5, require_assigned_label=True):
-    """Pick the most confident examples per cluster with at most one exemplar per graph."""
+def get_top_cluster_exemplar_indices_unique_graphs(
+    extraction,
+    clustering_result,
+    top_k_per_cluster=5,
+    require_assigned_label=True,
+    *,
+    prefer_low_variance=False,
+    variance_weight=1.0,
+    variance_mode="rank",
+):
+    """Pick representative examples per cluster with at most one exemplar per graph.
+
+    By default, examples are ranked only by cluster probability, preserving the
+    previous behavior. If ``prefer_low_variance=True``, examples are additionally
+    prioritized when the model predicts low variance for that node.
+
+    Parameters
+    ----------
+    prefer_low_variance : bool
+        If True, combine high cluster probability with low predicted variance.
+        Requires ``extraction.log_var`` to be present.
+    variance_weight : float
+        Strength of the variance preference. Larger values prioritize low
+        variance more strongly. With ``variance_mode='rank'``, 1.0 gives roughly
+        equal influence to probability rank and variance rank.
+    variance_mode : {"rank", "score"}
+        ``"rank"`` is robust to the numerical scale of log-variance and is the
+        recommended default. ``"score"`` uses ``probability - variance_weight *
+        standardized_log_variance``.
+    """
     labels = np.asarray(clustering_result.labels, dtype=int)
     probs = clustering_result.probabilities
     graph_index = np.asarray(extraction.graph_index, dtype=int)
 
     if probs is None:
         raise ValueError("This helper expects soft cluster probabilities, but probabilities is None.")
+
+    if prefer_low_variance:
+        if extraction.log_var is None:
+            raise ValueError(
+                "prefer_low_variance=True requires extraction.log_var, but it is None. "
+                "Make sure extract_node_embeddings() was run with a model that returns log_var."
+            )
+        log_var = np.asarray(extraction.log_var, dtype=float).reshape(len(labels), -1)
+        if log_var.shape[1] == 1:
+            uncertainty = log_var[:, 0]
+        else:
+            # For multi-target outputs, use the mean log-variance across targets.
+            uncertainty = np.nanmean(log_var, axis=1)
+    else:
+        uncertainty = None
 
     K = probs.shape[1]
     out = {}
@@ -169,7 +212,36 @@ def get_top_cluster_exemplar_indices_unique_graphs(extraction, clustering_result
             out[k] = np.array([], dtype=int)
             continue
 
-        idx_sorted = idx[np.argsort(-probs[idx, k])]
+        if prefer_low_variance:
+            if variance_mode == "rank":
+                # Smaller rank_score is better. This avoids assumptions about the
+                # absolute scale/calibration of log-variance.
+                prob_order = np.argsort(-probs[idx, k])
+                var_order = np.argsort(uncertainty[idx])
+
+                prob_rank = np.empty(len(idx), dtype=float)
+                var_rank = np.empty(len(idx), dtype=float)
+                prob_rank[prob_order] = np.arange(len(idx), dtype=float)
+                var_rank[var_order] = np.arange(len(idx), dtype=float)
+
+                rank_score = prob_rank + float(variance_weight) * var_rank
+                idx_sorted = idx[np.argsort(rank_score)]
+
+            elif variance_mode == "score":
+                u = uncertainty[idx]
+                u_std = np.nanstd(u)
+                if not np.isfinite(u_std) or u_std == 0.0:
+                    u_z = np.zeros_like(u, dtype=float)
+                else:
+                    u_z = (u - np.nanmean(u)) / u_std
+                score = probs[idx, k] - float(variance_weight) * u_z
+                idx_sorted = idx[np.argsort(-score)]
+
+            else:
+                raise ValueError("variance_mode must be 'rank' or 'score'")
+        else:
+            idx_sorted = idx[np.argsort(-probs[idx, k])]
+
         chosen = []
         used_graphs = set()
         for i in idx_sorted:
@@ -198,8 +270,15 @@ def build_cluster_exemplar_subgraphs(
     copy_graph_level_attrs=True,
     target_index=None,
     store_all_targets=True,
+    prefer_low_variance=False,
+    variance_weight=1.0,
+    variance_mode="rank",
 ):
-    """Build ego-subgraphs around the most confident examples in each cluster.
+    """Build ego-subgraphs around representative examples in each cluster.
+
+    By default, exemplars are the most cluster-confident nodes, matching the
+    previous behavior. Set ``prefer_low_variance=True`` to prefer examples where
+    the model also predicts small variance.
 
     Parameters
     ----------
@@ -210,12 +289,24 @@ def build_cluster_exemplar_subgraphs(
     store_all_targets : bool
         If True, also store full vector values as ``y_true_all`` and
         ``y_pred_all`` for multi-target extractions.
+    prefer_low_variance : bool
+        If True, rank examples using both high cluster probability and low
+        predicted log-variance. Requires ``extraction.log_var``.
+    variance_weight : float
+        Strength of the variance preference. With ``variance_mode='rank'``, 1.0
+        gives roughly equal influence to probability rank and variance rank.
+    variance_mode : {"rank", "score"}
+        ``"rank"`` is robust and recommended. ``"score"`` combines probability
+        with standardized log-variance directly.
     """
     top_idx = get_top_cluster_exemplar_indices_unique_graphs(
         extraction,
         clustering_result,
         top_k_per_cluster=top_k_per_cluster,
         require_assigned_label=require_assigned_label,
+        prefer_low_variance=prefer_low_variance,
+        variance_weight=variance_weight,
+        variance_mode=variance_mode,
     )
 
     probs = clustering_result.probabilities
@@ -247,9 +338,15 @@ def build_cluster_exemplar_subgraphs(
                 "y_pred": _select_exemplar_scalar(y_pred_i, target_index, name="y_pred"),
                 "subgraph": sub,
             }
+            if extraction.log_var is not None:
+                log_var_i = extraction.log_var[i]
+                item["log_var"] = _select_exemplar_scalar(log_var_i, target_index, name="log_var")
+                item["pred_var"] = float(np.exp(item["log_var"]))
             if store_all_targets:
                 item["y_true_all"] = _as_serializable_target_value(y_true_i)
                 item["y_pred_all"] = _as_serializable_target_value(y_pred_i)
+                if extraction.log_var is not None:
+                    item["log_var_all"] = _as_serializable_target_value(extraction.log_var[i])
             items.append(item)
         exemplars[k] = items
 

@@ -1,7 +1,143 @@
 import copy
+from numbers import Integral
+
 import torch
 import numpy as np
 from torch_geometric.utils import degree
+
+
+def remove_marker_features(
+    graphs,
+    markers,
+    *,
+    marker_names=None,
+    x_attr="x",
+    inplace=False,
+    return_marker_names=False,
+):
+    """
+    Remove marker-feature columns from graph node feature matrices.
+
+    Parameters
+    ----------
+    graphs : list[Data]
+        PyG graphs with node feature matrix ``g.x`` by default.
+    markers : int | str | sequence[int | str]
+        Marker columns to remove. Integers are interpreted as feature indices.
+        Strings require ``marker_names`` and are resolved by name.
+    marker_names : list[str] or None
+        Optional full marker-name list corresponding to the feature columns.
+    x_attr : str
+        Graph attribute holding the node feature matrix.
+    inplace : bool
+        If False, returns shallow copies of graphs.
+    return_marker_names : bool
+        If True, return ``(graphs_out, marker_names_out)``.
+
+    Returns
+    -------
+    graphs_out : list[Data]
+        Graphs with the selected marker columns removed from ``x_attr``.
+    marker_names_out : list[str], optional
+        Updated marker-name list, returned when ``return_marker_names=True``.
+    """
+
+    if isinstance(markers, (Integral, str)):
+        markers = [markers]
+    else:
+        markers = list(markers)
+
+    if len(markers) == 0:
+        graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+        if return_marker_names:
+            return graphs_out, None if marker_names is None else list(marker_names)
+        return graphs_out
+
+    marker_names_out = None
+    name_to_idx = None
+    if marker_names is not None:
+        marker_names = list(marker_names)
+        name_to_idx = {}
+        for i, name in enumerate(marker_names):
+            if name in name_to_idx:
+                raise ValueError(f"Duplicate marker name {name!r} in marker_names")
+            name_to_idx[name] = i
+
+    remove_indices = []
+    for marker in markers:
+        if isinstance(marker, str):
+            if name_to_idx is None:
+                raise ValueError("String marker selection requires marker_names.")
+            if marker not in name_to_idx:
+                raise KeyError(f"Unknown marker name {marker!r}")
+            idx = name_to_idx[marker]
+        else:
+            idx = int(marker)
+
+        if idx < 0:
+            if marker_names is None:
+                raise IndexError(
+                    "Negative marker indices require marker_names so they can be resolved safely."
+                )
+            idx += len(marker_names)
+
+        remove_indices.append(idx)
+
+    remove_indices = sorted(set(remove_indices))
+
+    if marker_names is not None:
+        n_markers = len(marker_names)
+        bad = [idx for idx in remove_indices if idx < 0 or idx >= n_markers]
+        if bad:
+            raise IndexError(
+                f"Marker indices out of range for marker_names length {n_markers}: {bad}"
+            )
+        remove_set = set(remove_indices)
+        marker_names_out = [
+            name for i, name in enumerate(marker_names) if i not in remove_set
+        ]
+
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+
+    for gi, g in enumerate(graphs_out):
+        if not hasattr(g, x_attr):
+            raise ValueError(f"Graph {gi} has no attribute '{x_attr}'")
+
+        x = getattr(g, x_attr)
+        if x is None:
+            raise ValueError(f"Graph {gi} has '{x_attr}=None'")
+        if x.ndim != 2:
+            raise ValueError(
+                f"Graph {gi} attribute '{x_attr}' must be 2-D, got shape {tuple(x.shape)}"
+            )
+
+        n_features = int(x.shape[1])
+        bad = [idx for idx in remove_indices if idx < 0 or idx >= n_features]
+        if bad:
+            raise IndexError(
+                f"Marker indices out of range for graph {gi} with {n_features} features: {bad}"
+            )
+        if len(remove_indices) >= n_features:
+            raise ValueError(
+                f"Cannot remove all {n_features} feature columns from graph {gi}."
+            )
+
+        remove_set = set(remove_indices)
+        keep_indices = [i for i in range(n_features) if i not in remove_set]
+
+        if torch.is_tensor(x):
+            keep = torch.as_tensor(keep_indices, dtype=torch.long, device=x.device)
+            x_new = x.index_select(dim=1, index=keep).contiguous()
+        else:
+            x_arr = np.asarray(x)
+            x_new = np.ascontiguousarray(x_arr[:, keep_indices])
+
+        setattr(g, x_attr, x_new)
+
+    if return_marker_names:
+        return graphs_out, marker_names_out
+
+    return graphs_out
 
 
 def weight_targets_by_patch_area(

@@ -1,4 +1,5 @@
 import copy
+from collections import deque
 from numbers import Integral
 
 import torch
@@ -313,6 +314,114 @@ def robust_zscore_organoid_targets(
     return graphs_out
 
 
+def _build_undirected_adjacency(edge_index, n_nodes):
+    adjacency = [set() for _ in range(n_nodes)]
+    src = edge_index[0].detach().cpu().numpy()
+    dst = edge_index[1].detach().cpu().numpy()
+
+    for u, v in zip(src, dst):
+        u = int(u)
+        v = int(v)
+        if u == v:
+            continue
+        adjacency[u].add(v)
+        adjacency[v].add(u)
+
+    return [sorted(neigh) for neigh in adjacency]
+
+
+def _nodes_within_hops(adjacency, center, max_hops):
+    distances = {}
+    queue = deque([(int(center), 0)])
+    seen = {int(center)}
+
+    while queue:
+        node, dist = queue.popleft()
+        if dist == max_hops:
+            continue
+        for nbr in adjacency[node]:
+            if nbr in seen:
+                continue
+            seen.add(nbr)
+            next_dist = dist + 1
+            distances[nbr] = next_dist
+            queue.append((nbr, next_dist))
+
+    return distances
+
+
+def _outlier_shell_depths(outlier, adjacency):
+    """Return outlier-cluster depths so boundary outliers are processed first."""
+    depth = np.full(outlier.shape[0], np.inf, dtype=float)
+    queue = deque()
+
+    for i in np.where(outlier)[0]:
+        if any(not outlier[j] for j in adjacency[int(i)]):
+            depth[int(i)] = 0.0
+            queue.append(int(i))
+
+    while queue:
+        node = queue.popleft()
+        for nbr in adjacency[node]:
+            if outlier[nbr] and np.isinf(depth[nbr]):
+                depth[nbr] = depth[node] + 1.0
+                queue.append(nbr)
+
+    # Fully isolated outlier components have no non-outlier boundary. Process
+    # them last and let the normal fallback policy handle under-supported fits.
+    finite_depth = np.isfinite(depth)
+    fill_depth = np.nanmax(depth[finite_depth]) + 1.0 if finite_depth.any() else 0.0
+    depth[np.isinf(depth)] = fill_depth
+    return depth
+
+
+def _outlier_severity(value, lo, hi):
+    if not np.isfinite(value):
+        return np.inf
+    if value < lo:
+        return lo - value
+    if value > hi:
+        return value - hi
+    return 0.0
+
+
+def _quadratic_hop_interpolation(
+    distances,
+    values,
+    *,
+    ridge=1e-3,
+):
+    distances = np.asarray(distances, dtype=np.float64)
+    values = np.asarray(values, dtype=np.float64)
+    valid = np.isfinite(distances) & np.isfinite(values)
+    distances = distances[valid]
+    values = values[valid]
+
+    if values.size == 0:
+        return None
+    if values.size == 1:
+        return float(values[0])
+
+    # Fit y(d) = a*d^2 + b*d + c and evaluate at d=0, so c is the
+    # interpolated center value. Distances are only 1..2 here, so a small ridge
+    # term stabilizes the otherwise underdetermined quadratic component.
+    X = np.column_stack([distances ** 2, distances, np.ones_like(distances)])
+    weights = 1.0 / np.maximum(distances, 1.0)
+    Xw = X * np.sqrt(weights)[:, None]
+    yw = values * np.sqrt(weights)
+
+    penalty = np.diag([ridge, ridge, 0.0])
+    lhs = Xw.T @ Xw + penalty
+    rhs = Xw.T @ yw
+
+    try:
+        coef = np.linalg.solve(lhs, rhs)
+    except np.linalg.LinAlgError:
+        coef = np.linalg.lstsq(lhs, rhs, rcond=None)[0]
+
+    return float(coef[2])
+
+
 
 def interpolate_target_outliers_from_neighbors(
     graphs,
@@ -320,7 +429,11 @@ def interpolate_target_outliers_from_neighbors(
     target_indices=None,
     clip_quantiles=(0.001, 0.999),
     min_neighbors=1,
-    fallback="global_median",
+    max_hops=2,
+    interpolation="quadratic",
+    ridge=1e-3,
+    reject_farther_outliers=True,
+    fallback="neighbor_mean",
     inplace=False,
     report=True,
 ):
@@ -336,8 +449,20 @@ def interpolate_target_outliers_from_neighbors(
     clip_quantiles : tuple[float, float]
         Outliers are values outside these global quantiles per target.
     min_neighbors : int
-        Minimum finite non-outlier neighbors required for interpolation.
-    fallback : {"global_median", "node_median", "keep"}
+        Minimum finite non-outlier or already-interpolated neighbors required
+        within max_hops for interpolation.
+    max_hops : int
+        Maximum graph distance used for interpolation. The upgraded quadratic
+        interpolation is designed for max_hops=2.
+    interpolation : {"quadratic", "mean"}
+        Local interpolation method. "quadratic" fits target value as a function
+        of hop distance and evaluates it at the outlier cell.
+    ridge : float
+        Small regularization used by the quadratic fit.
+    reject_farther_outliers : bool
+        If True, reject interpolated values that are further outside the global
+        valid range than the original outlier value.
+    fallback : {"neighbor_mean", "global_median", "node_median", "keep"}
         What to do if an outlier node has too few usable neighbors.
     inplace : bool
         If False, returns copied graphs.
@@ -350,8 +475,15 @@ def interpolate_target_outliers_from_neighbors(
     info : dict
     """
 
-    if fallback not in {"global_median", "node_median", "keep"}:
-        raise ValueError("fallback must be one of: 'global_median', 'node_median', 'keep'")
+    if fallback not in {"neighbor_mean", "global_median", "node_median", "keep"}:
+        raise ValueError(
+            "fallback must be one of: "
+            "'neighbor_mean', 'global_median', 'node_median', 'keep'"
+        )
+    if interpolation not in {"quadratic", "mean"}:
+        raise ValueError("interpolation must be one of: 'quadratic', 'mean'")
+    if max_hops < 1:
+        raise ValueError("max_hops must be >= 1")
 
     graphs_out = graphs if inplace else [copy.deepcopy(g) for g in graphs]
 
@@ -399,9 +531,13 @@ def interpolate_target_outliers_from_neighbors(
     info = {
         "clip_quantiles": clip_quantiles,
         "thresholds": thresholds,
+        "max_hops": max_hops,
+        "interpolation": interpolation,
+        "reject_farther_outliers": reject_farther_outliers,
         "n_replaced": {t: 0 for t in target_indices},
         "n_outliers": {t: 0 for t in target_indices},
         "n_fallback": {t: 0 for t in target_indices},
+        "n_rejected_interpolation": {t: 0 for t in target_indices},
     }
 
     for gi, g in enumerate(graphs_out):
@@ -416,16 +552,11 @@ def interpolate_target_outliers_from_neighbors(
         y_new = y2.clone()
         n_nodes = y2.shape[0]
 
-        edge_index = g.edge_index.detach().cpu()
-        src = edge_index[0].numpy()
-        dst = edge_index[1].numpy()
-
-        neighbors = [[] for _ in range(n_nodes)]
-        for u, v in zip(src, dst):
-            u = int(u)
-            v = int(v)
-            if u != v:
-                neighbors[u].append(v)
+        adjacency = _build_undirected_adjacency(g.edge_index, n_nodes)
+        hop_neighborhoods = [
+            _nodes_within_hops(adjacency, i, max_hops)
+            for i in range(n_nodes)
+        ]
 
         for t in target_indices:
             lo, hi = thresholds[t]
@@ -438,36 +569,74 @@ def interpolate_target_outliers_from_neighbors(
 
             non_outlier = finite & (~outlier)
             global_median = float(np.median(Y[np.isfinite(Y[:, t]), t]))
+            current_vals = vals.copy()
+            valid_for_fit = non_outlier.copy()
+            outlier_nodes = np.where(outlier)[0]
+            shell_depth = _outlier_shell_depths(outlier, adjacency)
+            processing_order = sorted(
+                outlier_nodes,
+                key=lambda idx: (shell_depth[int(idx)], int(idx)),
+            )
 
-            for i in np.where(outlier)[0]:
-                neigh = np.asarray(neighbors[i], dtype=int)
+            for i in processing_order:
+                hop_distances = hop_neighborhoods[int(i)]
+                candidate_nodes = np.asarray(list(hop_distances.keys()), dtype=int)
+                neighbor_fallback_values = np.asarray([], dtype=float)
 
-                if neigh.size > 0:
-                    neigh_vals = vals[neigh]
-                    good = np.isfinite(neigh_vals)
+                if candidate_nodes.size > 0:
+                    good = valid_for_fit[candidate_nodes] & np.isfinite(
+                        current_vals[candidate_nodes]
+                    )
+                    neighbor_fallback_values = current_vals[candidate_nodes][good]
 
-                    # Prefer non-outlier neighbors
-                    good = good & non_outlier[neigh]
-
-                    if good.sum() >= min_neighbors:
-                        replacement = float(np.mean(neigh_vals[good]))
+                    if int(good.sum()) >= min_neighbors:
+                        fit_nodes = candidate_nodes[good]
+                        fit_distances = np.asarray(
+                            [hop_distances[int(node)] for node in fit_nodes],
+                            dtype=np.float64,
+                        )
+                        fit_values = current_vals[fit_nodes]
+                        if interpolation == "quadratic":
+                            replacement = _quadratic_hop_interpolation(
+                                fit_distances,
+                                fit_values,
+                                ridge=ridge,
+                            )
+                        else:
+                            replacement = float(np.mean(fit_values))
                     else:
                         replacement = None
                 else:
                     replacement = None
+
+                if replacement is not None:
+                    original_severity = _outlier_severity(vals[int(i)], lo, hi)
+                    replacement_severity = _outlier_severity(replacement, lo, hi)
+                    if (
+                        reject_farther_outliers
+                        and replacement_severity > original_severity
+                    ):
+                        replacement = None
+                        info["n_rejected_interpolation"][t] += 1
 
                 if replacement is None:
                     info["n_fallback"][t] += 1
 
                     if fallback == "global_median":
                         replacement = global_median
+                    elif fallback == "neighbor_mean":
+                        if neighbor_fallback_values.size == 0:
+                            continue
+                        replacement = float(np.mean(neighbor_fallback_values))
                     elif fallback == "node_median":
-                        good_vals = vals[non_outlier]
+                        good_vals = current_vals[valid_for_fit]
                         replacement = float(np.median(good_vals)) if good_vals.size else global_median
                     elif fallback == "keep":
                         continue
 
                 y_new[i, t] = y_new.new_tensor(replacement)
+                current_vals[int(i)] = replacement
+                valid_for_fit[int(i)] = True
                 info["n_replaced"][t] += 1
 
         g.y = y_new[:, 0].contiguous() if original_was_1d else y_new.contiguous()
@@ -482,7 +651,8 @@ def interpolate_target_outliers_from_neighbors(
                 f"range=[{lo:.6g}, {hi:.6g}] | "
                 f"outliers={info['n_outliers'][t]} | "
                 f"replaced={info['n_replaced'][t]} | "
-                f"fallback={info['n_fallback'][t]}"
+                f"fallback={info['n_fallback'][t]} | "
+                f"rejected_interp={info['n_rejected_interpolation'][t]}"
             )
 
     return graphs_out, info

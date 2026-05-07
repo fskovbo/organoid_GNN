@@ -80,6 +80,290 @@ def build_graph_prediction_dataframe(graphs, y_true, y_pred, *, meta_lookup=None
     return pd.DataFrame(rows)
 
 
+def make_zero_centered_bin_edges(values, n_bins=5, eps=1e-12):
+    """Return symmetric bin edges centered on zero for a 1-D value array."""
+    if int(n_bins) != n_bins or n_bins < 1:
+        raise ValueError("n_bins must be a positive integer.")
+    n_bins = int(n_bins)
+    if n_bins % 2 == 0:
+        raise ValueError("n_bins must be odd so one bin is centered on zero.")
+
+    values = np.asarray(values, dtype=np.float64).reshape(-1)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("Cannot compute bins from an array with no finite values.")
+
+    max_abs = float(np.max(np.abs(finite)))
+    if max_abs <= eps:
+        max_abs = 1.0
+
+    return np.linspace(-max_abs, max_abs, n_bins + 1, dtype=np.float64)
+
+
+def assign_bins(values, edges):
+    """Assign values to bins defined by edges, returning -1 for non-finite values."""
+    values = np.asarray(values, dtype=np.float64).reshape(-1)
+    edges = np.asarray(edges, dtype=np.float64)
+    if edges.ndim != 1 or edges.size < 2:
+        raise ValueError("edges must be a 1-D array with at least two entries.")
+
+    bins = np.full(values.shape[0], -1, dtype=int)
+    finite = np.isfinite(values)
+    if np.any(finite):
+        bins[finite] = np.searchsorted(edges[1:-1], values[finite], side="right")
+        bins[finite] = np.clip(bins[finite], 0, edges.size - 2)
+    return bins
+
+
+def _bin_confusion_dataframe(true_bins, pred_bins, n_bins):
+    true_bins = np.asarray(true_bins, dtype=int)
+    pred_bins = np.asarray(pred_bins, dtype=int)
+    valid = (true_bins >= 0) & (pred_bins >= 0)
+    mat = np.zeros((n_bins, n_bins), dtype=int)
+    for tb, pb in zip(true_bins[valid], pred_bins[valid]):
+        mat[int(tb), int(pb)] += 1
+    labels = [f"bin_{i}" for i in range(n_bins)]
+    return pd.DataFrame(mat, index=labels, columns=labels)
+
+
+def _graph_node_rows(graphs):
+    graph_index = []
+    node_index = []
+    organoid_str = []
+    for gi, g in enumerate(graphs):
+        n = int(g.y.shape[0])
+        graph_index.extend([gi] * n)
+        node_index.extend(range(n))
+        organoid_str.extend([getattr(g, "organoid_str", None)] * n)
+    return (
+        np.asarray(graph_index, dtype=int),
+        np.asarray(node_index, dtype=int),
+        np.asarray(organoid_str, dtype=object),
+    )
+
+
+def _accuracy_summary_row(label, true_bins, pred_bins):
+    true_bins = np.asarray(true_bins, dtype=int)
+    pred_bins = np.asarray(pred_bins, dtype=int)
+    valid = (true_bins >= 0) & (pred_bins >= 0)
+    correct = valid & (true_bins == pred_bins)
+    n_valid = int(valid.sum())
+    n_correct = int(correct.sum())
+    return {
+        "scope": label,
+        "n_nodes": int(true_bins.size),
+        "n_valid": n_valid,
+        "n_correct": n_correct,
+        "bin_accuracy": float(n_correct / n_valid) if n_valid else np.nan,
+    }
+
+
+def _marker_bin_accuracy_dataframe(
+    true_bins,
+    pred_bins,
+    X,
+    marker_names=None,
+    *,
+    include_negative=True,
+):
+    true_bins = np.asarray(true_bins, dtype=int)
+    pred_bins = np.asarray(pred_bins, dtype=int)
+    X = np.asarray(X)
+    if X.ndim != 2:
+        raise ValueError(f"X must be a 2-D marker matrix, got shape {X.shape}.")
+    if X.shape[0] != true_bins.shape[0]:
+        raise ValueError(
+            f"X row count mismatch: expected {true_bins.shape[0]}, got {X.shape[0]}."
+        )
+
+    n_markers = X.shape[1]
+    if marker_names is None:
+        marker_names = [f"marker_{i}" for i in range(n_markers)]
+    else:
+        marker_names = list(marker_names)
+        if len(marker_names) != n_markers:
+            raise ValueError(
+                f"marker_names length mismatch: expected {n_markers}, got {len(marker_names)}."
+            )
+
+    rows = []
+    for mi, name in enumerate(marker_names):
+        pos = X[:, mi] > 0.5
+        row = _accuracy_summary_row(f"{name}+", true_bins[pos], pred_bins[pos])
+        row.update(
+            {
+                "marker_index": mi,
+                "marker_name": name,
+                "subset": "positive",
+            }
+        )
+        rows.append(row)
+
+        if include_negative:
+            neg = ~pos
+            row = _accuracy_summary_row(f"{name}-", true_bins[neg], pred_bins[neg])
+            row.update(
+                {
+                    "marker_index": mi,
+                    "marker_name": name,
+                    "subset": "negative",
+                }
+            )
+            rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def compute_zero_centered_bin_accuracy(
+    graphs,
+    y_true,
+    y_pred,
+    *,
+    n_bins=5,
+    scope="dataset",
+    target_index=0,
+    meta_lookup=None,
+    include_metadata=True,
+    X=None,
+    marker_names=None,
+    marker_resolved=False,
+    include_marker_negative=True,
+):
+    """Evaluate prediction accuracy by matching zero-centered true/predicted bins.
+
+    True and predicted values are binned separately. With ``scope="dataset"``,
+    one true binning and one predicted binning are fit across all supplied nodes.
+    With ``scope="organoid"``, separate true/predicted bin edges are fit within
+    each graph/organoid.
+
+    Returns
+    -------
+    node_df : pandas.DataFrame
+        One row per node with true/predicted values, bin indices, and correctness.
+    summary : dict
+        Overall accuracy, per-graph accuracy, confusion matrix, and bin edges.
+        If ``marker_resolved=True``, also contains ``marker`` with per-marker
+        positive-node accuracy, plus marker-negative complements when requested.
+    """
+    if scope not in {"dataset", "organoid", "graph"}:
+        raise ValueError("scope must be one of: 'dataset', 'organoid', 'graph'")
+    if scope == "graph":
+        scope = "organoid"
+
+    y_true = _select_target(y_true, target_index=target_index)
+    y_pred = _select_target(y_pred, target_index=target_index)
+    if y_true.shape[0] != y_pred.shape[0]:
+        raise ValueError(
+            f"y_true and y_pred length mismatch: {y_true.shape[0]} vs {y_pred.shape[0]}"
+        )
+
+    graph_index, node_index, organoid_str = _graph_node_rows(graphs)
+    if y_true.shape[0] != graph_index.shape[0]:
+        raise ValueError(
+            f"Prediction length mismatch: expected {graph_index.shape[0]} nodes from graphs, "
+            f"got {y_true.shape[0]}."
+        )
+
+    true_bins = np.full(y_true.shape[0], -1, dtype=int)
+    pred_bins = np.full(y_pred.shape[0], -1, dtype=int)
+    edge_records = []
+
+    if scope == "dataset":
+        true_edges = make_zero_centered_bin_edges(y_true, n_bins=n_bins)
+        pred_edges = make_zero_centered_bin_edges(y_pred, n_bins=n_bins)
+        true_bins[:] = assign_bins(y_true, true_edges)
+        pred_bins[:] = assign_bins(y_pred, pred_edges)
+        edge_records.append(
+            {
+                "scope": "dataset",
+                "graph_index": None,
+                "organoid_str": None,
+                "true_edges": true_edges,
+                "pred_edges": pred_edges,
+            }
+        )
+    else:
+        for gi, g in enumerate(graphs):
+            mask = graph_index == gi
+            true_edges = make_zero_centered_bin_edges(y_true[mask], n_bins=n_bins)
+            pred_edges = make_zero_centered_bin_edges(y_pred[mask], n_bins=n_bins)
+            true_bins[mask] = assign_bins(y_true[mask], true_edges)
+            pred_bins[mask] = assign_bins(y_pred[mask], pred_edges)
+            edge_records.append(
+                {
+                    "scope": "organoid",
+                    "graph_index": gi,
+                    "organoid_str": getattr(g, "organoid_str", None),
+                    "true_edges": true_edges,
+                    "pred_edges": pred_edges,
+                }
+            )
+
+    valid = (true_bins >= 0) & (pred_bins >= 0)
+    bin_correct = valid & (true_bins == pred_bins)
+
+    node_df = pd.DataFrame(
+        {
+            "graph_index": graph_index,
+            "node_index": node_index,
+            "organoid_str": organoid_str,
+            "y_true": y_true,
+            "y_pred": y_pred,
+            "true_bin": true_bins,
+            "pred_bin": pred_bins,
+            "bin_correct": bin_correct,
+            "valid_bin": valid,
+        }
+    )
+
+    per_graph_rows = []
+    for gi, g in enumerate(graphs):
+        mask = graph_index == gi
+        row = _accuracy_summary_row(f"graph_{gi}", true_bins[mask], pred_bins[mask])
+        row["graph_index"] = gi
+        row["organoid_str"] = getattr(g, "organoid_str", None)
+        if include_metadata:
+            row.update(get_graph_metadata(g, meta_lookup=meta_lookup, strict=False, default={}))
+        per_graph_rows.append(row)
+
+    per_graph = pd.DataFrame(per_graph_rows)
+    overall = _accuracy_summary_row("overall", true_bins, pred_bins)
+    overall.update(
+        {
+            "bin_accuracy_mean_graph": float(per_graph["bin_accuracy"].mean())
+            if len(per_graph)
+            else np.nan,
+            "bin_accuracy_sem_graph": _safe_sem(per_graph["bin_accuracy"].dropna().to_numpy())
+            if len(per_graph)
+            else np.nan,
+        }
+    )
+
+    summary = {
+        "scope": scope,
+        "n_bins": int(n_bins),
+        "target_index": target_index,
+        "overall": overall,
+        "per_graph": per_graph,
+        "confusion": _bin_confusion_dataframe(true_bins, pred_bins, int(n_bins)),
+        "edges": edge_records,
+    }
+
+    if marker_resolved:
+        if X is None:
+            raise ValueError("marker_resolved=True requires X.")
+        marker_df = _marker_bin_accuracy_dataframe(
+            true_bins,
+            pred_bins,
+            X,
+            marker_names=marker_names,
+            include_negative=include_marker_negative,
+        )
+        summary["marker"] = marker_df
+
+    return node_df, summary
+
+
 # -----------------------------------------------------------------------------
 # Existing markerwise evaluation code
 # -----------------------------------------------------------------------------

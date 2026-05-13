@@ -28,9 +28,10 @@ approximation, which is usually good when predictive uncertainty is not huge.
 
 from __future__ import annotations
 
+import copy
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Sequence, Tuple, Union
+from typing import Any, Iterable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -97,6 +98,19 @@ def _diag_log_var_from_scale(scale: ArrayLike) -> Union[np.ndarray, torch.Tensor
         cov = arr @ np.swapaxes(arr, -1, -2)
         return np.log(np.maximum(np.diagonal(cov, axis1=-2, axis2=-1), _EPS))
     return arr
+
+
+def _single_selected_target_values(*values: Optional[ArrayLike]) -> bool:
+    """Return True when provided arrays represent one selected target dimension."""
+    saw_value = False
+    for value in values:
+        if value is None:
+            continue
+        saw_value = True
+        shape = tuple(value.shape) if torch.is_tensor(value) else np.asarray(value).shape
+        if not (len(shape) == 1 or (len(shape) == 2 and shape[1] == 1)):
+            return False
+    return saw_value
 
 
 @dataclass
@@ -181,12 +195,345 @@ class TargetTransform(ABC):
         y: Optional[ArrayLike],
         mu: ArrayLike,
         log_var: Optional[ArrayLike] = None,
+        graphs: Optional[Sequence] = None,
+        center_only: bool = False,
+        target_index: Optional[int] = None,
     ) -> Tuple[Optional[ArrayLike], ArrayLike, Optional[ArrayLike]]:
         """Invert true targets, predicted means, and optional diagonal log-variance."""
         y_inv = None if y is None else self.inverse(y)
         mu_inv = self.inverse_mean(mu)
         log_var_inv = None if log_var is None else self.inverse_log_var(mu, log_var)
         return y_inv, mu_inv, log_var_inv
+
+
+@dataclass
+class ChainedTargetTransform(TargetTransform):
+    """Apply multiple target transforms in sequence.
+
+    The forward direction applies transforms in the order provided. The inverse
+    direction applies them in reverse order, including uncertainty propagation.
+    This is useful for workflows such as:
+
+        raw target -> baseline residual -> asinh/standardized residual
+
+    Graph-aware transforms are supported because ``fit`` and
+    ``transform_graphs`` operate on graph lists, and ``inverse_distribution``
+    forwards the optional ``graphs`` context to each inverse stage.
+    """
+
+    transforms: Sequence[TargetTransform] = field(default_factory=list)
+    name: str = field(default="chain", init=False)
+
+    def __post_init__(self):
+        self.transforms = list(self.transforms)
+        if len(self.transforms) == 0:
+            raise ValueError("ChainedTargetTransform requires at least one transform.")
+        self.name = "chain[" + " -> ".join(t.name for t in self.transforms) + "]"
+
+    def fit_array(self, y: np.ndarray) -> "ChainedTargetTransform":
+        arr = y[:, None] if y.ndim == 1 else np.asarray(y, dtype=np.float64)
+        for transform in self.transforms:
+            transform.fit_array(arr)
+            arr = transform.forward(arr)
+            arr = arr[:, None] if np.asarray(arr).ndim == 1 else np.asarray(arr)
+        self.fitted = True
+        return self
+
+    def fit(self, train_graphs: Sequence) -> "ChainedTargetTransform":
+        tmp_graphs = [copy.deepcopy(g) for g in train_graphs]
+        for transform in self.transforms:
+            transform.fit(tmp_graphs)
+            transform.transform_graphs(tmp_graphs, in_place=True)
+        self.fitted = True
+        return self
+
+    def forward(self, y: ArrayLike) -> ArrayLike:
+        out = y
+        for transform in self.transforms:
+            out = transform.forward(out)
+        return out
+
+    def inverse(self, z: ArrayLike) -> ArrayLike:
+        out = z
+        for transform in reversed(self.transforms):
+            out = transform.inverse(out)
+        return out
+
+    def inverse_derivative(self, z: ArrayLike) -> ArrayLike:
+        # Compose inverse derivatives by walking backward through the chain.
+        out = z
+        deriv_total = None
+        reversed_transforms = list(reversed(self.transforms))
+        for i, transform in enumerate(reversed_transforms):
+            deriv = transform.inverse_derivative(out)
+            deriv_total = deriv if deriv_total is None else deriv_total * deriv
+            if i < len(reversed_transforms) - 1:
+                out = transform.inverse(out)
+        return deriv_total
+
+    def transform_graphs(self, graphs: Sequence, in_place: bool = True) -> Sequence:
+        if not self.fitted:
+            raise RuntimeError("Transform must be fitted before transform_graphs().")
+        out = graphs if in_place else [copy.deepcopy(g) for g in graphs]
+        for transform in self.transforms:
+            transform.transform_graphs(out, in_place=True)
+        return out
+
+    def inverse_distribution(
+        self,
+        y: Optional[ArrayLike],
+        mu: ArrayLike,
+        log_var: Optional[ArrayLike] = None,
+        graphs: Optional[Sequence] = None,
+        center_only: bool = False,
+        target_index: Optional[int] = None,
+    ) -> Tuple[Optional[ArrayLike], ArrayLike, Optional[ArrayLike]]:
+        y_cur, mu_cur, log_var_cur = y, mu, log_var
+        for transform in reversed(self.transforms):
+            y_cur, mu_cur, log_var_cur = transform.inverse_distribution(
+                y_cur,
+                mu_cur,
+                log_var=log_var_cur,
+                graphs=graphs,
+                center_only=center_only,
+                target_index=target_index,
+            )
+        return y_cur, mu_cur, log_var_cur
+
+
+def _target_dim_from_graphs(graphs: Sequence) -> int:
+    y = graphs[0].y.detach().cpu().numpy() if torch.is_tensor(graphs[0].y) else np.asarray(graphs[0].y)
+    if y.ndim == 1:
+        return 1
+    return int(y.shape[1])
+
+
+def _concat_graph_keys(graphs: Sequence) -> list[Any]:
+    keys: list[Any] = []
+    for i, g in enumerate(graphs):
+        key = getattr(g, "organoid_str", None)
+        if key is None:
+            key = getattr(g, "graph_path", None)
+        if key is None:
+            key = id(g)
+        n = int(g.y.shape[0])
+        keys.extend((key, j) for j in range(n))
+    return keys
+
+
+def _constant_feature_graphs(graphs: Sequence, *, constant_value: float) -> list:
+    graphs_out = [copy.deepcopy(g) for g in graphs]
+    for g in graphs_out:
+        n_nodes = int(g.x.shape[0])
+        g.x = torch.full(
+            (n_nodes, 1),
+            float(constant_value),
+            dtype=g.x.dtype,
+            device=g.x.device,
+        )
+    return graphs_out
+
+
+@dataclass
+class GlobalBaselineResidualTransform(TargetTransform):
+    """Subtract a train-only global-feature baseline.
+
+    ``fit(train_graphs)`` trains a dedicated ``GlobalFeatureMLP`` baseline using
+    graph-level features only. The transform then subtracts baseline predictions
+    from graph targets:
+
+        residual = target - baseline_prediction
+
+    During inversion the same baseline model is evaluated for the supplied
+    graphs and added back to true/predicted residuals. The transform is affine
+    with derivative 1, so it leaves log-variance unchanged.
+    """
+
+    hidden_dim: int = 64
+    dropout: float = 0.1
+    lr: float = 3e-4
+    batch_size: int = 128
+    max_epochs: int = 2000
+    patience: int = 30
+    num_workers: int = 1
+    model_kwargs: dict[str, Any] = field(default_factory=dict)
+    train_kwargs: dict[str, Any] = field(default_factory=dict)
+    model: Any = None
+    metrics: Any = None
+    history: Any = None
+    prediction_cache: dict[tuple[Any, int], np.ndarray] = field(default_factory=dict)
+    name: str = field(default="global_baseline_residual", init=False)
+
+    def fit_array(self, y: np.ndarray) -> "GlobalBaselineResidualTransform":
+        raise RuntimeError(
+            "GlobalBaselineResidualTransform is graph-aware and must be fitted with fit(train_graphs)."
+        )
+
+    def fit(self, train_graphs: Sequence) -> "GlobalBaselineResidualTransform":
+        from src.data.metadata import infer_global_dim
+        from src.models.baseline import GlobalFeatureMLP
+        from src.training.loop import TrainConfig, train
+
+        baseline_graphs = [copy.deepcopy(g) for g in train_graphs]
+
+        target_dim = _target_dim_from_graphs(baseline_graphs)
+        model_kwargs = {
+            "global_dim": infer_global_dim(baseline_graphs),
+            "hidden_dim": int(self.hidden_dim),
+            "dropout": float(self.dropout),
+            "target_dim": target_dim,
+        }
+        model_kwargs.update(self.model_kwargs)
+
+        cfg_kwargs = {
+            "lr": self.lr,
+            "batch_size": self.batch_size,
+            "max_epochs": self.max_epochs,
+            "patience": self.patience,
+            "num_workers": self.num_workers,
+        }
+        cfg_kwargs.update(self.train_kwargs)
+        cfg = TrainConfig(**cfg_kwargs)
+
+        self.model = GlobalFeatureMLP(**model_kwargs)
+        self.model, self.metrics, self.history = train(
+            self.model,
+            baseline_graphs,
+            baseline_graphs,
+            cfg,
+        )
+        self.prediction_cache.clear()
+        self.fitted = True
+        return self
+
+    def _predict_baseline(
+        self,
+        graphs: Sequence,
+        *,
+        device=None,
+        batch_size: Optional[int] = None,
+        center_only: bool = False,
+    ) -> np.ndarray:
+        if not self.fitted or self.model is None:
+            raise RuntimeError("Baseline residual transform must be fitted before prediction.")
+
+        keys = _concat_graph_keys(graphs)
+        missing = [key for key in keys if key not in self.prediction_cache]
+        if missing:
+            from src.inference.predict import predict_targets
+
+            baseline_graphs = [copy.deepcopy(g) for g in graphs]
+            _, mu, _, _ = predict_targets(
+                baseline_graphs,
+                self.model,
+                device=device,
+                batch_size=batch_size or self.batch_size,
+                return_log_var=True,
+                target_transform=None,
+            )
+            mu_arr = np.asarray(mu, dtype=np.float64)
+            if mu_arr.ndim == 1:
+                mu_arr = mu_arr[:, None]
+            pred_keys = _concat_graph_keys(graphs)
+            if len(pred_keys) != len(mu_arr):
+                raise RuntimeError(
+                    f"Baseline prediction length mismatch: {len(mu_arr)} predictions for {len(pred_keys)} nodes."
+                )
+            for key, pred in zip(pred_keys, mu_arr):
+                self.prediction_cache[key] = np.asarray(pred, dtype=np.float64).copy()
+
+        pred = np.stack([self.prediction_cache[key] for key in keys], axis=0)
+        if center_only:
+            center_positions = []
+            offset = 0
+            for g in graphs:
+                if not hasattr(g, "center_idx"):
+                    raise ValueError(
+                        "center_only=True requires graphs with a .center_idx attribute."
+                    )
+                c = int(g.center_idx.item()) if torch.is_tensor(g.center_idx) else int(g.center_idx)
+                center_positions.append(offset + c)
+                offset += int(g.y.shape[0])
+            pred = pred[np.asarray(center_positions, dtype=np.int64)]
+        return pred[:, 0] if pred.shape[1] == 1 else pred
+
+    def transform_graphs(self, graphs: Sequence, in_place: bool = True) -> Sequence:
+        if not self.fitted:
+            raise RuntimeError("Transform must be fitted before transform_graphs().")
+
+        out = graphs if in_place else [copy.deepcopy(g) for g in graphs]
+        baseline = self._predict_baseline(out)
+        baseline = baseline[:, None] if np.asarray(baseline).ndim == 1 else np.asarray(baseline)
+
+        offset = 0
+        for g in out:
+            n = int(g.y.shape[0])
+            y = g.y.detach().cpu().numpy() if torch.is_tensor(g.y) else np.asarray(g.y)
+            was_1d = y.ndim == 1
+            y2 = y[:, None] if was_1d else y
+            resid = y2 - baseline[offset:offset + n]
+            offset += n
+            resid_t = torch.as_tensor(resid, dtype=g.y.dtype, device=g.y.device)
+            g.y = resid_t[:, 0] if was_1d and resid_t.ndim == 2 and resid_t.shape[1] == 1 else resid_t
+        return out
+
+    def forward(self, y: ArrayLike) -> ArrayLike:
+        raise RuntimeError(
+            "GlobalBaselineResidualTransform.forward requires graph context; use transform_graphs()."
+        )
+
+    def inverse(self, z: ArrayLike) -> ArrayLike:
+        raise RuntimeError(
+            "GlobalBaselineResidualTransform.inverse requires graph context; use inverse_distribution(..., graphs=...)."
+        )
+
+    def inverse_derivative(self, z: ArrayLike) -> ArrayLike:
+        if torch.is_tensor(z):
+            return torch.ones_like(z)
+        return np.ones_like(np.asarray(z, dtype=np.float64))
+
+    def inverse_distribution(
+        self,
+        y: Optional[ArrayLike],
+        mu: ArrayLike,
+        log_var: Optional[ArrayLike] = None,
+        graphs: Optional[Sequence] = None,
+        center_only: bool = False,
+        target_index: Optional[int] = None,
+    ) -> Tuple[Optional[ArrayLike], ArrayLike, Optional[ArrayLike]]:
+        if graphs is None:
+            raise RuntimeError(
+                "GlobalBaselineResidualTransform.inverse_distribution requires graphs for baseline reconstruction."
+            )
+        baseline = self._predict_baseline(graphs, center_only=center_only)
+
+        def _add_baseline(values):
+            if values is None:
+                return None
+            base_arr = baseline
+            value_shape = tuple(values.shape) if torch.is_tensor(values) else np.asarray(values).shape
+            if (
+                target_index is not None
+                and np.asarray(base_arr).ndim == 2
+                and np.asarray(base_arr).shape[1] > 1
+                and (len(value_shape) == 1 or (len(value_shape) == 2 and value_shape[1] == 1))
+            ):
+                base_arr = np.asarray(base_arr)[:, int(target_index)]
+            if torch.is_tensor(values):
+                if values.ndim == 2 and np.asarray(base_arr).ndim == 1:
+                    base_arr = np.asarray(base_arr)[:, None]
+                base = _as_torch_like(base_arr, values)
+                return values + base
+            arr = np.asarray(values, dtype=np.float64)
+            if arr.ndim == 2 and np.asarray(base_arr).ndim == 1:
+                base_arr = np.asarray(base_arr)[:, None]
+            return arr + base_arr
+
+        return _add_baseline(y), _add_baseline(mu), log_var
+
+
+# Backward-compatible alias for notebooks/scripts created before the rename.
+ConstantGlobalBaselineResidualTransform = GlobalBaselineResidualTransform
 
 
 @dataclass
@@ -256,6 +603,47 @@ class StandardizeTransform(TargetTransform):
         if torch.is_tensor(z):
             return torch.ones_like(z) * _as_torch_like(self.scale, z)
         return np.ones_like(np.asarray(z, dtype=np.float64)) * self.scale
+
+    def _select_target_transform(self, target_index: int) -> "StandardizeTransform":
+        if self.center is None or self.scale is None:
+            raise RuntimeError("Transform has not been fitted.")
+        out = copy.copy(self)
+        out.center = np.asarray(self.center, dtype=np.float64)[int(target_index):int(target_index) + 1].copy()
+        out.scale = np.asarray(self.scale, dtype=np.float64)[int(target_index):int(target_index) + 1].copy()
+        return out
+
+    def inverse_distribution(
+        self,
+        y: Optional[ArrayLike],
+        mu: ArrayLike,
+        log_var: Optional[ArrayLike] = None,
+        graphs: Optional[Sequence] = None,
+        center_only: bool = False,
+        target_index: Optional[int] = None,
+    ) -> Tuple[Optional[ArrayLike], ArrayLike, Optional[ArrayLike]]:
+        if (
+            target_index is not None
+            and self.center is not None
+            and len(np.asarray(self.center)) > 1
+            and _single_selected_target_values(y, mu, log_var)
+        ):
+            return TargetTransform.inverse_distribution(
+                self._select_target_transform(int(target_index)),
+                y,
+                mu,
+                log_var=log_var,
+                graphs=graphs,
+                center_only=center_only,
+                target_index=None,
+            )
+        return super().inverse_distribution(
+            y,
+            mu,
+            log_var=log_var,
+            graphs=graphs,
+            center_only=center_only,
+            target_index=target_index,
+        )
 
 
 @dataclass
@@ -334,6 +722,47 @@ class AsinhTransform(TargetTransform):
             return _as_torch_like(self.scale, z) * torch.cosh(z)
         return self.scale * np.cosh(np.asarray(z, dtype=np.float64))
 
+    def _select_target_transform(self, target_index: int) -> "AsinhTransform":
+        if self.center is None or self.scale is None:
+            raise RuntimeError("Transform has not been fitted.")
+        out = copy.copy(self)
+        out.center = np.asarray(self.center, dtype=np.float64)[int(target_index):int(target_index) + 1].copy()
+        out.scale = np.asarray(self.scale, dtype=np.float64)[int(target_index):int(target_index) + 1].copy()
+        return out
+
+    def inverse_distribution(
+        self,
+        y: Optional[ArrayLike],
+        mu: ArrayLike,
+        log_var: Optional[ArrayLike] = None,
+        graphs: Optional[Sequence] = None,
+        center_only: bool = False,
+        target_index: Optional[int] = None,
+    ) -> Tuple[Optional[ArrayLike], ArrayLike, Optional[ArrayLike]]:
+        if (
+            target_index is not None
+            and self.center is not None
+            and len(np.asarray(self.center)) > 1
+            and _single_selected_target_values(y, mu, log_var)
+        ):
+            return TargetTransform.inverse_distribution(
+                self._select_target_transform(int(target_index)),
+                y,
+                mu,
+                log_var=log_var,
+                graphs=graphs,
+                center_only=center_only,
+                target_index=None,
+            )
+        return super().inverse_distribution(
+            y,
+            mu,
+            log_var=log_var,
+            graphs=graphs,
+            center_only=center_only,
+            target_index=target_index,
+        )
+
 
 @dataclass
 class AsinhStandardizeTransform(TargetTransform):
@@ -401,6 +830,50 @@ class AsinhStandardizeTransform(TargetTransform):
         u = arr * self.scale + self.center
         return self.raw_scale * np.cosh(u) * self.scale
 
+    def _select_target_transform(self, target_index: int) -> "AsinhStandardizeTransform":
+        if any(v is None for v in (self.raw_center, self.raw_scale, self.center, self.scale)):
+            raise RuntimeError("Transform has not been fitted.")
+        idx = int(target_index)
+        out = copy.copy(self)
+        out.raw_center = np.asarray(self.raw_center, dtype=np.float64)[idx:idx + 1].copy()
+        out.raw_scale = np.asarray(self.raw_scale, dtype=np.float64)[idx:idx + 1].copy()
+        out.center = np.asarray(self.center, dtype=np.float64)[idx:idx + 1].copy()
+        out.scale = np.asarray(self.scale, dtype=np.float64)[idx:idx + 1].copy()
+        return out
+
+    def inverse_distribution(
+        self,
+        y: Optional[ArrayLike],
+        mu: ArrayLike,
+        log_var: Optional[ArrayLike] = None,
+        graphs: Optional[Sequence] = None,
+        center_only: bool = False,
+        target_index: Optional[int] = None,
+    ) -> Tuple[Optional[ArrayLike], ArrayLike, Optional[ArrayLike]]:
+        if (
+            target_index is not None
+            and self.center is not None
+            and len(np.asarray(self.center)) > 1
+            and _single_selected_target_values(y, mu, log_var)
+        ):
+            return TargetTransform.inverse_distribution(
+                self._select_target_transform(int(target_index)),
+                y,
+                mu,
+                log_var=log_var,
+                graphs=graphs,
+                center_only=center_only,
+                target_index=None,
+            )
+        return super().inverse_distribution(
+            y,
+            mu,
+            log_var=log_var,
+            graphs=graphs,
+            center_only=center_only,
+            target_index=target_index,
+        )
+
 
 def standardize_graph_targets(train_graphs, val_graphs=None, robust: bool = False):
     """
@@ -425,6 +898,9 @@ def inverse_distribution_outputs(
     mu: ArrayLike,
     log_var: Optional[ArrayLike] = None,
     transform: Optional[TargetTransform] = None,
+    graphs: Optional[Sequence] = None,
+    center_only: bool = False,
+    target_index: Optional[int] = None,
 ):
     """
     Convenience function for prediction code.
@@ -434,7 +910,14 @@ def inverse_distribution_outputs(
     """
     if transform is None:
         return y, mu, log_var
-    return transform.inverse_distribution(y, mu, log_var)
+    return transform.inverse_distribution(
+        y,
+        mu,
+        log_var,
+        graphs=graphs,
+        center_only=center_only,
+        target_index=target_index,
+    )
 
 
 

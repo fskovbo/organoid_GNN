@@ -323,11 +323,16 @@ def compute_perturbation_influence_maps(
     device=None,
     batch_size=64,
     target_index=0,
+    target_transform=None,
     normalize_by=None,
     normalize_total_by="perturbed_cells",
     normalize_center_by="perturbed_cells",
 ):
     """Measure how marker removal changes center-cell predicted mean/log-variance.
+
+    If ``target_transform`` is provided, predicted means and log-variances are
+    inverse-transformed before differences are computed. This makes the
+    reported ``delta_mu_*`` values live in the original target units.
 
     Normalization can be controlled independently for total and center-resolved
     maps. Use ``normalize_by`` to set both to either ``"cases"`` or
@@ -356,6 +361,17 @@ def compute_perturbation_influence_maps(
         batch_size=batch_size,
         target_index=target_index,
     )
+    if target_transform is not None:
+        _, base_mu, base_lv = target_transform.inverse_distribution(
+            None,
+            base_mu,
+            log_var=base_lv,
+            graphs=subs,
+            center_only=True,
+            target_index=target_index,
+        )
+        base_mu = np.asarray(base_mu, dtype=np.float64)
+        base_lv = np.asarray(base_lv, dtype=np.float64)
 
     if len(perturbed) == 0:
         pert_mu = np.zeros((0,), dtype=np.float64)
@@ -368,6 +384,17 @@ def compute_perturbation_influence_maps(
             batch_size=batch_size,
             target_index=target_index,
         )
+        if target_transform is not None:
+            _, pert_mu, pert_lv = target_transform.inverse_distribution(
+                None,
+                pert_mu,
+                log_var=pert_lv,
+                graphs=perturbed,
+                center_only=True,
+                target_index=target_index,
+            )
+            pert_mu = np.asarray(pert_mu, dtype=np.float64)
+            pert_lv = np.asarray(pert_lv, dtype=np.float64)
 
     n_hops = len(hops)
     mu_effects = [pert_mu[j] - base_mu[si] for j, (si, _, _, _) in enumerate(meta)]
@@ -408,6 +435,7 @@ def compute_perturbation_influence_maps(
         "hops": hops,
         "marker_names": marker_names,
         "target_index": target_index,
+        "prediction_scale": "original" if target_transform is not None else "model",
         "normalize_total_by": normalize_total_by,
         "normalize_center_by": normalize_center_by,
     }
@@ -461,7 +489,14 @@ def compute_perturbation_mse_influence_maps(
     )
 
     if target_transform is not None:
-        y_center, base_mu, _ = target_transform.inverse_distribution(y_center, base_mu, log_var=None)
+        y_center, base_mu, _ = target_transform.inverse_distribution(
+            y_center,
+            base_mu,
+            log_var=None,
+            graphs=subs,
+            center_only=True,
+            target_index=target_index,
+        )
         y_center = np.asarray(y_center, dtype=np.float64)
         base_mu = np.asarray(base_mu, dtype=np.float64)
 
@@ -478,7 +513,14 @@ def compute_perturbation_mse_influence_maps(
             target_index=target_index,
         )
         if target_transform is not None:
-            _, pert_mu, _ = target_transform.inverse_distribution(None, pert_mu, log_var=None)
+            _, pert_mu, _ = target_transform.inverse_distribution(
+                None,
+                pert_mu,
+                log_var=None,
+                graphs=perturbed,
+                center_only=True,
+                target_index=target_index,
+            )
             pert_mu = np.asarray(pert_mu, dtype=np.float64)
 
     n_hops = len(hops)

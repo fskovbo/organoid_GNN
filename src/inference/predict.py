@@ -47,7 +47,7 @@ def predict_targets(
 
     if target_transform is not None and not hasattr(target_transform, "inverse_distribution"):
         raise TypeError(
-            "target_transform must provide inverse_distribution(y, mu, log_var=None)."
+            "target_transform must provide inverse_distribution(y, mu, log_var=None, graphs=None)."
         )
 
     model = model.to(device).eval()
@@ -120,7 +120,11 @@ def predict_targets(
 
     if target_transform is not None:
         y_true, y_pred, log_var = target_transform.inverse_distribution(
-            y_true, y_pred, log_var=log_var
+            y_true,
+            y_pred,
+            log_var=log_var,
+            graphs=graphs,
+            center_only=center_only,
         )
 
     if return_log_var:

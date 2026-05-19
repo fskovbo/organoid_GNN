@@ -1,6 +1,8 @@
 
 import copy
+import json
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -78,6 +80,148 @@ def _print_filter_summary(graphs, kept_mask, *, meta_lookup=None, label="Filter 
 # -----------------------------------------------------------------------------
 # Metadata filters
 # -----------------------------------------------------------------------------
+
+
+def load_graph_blacklist_from_dir(
+    dir_path,
+    *,
+    filename="organoid_blacklist.json",
+    fields=("dataset", "label_uid"),
+    missing_ok=True,
+):
+    """Load metadata-keyed graph blacklist entries from one dataset directory.
+
+    The expected JSON format is a list of records, for example::
+
+        [
+          {"dataset": "20251201", "label_uid": "day4p5_B03_144"},
+          {"dataset": "20251201", "label_uid": "day4p5_C01_002", "reason": "bad mesh"}
+        ]
+
+    Extra JSON fields are ignored so notes such as ``reason`` can be added later
+    without changing the matching logic. The return value is a set of tuples in
+    ``fields`` order, e.g. ``{("20251201", "day4p5_B03_144")}``.
+    """
+    fields = tuple(fields)
+    if len(fields) == 0:
+        raise ValueError("fields must contain at least one metadata key")
+
+    path = Path(dir_path) / filename
+    if not path.exists():
+        if missing_ok:
+            return set()
+        raise FileNotFoundError(path)
+
+    with path.open("r") as f:
+        records = json.load(f)
+
+    if not isinstance(records, list):
+        raise ValueError(
+            f"Blacklist file {path} must contain a JSON list of records; got {type(records).__name__}."
+        )
+
+    blacklist = set()
+    for i, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError(
+                f"Blacklist entry {i} in {path} must be an object; got {type(record).__name__}."
+            )
+        missing = [field for field in fields if field not in record]
+        if missing:
+            raise KeyError(f"Blacklist entry {i} in {path} is missing fields {missing!r}.")
+        blacklist.add(tuple(record[field] for field in fields))
+
+    return blacklist
+
+
+def filter_graphs_by_blacklist(
+    graphs,
+    blacklist,
+    *,
+    fields=("dataset", "label_uid"),
+    meta_lookup=None,
+    allow_missing=False,
+    inplace=False,
+    print_summary=False,
+    return_rejected=False,
+):
+    """Remove graphs whose metadata key appears in a blacklist.
+
+    Parameters
+    ----------
+    graphs : list
+        Graphs with attached metadata, or graphs resolvable through
+        ``meta_lookup``.
+    blacklist : iterable
+        Iterable of key tuples such as ``{("20251201", "day4p5_B03_144")}``.
+        Dict records containing the requested ``fields`` are also accepted.
+    fields : tuple[str, ...]
+        Metadata fields used to build the blacklist key.
+    allow_missing : bool
+        If False, graphs missing any required key are rejected. If True, graphs
+        with missing keys are kept because they cannot be matched reliably.
+
+    Set ``return_rejected=True`` to return ``(kept, rejected)``.
+    """
+    fields = tuple(fields)
+    if len(fields) == 0:
+        raise ValueError("fields must contain at least one metadata key")
+
+    blacklist_keys = set()
+    for i, entry in enumerate(blacklist):
+        if isinstance(entry, dict):
+            missing = [field for field in fields if field not in entry]
+            if missing:
+                raise KeyError(f"Blacklist entry {i} is missing fields {missing!r}.")
+            key = tuple(entry[field] for field in fields)
+        elif len(fields) == 1 and not isinstance(entry, (tuple, list)):
+            key = (entry,)
+        else:
+            try:
+                key = tuple(entry)
+            except TypeError as exc:
+                raise TypeError(
+                    f"Blacklist entry {i} must be a dict or iterable key; got {type(entry).__name__}."
+                ) from exc
+            if len(key) != len(fields):
+                raise ValueError(
+                    f"Blacklist entry {i} has {len(key)} values, expected {len(fields)} for fields {fields!r}."
+                )
+        blacklist_keys.add(key)
+
+    kept_mask = []
+    for g in graphs:
+        values = tuple(
+            get_graph_metadata_value(
+                g,
+                field,
+                meta_lookup=meta_lookup,
+                default=None,
+                strict=False,
+            )
+            for field in fields
+        )
+        has_missing = any(value is None for value in values)
+        if has_missing:
+            keep = bool(allow_missing)
+        else:
+            keep = values not in blacklist_keys
+        kept_mask.append(keep)
+
+    if print_summary:
+        _print_filter_summary(
+            graphs,
+            kept_mask,
+            meta_lookup=meta_lookup,
+            label=f"filter_graphs_by_blacklist(n_keys={len(blacklist_keys)})",
+        )
+
+    return _finish_filter(
+        graphs,
+        kept_mask,
+        inplace=inplace,
+        return_rejected=return_rejected,
+    )
 
 
 def filter_graphs_by_metadata(

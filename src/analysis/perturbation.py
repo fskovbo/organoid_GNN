@@ -1,10 +1,22 @@
 import copy
+from dataclasses import dataclass
 
 import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 
 from src.graph.neighborhood import compute_hop_rings
+
+
+@dataclass(frozen=True)
+class PerturbationMeta:
+    """Metadata for one perturbed subgraph."""
+
+    subgraph_index: int
+    hop_index: int
+    source_marker: int
+    n_perturbed: int
+    target_marker: int | None = None
 
 
 def _select_target_output(arr, target_index=0, name="output"):
@@ -160,10 +172,61 @@ def _resolve_normalization(normalize_by, normalize_total_by, normalize_center_by
     return normalize_total_by, normalize_center_by
 
 
-def _build_marker_perturbations(subgraphs, n_markers, k_hops, hops, mode):
-    perturbed = []
-    meta = []  # (subgraph_index, hop_index, marker_index, n_perturbed)
+def _marker_index(marker, marker_names):
+    if isinstance(marker, str):
+        if marker in marker_names:
+            return marker_names.index(marker)
+        lower = {str(name).lower(): i for i, name in enumerate(marker_names)}
+        key = marker.lower()
+        if key not in lower:
+            raise ValueError(f"Marker {marker!r} not found in marker_names.")
+        return lower[key]
+    marker = int(marker)
+    if not (0 <= marker < len(marker_names)):
+        raise IndexError(f"Marker index {marker} out of range for {len(marker_names)} markers.")
+    return marker
 
+
+def _resolve_conversion_pairs(conversion_pairs, marker_names):
+    n_markers = len(marker_names)
+    if conversion_pairs is None:
+        return [(source, target) for source in range(n_markers) for target in range(n_markers) if source != target]
+
+    pairs = []
+    seen = set()
+    for pair in conversion_pairs:
+        if len(pair) != 2:
+            raise ValueError(f"Conversion pair must have length 2, got {pair!r}.")
+        source = _marker_index(pair[0], marker_names)
+        target = _marker_index(pair[1], marker_names)
+        if source == target:
+            continue
+        resolved = (source, target)
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        pairs.append(resolved)
+    return pairs
+
+
+def _selected_source_nodes(g, nodes, source_marker, mode):
+    x_ring = g.x[nodes, source_marker]
+    pos_mask = x_ring > 0.5
+    n_pos = int(pos_mask.sum().item())
+    if n_pos == 0:
+        return None, 0
+
+    if mode == "all":
+        ring_nodes_t = torch.as_tensor(nodes, device=g.x.device, dtype=torch.long)
+        pos_idx = torch.nonzero(pos_mask, as_tuple=False).view(-1)
+        return ring_nodes_t[pos_idx], n_pos
+
+    pos_idx_in_ring = int(torch.nonzero(pos_mask, as_tuple=False)[0].item())
+    node_to_change = int(nodes[pos_idx_in_ring])
+    return torch.as_tensor([node_to_change], device=g.x.device, dtype=torch.long), 1
+
+
+def _iter_marker_ring_cases(subgraphs, n_markers, k_hops, hops, mode):
     for si, g in enumerate(subgraphs):
         c = int(g.center_idx)
         rings = compute_hop_rings(g.edge_index, c, k_hops)
@@ -173,30 +236,64 @@ def _build_marker_perturbations(subgraphs, n_markers, k_hops, hops, mode):
             if len(nodes) == 0:
                 continue
 
-            for mi in range(n_markers):
-                x_ring = g.x[nodes, mi]
-                pos_mask = x_ring > 0.5
-                n_pos = int(pos_mask.sum().item())
-                if n_pos == 0:
+            for source_marker in range(n_markers):
+                source_nodes, n_pert = _selected_source_nodes(g, nodes, source_marker, mode)
+                if n_pert == 0:
                     continue
+                yield si, g, hi, source_marker, source_nodes, int(n_pert)
 
-                gp = copy.deepcopy(g)
-                x = gp.x
 
-                if mode == "all":
-                    ring_nodes_t = torch.as_tensor(nodes, device=x.device, dtype=torch.long)
-                    pos_idx = torch.nonzero(pos_mask, as_tuple=False).view(-1)
-                    x[ring_nodes_t[pos_idx], mi] = 0
-                    n_pert = n_pos
-                else:
-                    pos_idx_in_ring = int(torch.nonzero(pos_mask, as_tuple=False)[0].item())
-                    node_to_zero = int(nodes[pos_idx_in_ring])
-                    x[node_to_zero, mi] = 0
-                    n_pert = 1
+def _apply_ablation(x, source_nodes, source_marker):
+    x[source_nodes, source_marker] = 0
 
-                gp.x = x
-                perturbed.append(gp)
-                meta.append((si, hi, mi, int(n_pert)))
+
+def _apply_conversion(x, source_nodes, source_marker, target_marker):
+    x[source_nodes, source_marker] = 0
+    x[source_nodes, target_marker] = 1
+
+
+def _build_ablation_perturbations(subgraphs, n_markers, k_hops, hops, mode):
+    perturbed = []
+    meta = []
+
+    for si, g, hi, source_marker, source_nodes, n_pert in _iter_marker_ring_cases(
+        subgraphs,
+        n_markers,
+        k_hops,
+        hops,
+        mode,
+    ):
+        gp = copy.deepcopy(g)
+        x = gp.x
+        _apply_ablation(x, source_nodes, source_marker)
+        gp.x = x
+        perturbed.append(gp)
+        meta.append(PerturbationMeta(si, hi, source_marker, n_pert))
+
+    return perturbed, meta
+
+
+def _build_conversion_perturbations(subgraphs, n_markers, k_hops, hops, mode, conversion_pairs):
+    perturbed = []
+    meta = []
+    targets_by_source = {}
+    for source_marker, target_marker in conversion_pairs:
+        targets_by_source.setdefault(int(source_marker), []).append(int(target_marker))
+
+    for si, g, hi, source_marker, source_nodes, n_pert in _iter_marker_ring_cases(
+        subgraphs,
+        n_markers,
+        k_hops,
+        hops,
+        mode,
+    ):
+        for target_marker in targets_by_source.get(source_marker, []):
+            gp = copy.deepcopy(g)
+            x = gp.x
+            _apply_conversion(x, source_nodes, source_marker, target_marker)
+            gp.x = x
+            perturbed.append(gp)
+            meta.append(PerturbationMeta(si, hi, source_marker, n_pert, target_marker=target_marker))
 
     return perturbed, meta
 
@@ -259,7 +356,11 @@ def _accumulate_scalar_effects(
         cases_cmarker,
     ) = _init_aggregate_arrays(n_hops, n_markers)
 
-    for effect, (si, hi, mi, n_pert) in zip(effects, meta):
+    for effect, item in zip(effects, meta):
+        si = item.subgraph_index
+        hi = item.hop_index
+        mi = item.source_marker
+        n_pert = item.n_perturbed
         total[hi, mi] += effect
         total_abs[hi, mi] += abs(effect)
         counts_total[hi, mi] += n_pert
@@ -297,6 +398,111 @@ def _accumulate_scalar_effects(
     }
 
 
+def _init_conversion_aggregate_arrays(n_hops, n_markers):
+    return (
+        np.zeros((n_hops, n_markers, n_markers), dtype=np.float64),
+        np.zeros((n_hops, n_markers, n_markers), dtype=np.float64),
+        np.zeros((n_hops, n_markers, n_markers, n_markers), dtype=np.float64),
+        np.zeros((n_hops, n_markers, n_markers, n_markers), dtype=np.float64),
+        np.zeros((n_hops, n_markers, n_markers), dtype=np.int64),
+        np.zeros((n_hops, n_markers, n_markers), dtype=np.int64),
+        np.zeros((n_hops, n_markers, n_markers, n_markers), dtype=np.int64),
+        np.zeros((n_hops, n_markers, n_markers, n_markers), dtype=np.int64),
+    )
+
+
+def _normalize_conversion_aggregates(
+    total,
+    total_abs,
+    cmarker,
+    cmarker_abs,
+    counts_total,
+    cases_total,
+    counts_cmarker,
+    cases_cmarker,
+    *,
+    normalize_total_by,
+    normalize_center_by,
+):
+    denom_total = counts_total if normalize_total_by == "perturbed_cells" else cases_total
+    mask_total = denom_total > 0
+    total[mask_total] /= denom_total[mask_total]
+    total_abs[mask_total] /= denom_total[mask_total]
+
+    denom_cmarker = counts_cmarker if normalize_center_by == "perturbed_cells" else cases_cmarker
+    mask_cmarker = denom_cmarker > 0
+    cmarker[mask_cmarker] /= denom_cmarker[mask_cmarker]
+    cmarker_abs[mask_cmarker] /= denom_cmarker[mask_cmarker]
+
+
+def _accumulate_conversion_effects(
+    effects,
+    meta,
+    center_x,
+    n_hops,
+    n_markers,
+    *,
+    normalize_total_by,
+    normalize_center_by,
+):
+    (
+        total,
+        total_abs,
+        cmarker,
+        cmarker_abs,
+        counts_total,
+        cases_total,
+        counts_cmarker,
+        cases_cmarker,
+    ) = _init_conversion_aggregate_arrays(n_hops, n_markers)
+
+    for effect, item in zip(effects, meta):
+        if item.target_marker is None:
+            raise ValueError("Conversion aggregation requires target_marker in metadata.")
+
+        si = item.subgraph_index
+        hi = item.hop_index
+        source = item.source_marker
+        target = item.target_marker
+        n_pert = item.n_perturbed
+
+        total[hi, source, target] += effect
+        total_abs[hi, source, target] += abs(effect)
+        counts_total[hi, source, target] += n_pert
+        cases_total[hi, source, target] += 1
+
+        center_markers = np.where(center_x[si, :] == 1)[0]
+        for y_marker in center_markers:
+            cmarker[hi, y_marker, source, target] += effect
+            cmarker_abs[hi, y_marker, source, target] += abs(effect)
+            counts_cmarker[hi, y_marker, source, target] += n_pert
+            cases_cmarker[hi, y_marker, source, target] += 1
+
+    _normalize_conversion_aggregates(
+        total,
+        total_abs,
+        cmarker,
+        cmarker_abs,
+        counts_total,
+        cases_total,
+        counts_cmarker,
+        cases_cmarker,
+        normalize_total_by=normalize_total_by,
+        normalize_center_by=normalize_center_by,
+    )
+
+    return {
+        "total": total,
+        "total_abs": total_abs,
+        "cmarker": cmarker,
+        "cmarker_abs": cmarker_abs,
+        "counts_total": counts_total,
+        "cases_total": cases_total,
+        "counts_cmarker": counts_cmarker,
+        "cases_cmarker": cases_cmarker,
+    }
+
+
 def _prepare_perturbation_run(
     subgraphs,
     marker_names,
@@ -309,8 +515,40 @@ def _prepare_perturbation_run(
     n_markers = len(marker_names)
     hops = list(range(1, k_hops + 1))
     center_x = _center_marker_matrix(subs, n_markers)
-    perturbed, meta = _build_marker_perturbations(subs, n_markers, k_hops, hops, mode)
+    perturbed, meta = _build_ablation_perturbations(subs, n_markers, k_hops, hops, mode)
     return subs, n_markers, hops, center_x, perturbed, meta
+
+
+def _prepare_conversion_run(
+    subgraphs,
+    marker_names,
+    k_hops,
+    mode,
+    max_subgraphs,
+    conversion_pairs,
+):
+    _validate_mode(mode)
+    subs = _subsample_subgraphs(subgraphs, max_subgraphs)
+    n_markers = len(marker_names)
+    hops = list(range(1, k_hops + 1))
+    center_x = _center_marker_matrix(subs, n_markers)
+    resolved_pairs = _resolve_conversion_pairs(conversion_pairs, marker_names)
+    perturbed, meta = _build_conversion_perturbations(
+        subs,
+        n_markers,
+        k_hops,
+        hops,
+        mode,
+        resolved_pairs,
+    )
+    return subs, n_markers, hops, center_x, perturbed, meta, resolved_pairs
+
+
+def _conversion_pair_labels(conversion_pairs, marker_names):
+    return [
+        f"{marker_names[source]}->{marker_names[target]}"
+        for source, target in conversion_pairs
+    ]
 
 
 def compute_perturbation_influence_maps(
@@ -397,8 +635,8 @@ def compute_perturbation_influence_maps(
             pert_lv = np.asarray(pert_lv, dtype=np.float64)
 
     n_hops = len(hops)
-    mu_effects = [pert_mu[j] - base_mu[si] for j, (si, _, _, _) in enumerate(meta)]
-    lv_effects = [pert_lv[j] - base_lv[si] for j, (si, _, _, _) in enumerate(meta)]
+    mu_effects = [pert_mu[j] - base_mu[item.subgraph_index] for j, item in enumerate(meta)]
+    lv_effects = [pert_lv[j] - base_lv[item.subgraph_index] for j, item in enumerate(meta)]
 
     mu_ag = _accumulate_scalar_effects(
         mu_effects,
@@ -525,8 +763,8 @@ def compute_perturbation_mse_influence_maps(
 
     n_hops = len(hops)
     mse_effects = [
-        float((pert_mu[j] - y_center[si]) ** 2 - base_sqerr[si])
-        for j, (si, _, _, _) in enumerate(meta)
+        float((pert_mu[j] - y_center[item.subgraph_index]) ** 2 - base_sqerr[item.subgraph_index])
+        for j, item in enumerate(meta)
     ]
     ag = _accumulate_scalar_effects(
         mse_effects,
@@ -550,6 +788,272 @@ def compute_perturbation_mse_influence_maps(
         "base_sqerr_center": base_sqerr,
         "hops": hops,
         "marker_names": marker_names,
+        "target_index": target_index,
+        "mse_scale": "original" if target_transform is not None else "transformed",
+        "normalize_total_by": normalize_total_by,
+        "normalize_center_by": normalize_center_by,
+    }
+
+
+def compute_conversion_influence_maps(
+    subgraphs,
+    model,
+    marker_names,
+    k_hops,
+    conversion_pairs=None,
+    mode="all",
+    max_subgraphs=200,
+    device=None,
+    batch_size=64,
+    target_index=0,
+    target_transform=None,
+    normalize_by=None,
+    normalize_total_by="perturbed_cells",
+    normalize_center_by="perturbed_cells",
+):
+    """Measure how converting one marker type to another changes predictions.
+
+    Conversion operates on source-marker-positive cells in each hop ring. For a
+    conversion ``source -> target`` the perturbed feature matrix is changed as:
+
+        x[node, source] = 0
+        x[node, target] = 1
+
+    ``mode="single"`` converts one eligible source-positive node per subgraph,
+    hop, and source-target pair. ``mode="all"`` converts every eligible node.
+
+    Parameters
+    ----------
+    conversion_pairs : None or sequence of pairs
+        Marker pairs to convert. Entries may be marker names or integer indices.
+        If None, all ordered source-target pairs with source != target are used.
+
+    Returns
+    -------
+    dict
+        Total maps have shape ``(n_hops, n_source_markers, n_target_markers)``.
+        Center-marker-resolved maps have shape
+        ``(n_hops, n_center_markers, n_source_markers, n_target_markers)``.
+    """
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    normalize_total_by, normalize_center_by = _resolve_normalization(
+        normalize_by,
+        normalize_total_by,
+        normalize_center_by,
+    )
+
+    subs, n_markers, hops, center_x, perturbed, meta, resolved_pairs = _prepare_conversion_run(
+        subgraphs,
+        marker_names,
+        k_hops,
+        mode,
+        max_subgraphs,
+        conversion_pairs,
+    )
+
+    base_mu, base_lv = predict_subgraph_center_distribution(
+        subs,
+        model,
+        device=device,
+        batch_size=batch_size,
+        target_index=target_index,
+    )
+    if target_transform is not None:
+        _, base_mu, base_lv = target_transform.inverse_distribution(
+            None,
+            base_mu,
+            log_var=base_lv,
+            graphs=subs,
+            center_only=True,
+            target_index=target_index,
+        )
+        base_mu = np.asarray(base_mu, dtype=np.float64)
+        base_lv = np.asarray(base_lv, dtype=np.float64)
+
+    if len(perturbed) == 0:
+        pert_mu = np.zeros((0,), dtype=np.float64)
+        pert_lv = np.zeros((0,), dtype=np.float64)
+    else:
+        pert_mu, pert_lv = predict_subgraph_center_distribution(
+            perturbed,
+            model,
+            device=device,
+            batch_size=batch_size,
+            target_index=target_index,
+        )
+        if target_transform is not None:
+            _, pert_mu, pert_lv = target_transform.inverse_distribution(
+                None,
+                pert_mu,
+                log_var=pert_lv,
+                graphs=perturbed,
+                center_only=True,
+                target_index=target_index,
+            )
+            pert_mu = np.asarray(pert_mu, dtype=np.float64)
+            pert_lv = np.asarray(pert_lv, dtype=np.float64)
+
+    n_hops = len(hops)
+    mu_effects = [pert_mu[j] - base_mu[item.subgraph_index] for j, item in enumerate(meta)]
+    lv_effects = [pert_lv[j] - base_lv[item.subgraph_index] for j, item in enumerate(meta)]
+
+    mu_ag = _accumulate_conversion_effects(
+        mu_effects,
+        meta,
+        center_x,
+        n_hops,
+        n_markers,
+        normalize_total_by=normalize_total_by,
+        normalize_center_by=normalize_center_by,
+    )
+    lv_ag = _accumulate_conversion_effects(
+        lv_effects,
+        meta,
+        center_x,
+        n_hops,
+        n_markers,
+        normalize_total_by=normalize_total_by,
+        normalize_center_by=normalize_center_by,
+    )
+
+    return {
+        "delta_mu_total": mu_ag["total"],
+        "delta_mu_abs_total": mu_ag["total_abs"],
+        "delta_lv_total": lv_ag["total"],
+        "delta_lv_abs_total": lv_ag["total_abs"],
+        "counts_total": mu_ag["counts_total"],
+        "cases_total": mu_ag["cases_total"],
+        "delta_mu_cmarker": mu_ag["cmarker"],
+        "delta_mu_abs_cmarker": mu_ag["cmarker_abs"],
+        "delta_lv_cmarker": lv_ag["cmarker"],
+        "delta_lv_abs_cmarker": lv_ag["cmarker_abs"],
+        "counts_cmarker": mu_ag["counts_cmarker"],
+        "cases_cmarker": mu_ag["cases_cmarker"],
+        "hops": hops,
+        "marker_names": marker_names,
+        "conversion_pairs": resolved_pairs,
+        "conversion_pair_labels": _conversion_pair_labels(resolved_pairs, marker_names),
+        "target_index": target_index,
+        "prediction_scale": "original" if target_transform is not None else "model",
+        "normalize_total_by": normalize_total_by,
+        "normalize_center_by": normalize_center_by,
+    }
+
+
+def compute_conversion_mse_influence_maps(
+    subgraphs,
+    model,
+    marker_names,
+    k_hops,
+    conversion_pairs=None,
+    mode="all",
+    max_subgraphs=200,
+    device=None,
+    batch_size=64,
+    target_index=0,
+    target_transform=None,
+    normalize_by=None,
+    normalize_total_by="perturbed_cells",
+    normalize_center_by="perturbed_cells",
+):
+    """Measure how marker conversion changes center-cell squared prediction error.
+
+    Positive delta MSE means the conversion worsened prediction accuracy;
+    negative delta MSE means it improved prediction accuracy. If
+    ``target_transform`` is provided, MSE is computed in the original target
+    scale.
+    """
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    normalize_total_by, normalize_center_by = _resolve_normalization(
+        normalize_by,
+        normalize_total_by,
+        normalize_center_by,
+    )
+
+    subs, n_markers, hops, center_x, perturbed, meta, resolved_pairs = _prepare_conversion_run(
+        subgraphs,
+        marker_names,
+        k_hops,
+        mode,
+        max_subgraphs,
+        conversion_pairs,
+    )
+
+    y_center = _subgraph_center_targets(subs, target_index=target_index)
+    base_mu, _ = predict_subgraph_center_distribution(
+        subs,
+        model,
+        device=device,
+        batch_size=batch_size,
+        target_index=target_index,
+    )
+
+    if target_transform is not None:
+        y_center, base_mu, _ = target_transform.inverse_distribution(
+            y_center,
+            base_mu,
+            log_var=None,
+            graphs=subs,
+            center_only=True,
+            target_index=target_index,
+        )
+        y_center = np.asarray(y_center, dtype=np.float64)
+        base_mu = np.asarray(base_mu, dtype=np.float64)
+
+    base_sqerr = np.square(base_mu - y_center)
+
+    if len(perturbed) == 0:
+        pert_mu = np.zeros((0,), dtype=np.float64)
+    else:
+        pert_mu, _ = predict_subgraph_center_distribution(
+            perturbed,
+            model,
+            device=device,
+            batch_size=batch_size,
+            target_index=target_index,
+        )
+        if target_transform is not None:
+            _, pert_mu, _ = target_transform.inverse_distribution(
+                None,
+                pert_mu,
+                log_var=None,
+                graphs=perturbed,
+                center_only=True,
+                target_index=target_index,
+            )
+            pert_mu = np.asarray(pert_mu, dtype=np.float64)
+
+    n_hops = len(hops)
+    mse_effects = [
+        float((pert_mu[j] - y_center[item.subgraph_index]) ** 2 - base_sqerr[item.subgraph_index])
+        for j, item in enumerate(meta)
+    ]
+    ag = _accumulate_conversion_effects(
+        mse_effects,
+        meta,
+        center_x,
+        n_hops,
+        n_markers,
+        normalize_total_by=normalize_total_by,
+        normalize_center_by=normalize_center_by,
+    )
+
+    return {
+        "delta_mse_total": ag["total"],
+        "delta_mse_abs_total": ag["total_abs"],
+        "delta_mse_cmarker": ag["cmarker"],
+        "delta_mse_abs_cmarker": ag["cmarker_abs"],
+        "counts_total": ag["counts_total"],
+        "cases_total": ag["cases_total"],
+        "counts_cmarker": ag["counts_cmarker"],
+        "cases_cmarker": ag["cases_cmarker"],
+        "base_sqerr_center": base_sqerr,
+        "hops": hops,
+        "marker_names": marker_names,
+        "conversion_pairs": resolved_pairs,
+        "conversion_pair_labels": _conversion_pair_labels(resolved_pairs, marker_names),
         "target_index": target_index,
         "mse_scale": "original" if target_transform is not None else "transformed",
         "normalize_total_by": normalize_total_by,

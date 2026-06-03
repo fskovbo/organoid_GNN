@@ -2,6 +2,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def _mask_low_count_values(values, counts=None, min_count=None):
+    values = np.asarray(values, dtype=float)
+    if min_count is None:
+        return values
+    if counts is None:
+        raise ValueError("counts must be provided when min_count is not None.")
+
+    counts = np.asarray(counts)
+    if counts.shape != values.shape:
+        raise ValueError(f"counts shape {counts.shape} does not match values shape {values.shape}.")
+
+    masked = values.copy()
+    masked[counts < min_count] = np.nan
+    return masked
+
+
+def _cmap_with_bad_color(cmap, bad_color):
+    cmap_obj = plt.get_cmap(cmap).copy() if isinstance(cmap, str) else cmap.copy()
+    cmap_obj.set_bad(bad_color)
+    return cmap_obj
 
 
 def select_target_from_matrix(mat, target_index=None, *, expected_ndim=None, name="mat"):
@@ -26,7 +46,18 @@ def select_target_from_matrix(mat, target_index=None, *, expected_ndim=None, nam
     return arr
 
 
-def plot_influence_heatmap(mat, hops, marker_names, title, *, target_index=None):
+def plot_influence_heatmap(
+    mat,
+    hops,
+    marker_names,
+    title,
+    *,
+    target_index=None,
+    counts=None,
+    min_count=None,
+    bad_color="white",
+    cmap=None,
+):
     """
     Inputs:
       mat          : np.ndarray (H, M)
@@ -35,18 +66,26 @@ def plot_influence_heatmap(mat, hops, marker_names, title, *, target_index=None)
       title        : str
       target_index : int or None
         Target column to select if mat has shape (H, M, T).
+      counts       : np.ndarray or None
+        Count matrix with the same shape as mat after target selection.
+      min_count    : int or None
+        Values with counts below this threshold are shown as bad_color.
 
     Output:
       fig, ax
     """
 
     mat = select_target_from_matrix(mat, target_index=target_index, expected_ndim=2)
+    if counts is not None:
+        counts = select_target_from_matrix(counts, target_index=target_index, expected_ndim=2)
+    mat = _mask_low_count_values(mat, counts=counts, min_count=min_count)
+    cmap = _cmap_with_bad_color(cmap or plt.rcParams["image.cmap"], bad_color)
 
     fig, ax = plt.subplots(
         figsize=(0.7 * len(marker_names) + 3, 0.7 * len(hops) + 2)
     )
 
-    im = ax.imshow(mat, aspect="auto")
+    im = ax.imshow(mat, aspect="auto", cmap=cmap)
     fig.colorbar(im, ax=ax)
 
     ax.set_yticks(range(len(hops)))
@@ -70,6 +109,9 @@ def plot_influence_center_resolved(
     center_zero=False,
     sort_center=True,
     cmap="viridis",
+    counts=None,
+    min_count=None,
+    bad_color="white",
 ):
     """
     Inputs:
@@ -82,6 +124,10 @@ def plot_influence_center_resolved(
       cmap         : str or matplotlib colormap
       target_index : int or None
         Target column to select if mat has shape (H, M_center, M_pert, T).
+      counts       : np.ndarray or None
+        Count tensor with the same shape as mat after target selection.
+      min_count    : int or None
+        Values with counts below this threshold are shown as bad_color.
 
     Output:
       fig, axes
@@ -89,6 +135,11 @@ def plot_influence_center_resolved(
 
     mat = select_target_from_matrix(mat, target_index=target_index, expected_ndim=3)
     mat = np.asarray(mat)
+    if counts is not None:
+        counts = select_target_from_matrix(counts, target_index=target_index, expected_ndim=3)
+        counts = np.asarray(counts)
+        if counts.shape != mat.shape:
+            raise ValueError(f"counts shape {counts.shape} does not match mat shape {mat.shape}.")
     H, My, Mx = mat.shape
     assert H == len(hops)
     assert My == len(marker_names)
@@ -101,7 +152,9 @@ def plot_influence_center_resolved(
         order = np.argsort(-score)
 
     mat_s = mat[:, order, :]
+    counts_s = None if counts is None else counts[:, order, :]
     center_names = [marker_names[i] for i in order]
+    cmap = _cmap_with_bad_color(cmap, bad_color)
 
     fig, axes = plt.subplots(
         1, H,
@@ -113,9 +166,13 @@ def plot_influence_center_resolved(
 
     for hi, hop in enumerate(hops):
         ax = axes[hi]
-        data = mat_s[hi]
+        data = _mask_low_count_values(
+            mat_s[hi],
+            counts=None if counts_s is None else counts_s[hi],
+            min_count=min_count,
+        )
 
-        if center_zero:
+        if center_zero and np.any(np.isfinite(data)):
             vmax = np.nanmax(np.abs(data))
             vmin = -vmax
             im = ax.imshow(

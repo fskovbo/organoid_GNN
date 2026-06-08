@@ -7,6 +7,275 @@ import numpy as np
 from torch_geometric.utils import degree
 
 
+def _resolve_marker_index(marker, marker_names, n_features, *, label="marker"):
+    if isinstance(marker, str):
+        if marker_names is None:
+            raise ValueError(f"String {label} selection requires marker_names.")
+        marker_names = list(marker_names)
+        if marker in marker_names:
+            idx = marker_names.index(marker)
+        else:
+            lower = {str(name).lower(): i for i, name in enumerate(marker_names)}
+            key = marker.lower()
+            if key not in lower:
+                raise KeyError(f"Unknown {label} name {marker!r}")
+            idx = lower[key]
+    else:
+        idx = int(marker)
+        if idx < 0:
+            idx += n_features
+
+    if idx < 0 or idx >= n_features:
+        raise IndexError(f"{label} index {idx} out of range for {n_features} features.")
+    return idx
+
+
+def _positive_marker_components(edge_index, positive_mask):
+    positive_mask = np.asarray(positive_mask, dtype=bool).reshape(-1)
+    positive_nodes = np.flatnonzero(positive_mask)
+    if positive_nodes.size < 2:
+        return []
+
+    if torch.is_tensor(edge_index):
+        edge_index_np = edge_index.detach().cpu().numpy()
+    else:
+        edge_index_np = np.asarray(edge_index)
+
+    if edge_index_np.shape[0] != 2:
+        raise ValueError(f"edge_index must have shape (2, E), got {edge_index_np.shape}.")
+
+    src = edge_index_np[0].astype(np.int64, copy=False)
+    dst = edge_index_np[1].astype(np.int64, copy=False)
+    keep = positive_mask[src] & positive_mask[dst] & (src != dst)
+    src = src[keep]
+    dst = dst[keep]
+    if src.size == 0:
+        return []
+
+    adjacency = {int(node): [] for node in positive_nodes}
+    for u, v in zip(src, dst):
+        u = int(u)
+        v = int(v)
+        adjacency[u].append(v)
+        adjacency[v].append(u)
+
+    components = []
+    seen = set()
+    for node in positive_nodes:
+        node = int(node)
+        if node in seen or len(adjacency[node]) == 0:
+            continue
+
+        component = []
+        queue = deque([node])
+        seen.add(node)
+        while queue:
+            current = queue.popleft()
+            component.append(current)
+            for nbr in adjacency[current]:
+                if nbr in seen:
+                    continue
+                seen.add(nbr)
+                queue.append(nbr)
+
+        components.append(component)
+
+    return components
+
+
+def sparsify_marker_clusters(
+    graphs,
+    marker,
+    *,
+    marker_names=None,
+    target_marker=None,
+    x_attr="x",
+    edge_attr="edge_index",
+    threshold=0.5,
+    min_cluster_size=2,
+    seed=None,
+    inplace=False,
+    print_summary=False,
+    return_stats=True,
+):
+    """
+    Keep one random marker-positive cell per adjacent marker cluster.
+
+    Clusters are connected components of nodes where ``x[:, marker]`` is above
+    ``threshold``. For each cluster of size at least ``min_cluster_size``, one
+    random node is kept unchanged. The source marker is set to zero in every
+    other cluster node. If ``target_marker`` is provided, those changed nodes
+    are also assigned to the target marker by setting ``x[:, target_marker] = 1``.
+
+    Parameters
+    ----------
+    graphs : list[Data]
+        PyG graphs with node features and ``edge_index``.
+    marker : int | str
+        Source marker column to sparsify.
+    marker_names : list[str] or None
+        Optional marker names for string marker resolution.
+    target_marker : int | str | None
+        Optional marker column to turn non-kept source cells into.
+    x_attr : str
+        Graph attribute holding the node feature matrix.
+    edge_attr : str
+        Graph attribute holding ``edge_index``.
+    threshold : float
+        Values greater than this threshold are treated as marker-positive.
+    min_cluster_size : int
+        Minimum connected component size to sparsify. Must be at least 2.
+    seed : int or None
+        Random seed for selecting the kept cell within each cluster.
+    inplace : bool
+        If False, returns shallow graph copies with cloned/copied ``x``.
+    print_summary : bool
+        Print a compact summary of affected clusters and marker signals.
+    return_stats : bool
+        If True, return ``(graphs_out, stats)``. Otherwise return ``graphs_out``.
+
+    Returns
+    -------
+    graphs_out : list[Data]
+    stats : dict, optional
+        Counts of clusters and marker signals affected.
+    """
+
+    if min_cluster_size < 2:
+        raise ValueError("min_cluster_size must be >= 2.")
+
+    graphs_out = graphs if inplace else [copy.copy(g) for g in graphs]
+    rng = np.random.default_rng(seed)
+    stats = {
+        "source_marker": None,
+        "target_marker": None,
+        "threshold": float(threshold),
+        "min_cluster_size": int(min_cluster_size),
+        "n_graphs": len(graphs_out),
+        "n_clusters_found": 0,
+        "n_clusters_affected": 0,
+        "n_cells_in_affected_clusters": 0,
+        "n_marker_signals_zeroed": 0,
+        "n_marker_signals_converted": 0,
+        "per_graph": [],
+    }
+
+    for gi, g in enumerate(graphs_out):
+        if not hasattr(g, x_attr):
+            raise ValueError(f"Graph {gi} has no attribute '{x_attr}'")
+        if not hasattr(g, edge_attr):
+            raise ValueError(f"Graph {gi} has no attribute '{edge_attr}'")
+
+        x = getattr(g, x_attr)
+        if x is None:
+            raise ValueError(f"Graph {gi} has '{x_attr}=None'")
+        if x.ndim != 2:
+            raise ValueError(
+                f"Graph {gi} attribute '{x_attr}' must be 2-D, got shape {tuple(x.shape)}"
+            )
+
+        n_features = int(x.shape[1])
+        source_idx = _resolve_marker_index(
+            marker,
+            marker_names,
+            n_features,
+            label="source marker",
+        )
+        target_idx = None
+        if target_marker is not None:
+            target_idx = _resolve_marker_index(
+                target_marker,
+                marker_names,
+                n_features,
+                label="target marker",
+            )
+            if target_idx == source_idx:
+                raise ValueError("target_marker must differ from marker.")
+
+        if stats["source_marker"] is None:
+            stats["source_marker"] = source_idx
+            stats["target_marker"] = target_idx
+        elif stats["source_marker"] != source_idx or stats["target_marker"] != target_idx:
+            raise RuntimeError("Resolved marker indices changed across graphs unexpectedly.")
+
+        edge_index = getattr(g, edge_attr)
+        n_nodes = int(x.shape[0])
+        if torch.is_tensor(edge_index):
+            if edge_index.numel() == 0:
+                components = []
+            else:
+                if int(edge_index.max().item()) >= n_nodes or int(edge_index.min().item()) < 0:
+                    raise IndexError(f"Graph {gi} edge_index contains node indices outside x.")
+                x_source = x[:, source_idx].detach().cpu().numpy()
+                components = _positive_marker_components(edge_index, x_source > threshold)
+        else:
+            edge_index_arr = np.asarray(edge_index)
+            if edge_index_arr.size == 0:
+                components = []
+            else:
+                if int(edge_index_arr.max()) >= n_nodes or int(edge_index_arr.min()) < 0:
+                    raise IndexError(f"Graph {gi} edge_index contains node indices outside x.")
+                components = _positive_marker_components(
+                    edge_index_arr,
+                    np.asarray(x)[:, source_idx] > threshold,
+                )
+
+        affected = [component for component in components if len(component) >= min_cluster_size]
+        n_changed = sum(len(component) - 1 for component in affected)
+
+        graph_stats = {
+            "graph_index": gi,
+            "n_clusters_found": len(components),
+            "n_clusters_affected": len(affected),
+            "n_cells_in_affected_clusters": int(sum(len(component) for component in affected)),
+            "n_marker_signals_zeroed": int(n_changed),
+            "n_marker_signals_converted": int(n_changed if target_idx is not None else 0),
+        }
+        stats["per_graph"].append(graph_stats)
+        stats["n_clusters_found"] += graph_stats["n_clusters_found"]
+        stats["n_clusters_affected"] += graph_stats["n_clusters_affected"]
+        stats["n_cells_in_affected_clusters"] += graph_stats["n_cells_in_affected_clusters"]
+        stats["n_marker_signals_zeroed"] += graph_stats["n_marker_signals_zeroed"]
+        stats["n_marker_signals_converted"] += graph_stats["n_marker_signals_converted"]
+
+        if n_changed == 0:
+            continue
+
+        if torch.is_tensor(x):
+            x_new = x if inplace else x.clone()
+            for component in affected:
+                keep_node = int(rng.choice(component))
+                change_nodes = [node for node in component if node != keep_node]
+                node_idx = torch.as_tensor(change_nodes, dtype=torch.long, device=x_new.device)
+                x_new[node_idx, source_idx] = 0
+                if target_idx is not None:
+                    x_new[node_idx, target_idx] = 1
+        else:
+            x_new = np.asarray(x) if inplace else np.array(x, copy=True)
+            for component in affected:
+                keep_node = int(rng.choice(component))
+                change_nodes = [node for node in component if node != keep_node]
+                x_new[change_nodes, source_idx] = 0
+                if target_idx is not None:
+                    x_new[change_nodes, target_idx] = 1
+
+        setattr(g, x_attr, x_new)
+
+    if print_summary:
+        message = (
+            "Marker cluster sparsification: "
+            f"{stats['n_clusters_affected']}/{stats['n_clusters_found']} clusters affected; "
+            f"{stats['n_marker_signals_zeroed']} source marker signals zeroed"
+        )
+        if stats["target_marker"] is not None:
+            message += f"; {stats['n_marker_signals_converted']} target marker signals set"
+        print(message + ".")
+
+    if return_stats:
+        return graphs_out, stats
+    return graphs_out
+
+
 def remove_marker_features(
     graphs,
     markers,

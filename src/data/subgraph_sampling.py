@@ -116,6 +116,323 @@ def centers_per_graph_from_center_specs(center_specs, n_graphs):
     return out
 
 
+def _subgraph_group_ids(subgraphs):
+    """Return one stable organoid/group identifier per ego-subgraph."""
+    group_ids = []
+    for i, subgraph in enumerate(subgraphs):
+        if hasattr(subgraph, "graph_idx"):
+            group_ids.append(("graph_idx", int(subgraph.graph_idx)))
+        elif hasattr(subgraph, "organoid_str"):
+            group_ids.append(("organoid_str", str(subgraph.organoid_str)))
+        else:
+            raise ValueError(
+                f"Subgraph {i} has neither .graph_idx nor .organoid_str; "
+                "organoid-weighted sampling requires one of these attributes."
+            )
+    return group_ids
+
+
+def _balanced_group_sample(group_ids, sample_size, rng):
+    """Sample nearly equal numbers from each represented group."""
+    groups = {}
+    for idx, group_id in enumerate(group_ids):
+        groups.setdefault(group_id, []).append(idx)
+
+    group_order = list(groups)
+    rng.shuffle(group_order)
+    for group_id in group_order:
+        rng.shuffle(groups[group_id])
+
+    selected = []
+    offsets = {group_id: 0 for group_id in group_order}
+    active = list(group_order)
+    while active and len(selected) < sample_size:
+        rng.shuffle(active)
+        next_active = []
+        for group_id in active:
+            offset = offsets[group_id]
+            members = groups[group_id]
+            if offset < len(members) and len(selected) < sample_size:
+                selected.append(int(members[offset]))
+                offset += 1
+                offsets[group_id] = offset
+            if offset < len(members):
+                next_active.append(group_id)
+        active = next_active
+
+    return np.asarray(selected, dtype=np.int64)
+
+
+def _population_weights(selected_indices, group_ids, weighting):
+    """Return normalized design weights aligned with selected_indices."""
+    n_selected = len(selected_indices)
+    if n_selected == 0:
+        return np.zeros(0, dtype=np.float64)
+
+    if weighting == "cell":
+        return np.full(n_selected, 1.0 / n_selected, dtype=np.float64)
+
+    selected_groups = [group_ids[int(idx)] for idx in selected_indices]
+    counts = {}
+    for group_id in selected_groups:
+        counts[group_id] = counts.get(group_id, 0) + 1
+
+    n_groups = len(counts)
+    return np.asarray(
+        [1.0 / (n_groups * counts[group_id]) for group_id in selected_groups],
+        dtype=np.float64,
+    )
+
+
+def _resolve_marker_index(marker, marker_names):
+    marker_names = list(marker_names)
+    if isinstance(marker, str):
+        if marker in marker_names:
+            return marker_names.index(marker)
+        lower = {str(name).lower(): i for i, name in enumerate(marker_names)}
+        key = marker.lower()
+        if key not in lower:
+            raise ValueError(f"Marker {marker!r} not found in marker_names.")
+        return lower[key]
+
+    marker_idx = int(marker)
+    if not (0 <= marker_idx < len(marker_names)):
+        raise IndexError(
+            f"Marker index {marker_idx} out of range for {len(marker_names)} markers."
+        )
+    return marker_idx
+
+
+def sample_subgraphs_population(
+    subgraphs,
+    max_subgraphs,
+    *,
+    weighting="cell",
+    seed=0,
+    marker_names=None,
+    k_hops=None,
+    min_marker_count_per_hop=None,
+    threshold=0.5,
+    return_info=True,
+):
+    """Draw a representative sample and define marker-specific conditional samples.
+
+    The representative draw contains at most ``max_subgraphs`` center cells.
+    With ``weighting="cell"``, centers are sampled uniformly from the complete
+    pool. With ``weighting="organoid"``, the budget is distributed as evenly as
+    possible across organoids and the returned design weights give each
+    represented organoid equal total weight.
+
+    If ``min_marker_count_per_hop`` is provided, every marker receives a
+    separate hop-specific conditional-effect sample. Each such sample starts
+    with marker-positive centers from the representative draw and is topped up
+    from the full pool until it reaches the requested minimum, as far as
+    possible. Top-ups are not added to the returned representative sample.
+    Their source indices and weights are reported separately in ``info``.
+
+    Parameters
+    ----------
+    subgraphs : list[Data]
+        Ego-subgraphs. Organoid weighting requires ``graph_idx`` or
+        ``organoid_str`` on every subgraph.
+    max_subgraphs : int or None
+        Size of the representative population draw. ``None`` keeps all centers.
+    weighting : {"cell", "organoid"}
+        Population estimand. Cell weighting gives every center equal weight;
+        organoid weighting gives every represented organoid equal total weight.
+    min_marker_count_per_hop : int or None
+        Minimum marker-positive centers requested for every marker at every
+        hop. Set to None to disable marker-specific conditional samples.
+
+    Returns
+    -------
+    selected_subgraphs : list[Data]
+        The representative population draw only.
+    info : dict, optional
+        Population weights plus marker-specific sample indices, weights,
+        availability, and top-up diagnostics. Marker sample source indices
+        refer to the input ``subgraphs`` list and are intentionally separate
+        from ``selected_subgraphs``.
+    """
+    if len(subgraphs) == 0:
+        raise ValueError("subgraphs is empty")
+    if weighting not in {"cell", "organoid"}:
+        raise ValueError("weighting must be either 'cell' or 'organoid'")
+    if max_subgraphs is not None and max_subgraphs <= 0:
+        raise ValueError("max_subgraphs must be positive or None")
+
+    rng = np.random.default_rng(seed)
+    n_available = len(subgraphs)
+    population_size = (
+        n_available if max_subgraphs is None else min(int(max_subgraphs), n_available)
+    )
+
+    group_ids = None
+    has_group_metadata = all(
+        hasattr(subgraph, "graph_idx") or hasattr(subgraph, "organoid_str")
+        for subgraph in subgraphs
+    )
+    if weighting == "organoid" or has_group_metadata:
+        group_ids = _subgraph_group_ids(subgraphs)
+    if weighting == "cell":
+        population_source = rng.choice(
+            n_available,
+            size=population_size,
+            replace=False,
+        ).astype(np.int64)
+    else:
+        population_source = _balanced_group_sample(
+            group_ids,
+            population_size,
+            rng,
+        )
+
+    population_weights = _population_weights(
+        population_source,
+        group_ids,
+        weighting,
+    )
+
+    marker_source_by_hop = {}
+    marker_topup_source_by_hop = {}
+    marker_weights_by_hop = {}
+    marker_available_by_hop = {}
+    if min_marker_count_per_hop is not None:
+        if marker_names is None or k_hops is None:
+            raise ValueError(
+                "marker_names and k_hops are required for marker-specific sampling."
+            )
+        if int(min_marker_count_per_hop) <= 0:
+            raise ValueError("min_marker_count_per_hop must be positive")
+
+        marker_names = list(marker_names)
+        _, ring_pos = _subgraph_marker_coverage(
+            subgraphs,
+            int(k_hops),
+            threshold=threshold,
+        )
+        population_set = set(population_source.tolist())
+        all_indices = np.arange(n_available, dtype=np.int64)
+
+        full_group_counts = {}
+        if weighting == "organoid":
+            for group_id in group_ids:
+                full_group_counts[group_id] = full_group_counts.get(group_id, 0) + 1
+
+        for marker_idx, marker_name in enumerate(marker_names):
+            marker_source_by_hop[marker_name] = {}
+            marker_topup_source_by_hop[marker_name] = {}
+            marker_weights_by_hop[marker_name] = {}
+            marker_available_by_hop[marker_name] = {}
+
+            for hi in range(int(k_hops)):
+                hop = hi + 1
+                eligible_mask = ring_pos[:, hi, marker_idx]
+                eligible = all_indices[eligible_mask]
+                representative = population_source[eligible_mask[population_source]]
+                marker_available_by_hop[marker_name][hop] = int(len(eligible))
+
+                deficit = max(
+                    0,
+                    int(min_marker_count_per_hop) - len(representative),
+                )
+                candidates = np.asarray(
+                    [idx for idx in eligible if int(idx) not in population_set],
+                    dtype=np.int64,
+                )
+                n_topup = min(deficit, len(candidates))
+                if n_topup:
+                    if weighting == "cell":
+                        topup = rng.choice(
+                            candidates,
+                            size=n_topup,
+                            replace=False,
+                        ).astype(np.int64)
+                    else:
+                        candidate_groups = [group_ids[int(idx)] for idx in candidates]
+                        topup_local = _balanced_group_sample(
+                            candidate_groups,
+                            n_topup,
+                            rng,
+                        )
+                        topup = candidates[topup_local]
+                else:
+                    topup = np.zeros(0, dtype=np.int64)
+
+                marker_sample = np.concatenate([representative, topup]).astype(
+                    np.int64,
+                    copy=False,
+                )
+                if len(marker_sample) == 0:
+                    marker_weights = np.zeros(0, dtype=np.float64)
+                elif weighting == "cell":
+                    marker_weights = np.full(
+                        len(marker_sample),
+                        1.0 / len(marker_sample),
+                        dtype=np.float64,
+                    )
+                else:
+                    eligible_group_counts = {}
+                    sampled_group_counts = {}
+                    for idx in eligible:
+                        group_id = group_ids[int(idx)]
+                        eligible_group_counts[group_id] = (
+                            eligible_group_counts.get(group_id, 0) + 1
+                        )
+                    for idx in marker_sample:
+                        group_id = group_ids[int(idx)]
+                        sampled_group_counts[group_id] = (
+                            sampled_group_counts.get(group_id, 0) + 1
+                        )
+
+                    marker_weights = np.asarray(
+                        [
+                            eligible_group_counts[group_ids[int(idx)]]
+                            / full_group_counts[group_ids[int(idx)]]
+                            / sampled_group_counts[group_ids[int(idx)]]
+                            for idx in marker_sample
+                        ],
+                        dtype=np.float64,
+                    )
+                    marker_weights /= marker_weights.sum()
+
+                marker_source_by_hop[marker_name][hop] = marker_sample
+                marker_topup_source_by_hop[marker_name][hop] = topup
+                marker_weights_by_hop[marker_name][hop] = marker_weights
+
+    selected_subgraphs = [subgraphs[int(idx)] for idx in population_source]
+
+    if not return_info:
+        return selected_subgraphs
+
+    selected_group_counts = {}
+    if group_ids is not None:
+        for idx in population_source:
+            group_id = group_ids[int(idx)]
+            selected_group_counts[str(group_id[1])] = (
+                selected_group_counts.get(str(group_id[1]), 0) + 1
+            )
+
+    info = {
+        "weighting": weighting,
+        "n_available": int(n_available),
+        "n_population": int(len(population_source)),
+        "selected_indices": np.arange(len(population_source), dtype=np.int64),
+        "selected_source_indices": population_source,
+        "population_indices": np.arange(len(population_source), dtype=np.int64),
+        "population_source_indices": population_source,
+        "population_weights": population_weights,
+        "sample_weights": population_weights.copy(),
+        "population_group_counts": selected_group_counts,
+        "min_marker_count_per_hop": min_marker_count_per_hop,
+        "marker_sample_source_indices_by_hop": marker_source_by_hop,
+        "marker_topup_source_indices_by_hop": marker_topup_source_by_hop,
+        "marker_sample_weights_by_hop": marker_weights_by_hop,
+        "marker_available_by_hop": marker_available_by_hop,
+    }
+    return selected_subgraphs, info
+
+
 def sample_subgraphs_coverage(
     subgraphs,
     marker_names,

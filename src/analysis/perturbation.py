@@ -226,7 +226,15 @@ def _selected_source_nodes(g, nodes, source_marker, mode):
     return torch.as_tensor([node_to_change], device=g.x.device, dtype=torch.long), 1
 
 
-def _iter_marker_ring_cases(subgraphs, n_markers, k_hops, hops, mode):
+def _iter_marker_ring_cases(
+    subgraphs,
+    n_markers,
+    k_hops,
+    hops,
+    mode,
+    source_markers=None,
+):
+    marker_indices = range(n_markers) if source_markers is None else source_markers
     for si, g in enumerate(subgraphs):
         c = int(g.center_idx)
         rings = compute_hop_rings(g.edge_index, c, k_hops)
@@ -236,7 +244,7 @@ def _iter_marker_ring_cases(subgraphs, n_markers, k_hops, hops, mode):
             if len(nodes) == 0:
                 continue
 
-            for source_marker in range(n_markers):
+            for source_marker in marker_indices:
                 source_nodes, n_pert = _selected_source_nodes(g, nodes, source_marker, mode)
                 if n_pert == 0:
                     continue
@@ -252,7 +260,14 @@ def _apply_conversion(x, source_nodes, source_marker, target_marker):
     x[source_nodes, target_marker] = 1
 
 
-def _build_ablation_perturbations(subgraphs, n_markers, k_hops, hops, mode):
+def _build_ablation_perturbations(
+    subgraphs,
+    n_markers,
+    k_hops,
+    hops,
+    mode,
+    source_markers=None,
+):
     perturbed = []
     meta = []
 
@@ -262,6 +277,7 @@ def _build_ablation_perturbations(subgraphs, n_markers, k_hops, hops, mode):
         k_hops,
         hops,
         mode,
+        source_markers=source_markers,
     ):
         gp = copy.deepcopy(g)
         x = gp.x
@@ -503,19 +519,81 @@ def _accumulate_conversion_effects(
     }
 
 
+def _case_effect_records(
+    subgraphs,
+    meta,
+    center_x,
+    marker_names,
+    mu_effects,
+    lv_effects,
+):
+    """Build one serializable record per evaluated perturbation case."""
+    records = []
+    for item, delta_mu, delta_logvar in zip(meta, mu_effects, lv_effects):
+        subgraph = subgraphs[item.subgraph_index]
+        center_marker_indices = np.flatnonzero(center_x[item.subgraph_index]).tolist()
+        record = {
+            "subgraph_index": int(item.subgraph_index),
+            "graph_idx": (
+                int(subgraph.graph_idx) if hasattr(subgraph, "graph_idx") else None
+            ),
+            "organoid_str": getattr(subgraph, "organoid_str", None),
+            "orig_center": (
+                int(subgraph.orig_center) if hasattr(subgraph, "orig_center") else None
+            ),
+            "hop": int(item.hop_index + 1),
+            "source_marker": int(item.source_marker),
+            "source_marker_name": marker_names[item.source_marker],
+            "target_marker": (
+                None if item.target_marker is None else int(item.target_marker)
+            ),
+            "target_marker_name": (
+                None
+                if item.target_marker is None
+                else marker_names[item.target_marker]
+            ),
+            "center_marker_indices": [int(i) for i in center_marker_indices],
+            "center_marker_names": [marker_names[i] for i in center_marker_indices],
+            "n_perturbed": int(item.n_perturbed),
+            "delta_mu": float(delta_mu),
+            "delta_logvar": float(delta_logvar),
+        }
+        records.append(record)
+    return records
+
+
 def _prepare_perturbation_run(
     subgraphs,
     marker_names,
     k_hops,
     mode,
     max_subgraphs,
+    source_markers=None,
 ):
     _validate_mode(mode)
     subs = _subsample_subgraphs(subgraphs, max_subgraphs)
     n_markers = len(marker_names)
     hops = list(range(1, k_hops + 1))
     center_x = _center_marker_matrix(subs, n_markers)
-    perturbed, meta = _build_ablation_perturbations(subs, n_markers, k_hops, hops, mode)
+    resolved_source_markers = None
+    if source_markers is not None:
+        if isinstance(source_markers, (str, int, np.integer)):
+            source_markers = [source_markers]
+        resolved_source_markers = []
+        seen = set()
+        for marker in source_markers:
+            marker_idx = _marker_index(marker, marker_names)
+            if marker_idx not in seen:
+                resolved_source_markers.append(marker_idx)
+                seen.add(marker_idx)
+    perturbed, meta = _build_ablation_perturbations(
+        subs,
+        n_markers,
+        k_hops,
+        hops,
+        mode,
+        source_markers=resolved_source_markers,
+    )
     return subs, n_markers, hops, center_x, perturbed, meta
 
 
@@ -565,6 +643,8 @@ def compute_perturbation_influence_maps(
     normalize_by=None,
     normalize_total_by="perturbed_cells",
     normalize_center_by="perturbed_cells",
+    return_case_effects=False,
+    source_markers=None,
 ):
     """Measure how marker removal changes center-cell predicted mean/log-variance.
 
@@ -575,6 +655,9 @@ def compute_perturbation_influence_maps(
     Normalization can be controlled independently for total and center-resolved
     maps. Use ``normalize_by`` to set both to either ``"cases"`` or
     ``"perturbed_cells"``.
+
+    Pass ``source_markers`` to evaluate only selected marker names or indices.
+    This is useful when each marker has its own conditional-effect sample.
     """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -590,6 +673,7 @@ def compute_perturbation_influence_maps(
         k_hops,
         mode,
         max_subgraphs,
+        source_markers=source_markers,
     )
 
     base_mu, base_lv = predict_subgraph_center_distribution(
@@ -657,7 +741,7 @@ def compute_perturbation_influence_maps(
         normalize_center_by=normalize_center_by,
     )
 
-    return {
+    result = {
         "delta_mu_total": mu_ag["total"],
         "delta_mu_abs_total": mu_ag["total_abs"],
         "delta_lv_total": lv_ag["total"],
@@ -677,6 +761,16 @@ def compute_perturbation_influence_maps(
         "normalize_total_by": normalize_total_by,
         "normalize_center_by": normalize_center_by,
     }
+    if return_case_effects:
+        result["case_effects"] = _case_effect_records(
+            subs,
+            meta,
+            center_x,
+            marker_names,
+            mu_effects,
+            lv_effects,
+        )
+    return result
 
 
 def compute_perturbation_mse_influence_maps(
@@ -693,6 +787,7 @@ def compute_perturbation_mse_influence_maps(
     normalize_by=None,
     normalize_total_by="perturbed_cells",
     normalize_center_by="perturbed_cells",
+    source_markers=None,
 ):
     """Measure how marker removal changes center-cell squared prediction error.
 
@@ -715,6 +810,7 @@ def compute_perturbation_mse_influence_maps(
         k_hops,
         mode,
         max_subgraphs,
+        source_markers=source_markers,
     )
 
     y_center = _subgraph_center_targets(subs, target_index=target_index)
@@ -810,6 +906,7 @@ def compute_conversion_influence_maps(
     normalize_by=None,
     normalize_total_by="perturbed_cells",
     normalize_center_by="perturbed_cells",
+    return_case_effects=False,
 ):
     """Measure how converting one marker type to another changes predictions.
 
@@ -917,7 +1014,7 @@ def compute_conversion_influence_maps(
         normalize_center_by=normalize_center_by,
     )
 
-    return {
+    result = {
         "delta_mu_total": mu_ag["total"],
         "delta_mu_abs_total": mu_ag["total_abs"],
         "delta_lv_total": lv_ag["total"],
@@ -939,6 +1036,16 @@ def compute_conversion_influence_maps(
         "normalize_total_by": normalize_total_by,
         "normalize_center_by": normalize_center_by,
     }
+    if return_case_effects:
+        result["case_effects"] = _case_effect_records(
+            subs,
+            meta,
+            center_x,
+            marker_names,
+            mu_effects,
+            lv_effects,
+        )
+    return result
 
 
 def compute_conversion_mse_influence_maps(

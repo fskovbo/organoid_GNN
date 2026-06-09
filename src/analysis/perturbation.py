@@ -17,6 +17,9 @@ class PerturbationMeta:
     source_marker: int
     n_perturbed: int
     target_marker: int | None = None
+    source_nodes: tuple[int, ...] = ()
+    orig_source_nodes: tuple[int, ...] = ()
+    hop: int | None = None
 
 
 def _select_target_output(arr, target_index=0, name="output"):
@@ -226,6 +229,20 @@ def _selected_source_nodes(g, nodes, source_marker, mode):
     return torch.as_tensor([node_to_change], device=g.x.device, dtype=torch.long), 1
 
 
+def _source_node_metadata(g, source_nodes):
+    """Return selected node indices in subgraph and original-graph coordinates."""
+    local_nodes = tuple(
+        int(node)
+        for node in source_nodes.detach().cpu().numpy().reshape(-1)
+    )
+    if hasattr(g, "orig_nodes"):
+        original = g.orig_nodes.detach().cpu().numpy()
+        orig_nodes = tuple(int(original[node]) for node in local_nodes)
+    else:
+        orig_nodes = ()
+    return local_nodes, orig_nodes
+
+
 def _iter_marker_ring_cases(
     subgraphs,
     n_markers,
@@ -284,7 +301,18 @@ def _build_ablation_perturbations(
         _apply_ablation(x, source_nodes, source_marker)
         gp.x = x
         perturbed.append(gp)
-        meta.append(PerturbationMeta(si, hi, source_marker, n_pert))
+        local_nodes, orig_nodes = _source_node_metadata(g, source_nodes)
+        meta.append(
+            PerturbationMeta(
+                si,
+                hi,
+                source_marker,
+                n_pert,
+                source_nodes=local_nodes,
+                orig_source_nodes=orig_nodes,
+                hop=int(hops[hi]),
+            )
+        )
 
     return perturbed, meta
 
@@ -309,7 +337,19 @@ def _build_conversion_perturbations(subgraphs, n_markers, k_hops, hops, mode, co
             _apply_conversion(x, source_nodes, source_marker, target_marker)
             gp.x = x
             perturbed.append(gp)
-            meta.append(PerturbationMeta(si, hi, source_marker, n_pert, target_marker=target_marker))
+            local_nodes, orig_nodes = _source_node_metadata(g, source_nodes)
+            meta.append(
+                PerturbationMeta(
+                    si,
+                    hi,
+                    source_marker,
+                    n_pert,
+                    target_marker=target_marker,
+                    source_nodes=local_nodes,
+                    orig_source_nodes=orig_nodes,
+                    hop=int(hops[hi]),
+                )
+            )
 
     return perturbed, meta
 
@@ -526,10 +566,22 @@ def _case_effect_records(
     marker_names,
     mu_effects,
     lv_effects,
+    mse_effects=None,
+    variance_effects=None,
 ):
     """Build one serializable record per evaluated perturbation case."""
     records = []
-    for item, delta_mu, delta_logvar in zip(meta, mu_effects, lv_effects):
+    if mse_effects is None:
+        mse_effects = [None] * len(meta)
+    if variance_effects is None:
+        variance_effects = [None] * len(meta)
+    for item, delta_mu, delta_logvar, delta_mse, delta_variance in zip(
+        meta,
+        mu_effects,
+        lv_effects,
+        mse_effects,
+        variance_effects,
+    ):
         subgraph = subgraphs[item.subgraph_index]
         center_marker_indices = np.flatnonzero(center_x[item.subgraph_index]).tolist()
         record = {
@@ -541,7 +593,7 @@ def _case_effect_records(
             "orig_center": (
                 int(subgraph.orig_center) if hasattr(subgraph, "orig_center") else None
             ),
-            "hop": int(item.hop_index + 1),
+            "hop": int(item.hop if item.hop is not None else item.hop_index + 1),
             "source_marker": int(item.source_marker),
             "source_marker_name": marker_names[item.source_marker],
             "target_marker": (
@@ -555,8 +607,22 @@ def _case_effect_records(
             "center_marker_indices": [int(i) for i in center_marker_indices],
             "center_marker_names": [marker_names[i] for i in center_marker_indices],
             "n_perturbed": int(item.n_perturbed),
+            "source_node_indices": [int(i) for i in item.source_nodes],
+            "orig_source_node_indices": [int(i) for i in item.orig_source_nodes],
+            "source_node": (
+                int(item.source_nodes[0]) if len(item.source_nodes) == 1 else None
+            ),
+            "orig_source_node": (
+                int(item.orig_source_nodes[0])
+                if len(item.orig_source_nodes) == 1
+                else None
+            ),
             "delta_mu": float(delta_mu),
             "delta_logvar": float(delta_logvar),
+            "delta_variance": (
+                None if delta_variance is None else float(delta_variance)
+            ),
+            "delta_mse": None if delta_mse is None else float(delta_mse),
         }
         records.append(record)
     return records
@@ -569,11 +635,12 @@ def _prepare_perturbation_run(
     mode,
     max_subgraphs,
     source_markers=None,
+    include_center=False,
 ):
     _validate_mode(mode)
     subs = _subsample_subgraphs(subgraphs, max_subgraphs)
     n_markers = len(marker_names)
-    hops = list(range(1, k_hops + 1))
+    hops = list(range(0 if include_center else 1, k_hops + 1))
     center_x = _center_marker_matrix(subs, n_markers)
     resolved_source_markers = None
     if source_markers is not None:
@@ -645,8 +712,9 @@ def compute_perturbation_influence_maps(
     normalize_center_by="perturbed_cells",
     return_case_effects=False,
     source_markers=None,
+    include_center=False,
 ):
-    """Measure how marker removal changes center-cell predicted mean/log-variance.
+    """Measure changes in center-cell mean, uncertainty, and squared error.
 
     If ``target_transform`` is provided, predicted means and log-variances are
     inverse-transformed before differences are computed. This makes the
@@ -658,6 +726,9 @@ def compute_perturbation_influence_maps(
 
     Pass ``source_markers`` to evaluate only selected marker names or indices.
     This is useful when each marker has its own conditional-effect sample.
+
+    Set ``include_center=True`` to evaluate distance zero as well as hops
+    ``1..k_hops``. Distance zero removes a marker from the center cell itself.
     """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -674,8 +745,10 @@ def compute_perturbation_influence_maps(
         mode,
         max_subgraphs,
         source_markers=source_markers,
+        include_center=include_center,
     )
 
+    y_center = _subgraph_center_targets(subs, target_index=target_index)
     base_mu, base_lv = predict_subgraph_center_distribution(
         subs,
         model,
@@ -684,16 +757,19 @@ def compute_perturbation_influence_maps(
         target_index=target_index,
     )
     if target_transform is not None:
-        _, base_mu, base_lv = target_transform.inverse_distribution(
-            None,
+        y_center, base_mu, base_lv = target_transform.inverse_distribution(
+            y_center,
             base_mu,
             log_var=base_lv,
             graphs=subs,
             center_only=True,
             target_index=target_index,
         )
+        y_center = np.asarray(y_center, dtype=np.float64)
         base_mu = np.asarray(base_mu, dtype=np.float64)
         base_lv = np.asarray(base_lv, dtype=np.float64)
+    else:
+        y_center = np.asarray(y_center, dtype=np.float64)
 
     if len(perturbed) == 0:
         pert_mu = np.zeros((0,), dtype=np.float64)
@@ -721,6 +797,20 @@ def compute_perturbation_influence_maps(
     n_hops = len(hops)
     mu_effects = [pert_mu[j] - base_mu[item.subgraph_index] for j, item in enumerate(meta)]
     lv_effects = [pert_lv[j] - base_lv[item.subgraph_index] for j, item in enumerate(meta)]
+    base_variance = np.exp(base_lv)
+    pert_variance = np.exp(pert_lv)
+    variance_effects = [
+        pert_variance[j] - base_variance[item.subgraph_index]
+        for j, item in enumerate(meta)
+    ]
+    base_sqerr = np.square(base_mu - y_center)
+    mse_effects = [
+        float(
+            (pert_mu[j] - y_center[item.subgraph_index]) ** 2
+            - base_sqerr[item.subgraph_index]
+        )
+        for j, item in enumerate(meta)
+    ]
 
     mu_ag = _accumulate_scalar_effects(
         mu_effects,
@@ -740,24 +830,53 @@ def compute_perturbation_influence_maps(
         normalize_total_by=normalize_total_by,
         normalize_center_by=normalize_center_by,
     )
+    variance_ag = _accumulate_scalar_effects(
+        variance_effects,
+        meta,
+        center_x,
+        n_hops,
+        n_markers,
+        normalize_total_by=normalize_total_by,
+        normalize_center_by=normalize_center_by,
+    )
+    mse_ag = _accumulate_scalar_effects(
+        mse_effects,
+        meta,
+        center_x,
+        n_hops,
+        n_markers,
+        normalize_total_by=normalize_total_by,
+        normalize_center_by=normalize_center_by,
+    )
 
     result = {
         "delta_mu_total": mu_ag["total"],
         "delta_mu_abs_total": mu_ag["total_abs"],
         "delta_lv_total": lv_ag["total"],
         "delta_lv_abs_total": lv_ag["total_abs"],
+        "delta_variance_total": variance_ag["total"],
+        "delta_variance_abs_total": variance_ag["total_abs"],
         "counts_total": mu_ag["counts_total"],
         "cases_total": mu_ag["cases_total"],
         "delta_mu_cmarker": mu_ag["cmarker"],
         "delta_mu_abs_cmarker": mu_ag["cmarker_abs"],
         "delta_lv_cmarker": lv_ag["cmarker"],
         "delta_lv_abs_cmarker": lv_ag["cmarker_abs"],
+        "delta_variance_cmarker": variance_ag["cmarker"],
+        "delta_variance_abs_cmarker": variance_ag["cmarker_abs"],
+        "delta_mse_total": mse_ag["total"],
+        "delta_mse_abs_total": mse_ag["total_abs"],
+        "delta_mse_cmarker": mse_ag["cmarker"],
+        "delta_mse_abs_cmarker": mse_ag["cmarker_abs"],
         "counts_cmarker": mu_ag["counts_cmarker"],
         "cases_cmarker": mu_ag["cases_cmarker"],
+        "base_sqerr_center": base_sqerr,
         "hops": hops,
         "marker_names": marker_names,
         "target_index": target_index,
         "prediction_scale": "original" if target_transform is not None else "model",
+        "mse_scale": "original" if target_transform is not None else "model",
+        "include_center": bool(include_center),
         "normalize_total_by": normalize_total_by,
         "normalize_center_by": normalize_center_by,
     }
@@ -769,6 +888,8 @@ def compute_perturbation_influence_maps(
             marker_names,
             mu_effects,
             lv_effects,
+            mse_effects=mse_effects,
+            variance_effects=variance_effects,
         )
     return result
 
@@ -788,6 +909,7 @@ def compute_perturbation_mse_influence_maps(
     normalize_total_by="perturbed_cells",
     normalize_center_by="perturbed_cells",
     source_markers=None,
+    include_center=False,
 ):
     """Measure how marker removal changes center-cell squared prediction error.
 
@@ -811,6 +933,7 @@ def compute_perturbation_mse_influence_maps(
         mode,
         max_subgraphs,
         source_markers=source_markers,
+        include_center=include_center,
     )
 
     y_center = _subgraph_center_targets(subs, target_index=target_index)
@@ -886,6 +1009,7 @@ def compute_perturbation_mse_influence_maps(
         "marker_names": marker_names,
         "target_index": target_index,
         "mse_scale": "original" if target_transform is not None else "transformed",
+        "include_center": bool(include_center),
         "normalize_total_by": normalize_total_by,
         "normalize_center_by": normalize_center_by,
     }

@@ -212,6 +212,7 @@ def sample_subgraphs_population(
     marker_names=None,
     k_hops=None,
     min_marker_count_per_hop=None,
+    include_center=False,
     threshold=0.5,
     return_info=True,
 ):
@@ -224,7 +225,7 @@ def sample_subgraphs_population(
     represented organoid equal total weight.
 
     If ``min_marker_count_per_hop`` is provided, every marker receives a
-    separate hop-specific conditional-effect sample. Each such sample starts
+    separate distance-specific conditional-effect sample. Each such sample starts
     with marker-positive centers from the representative draw and is topped up
     from the full pool until it reaches the requested minimum, as far as
     possible. Top-ups are not added to the returned representative sample.
@@ -243,6 +244,9 @@ def sample_subgraphs_population(
     min_marker_count_per_hop : int or None
         Minimum marker-positive centers requested for every marker at every
         hop. Set to None to disable marker-specific conditional samples.
+    include_center : bool
+        If True, also create marker-specific samples for distance zero, where
+        marker presence is evaluated on the center cell itself.
 
     Returns
     -------
@@ -306,7 +310,7 @@ def sample_subgraphs_population(
             raise ValueError("min_marker_count_per_hop must be positive")
 
         marker_names = list(marker_names)
-        _, ring_pos = _subgraph_marker_coverage(
+        center_pos, ring_pos = _subgraph_marker_coverage(
             subgraphs,
             int(k_hops),
             threshold=threshold,
@@ -325,9 +329,13 @@ def sample_subgraphs_population(
             marker_weights_by_hop[marker_name] = {}
             marker_available_by_hop[marker_name] = {}
 
-            for hi in range(int(k_hops)):
-                hop = hi + 1
-                eligible_mask = ring_pos[:, hi, marker_idx]
+            hops = range(0 if include_center else 1, int(k_hops) + 1)
+            for hop in hops:
+                eligible_mask = (
+                    center_pos[:, marker_idx]
+                    if hop == 0
+                    else ring_pos[:, hop - 1, marker_idx]
+                )
                 eligible = all_indices[eligible_mask]
                 representative = population_source[eligible_mask[population_source]]
                 marker_available_by_hop[marker_name][hop] = int(len(eligible))
@@ -425,12 +433,231 @@ def sample_subgraphs_population(
         "sample_weights": population_weights.copy(),
         "population_group_counts": selected_group_counts,
         "min_marker_count_per_hop": min_marker_count_per_hop,
+        "include_center": bool(include_center),
         "marker_sample_source_indices_by_hop": marker_source_by_hop,
         "marker_topup_source_indices_by_hop": marker_topup_source_by_hop,
         "marker_sample_weights_by_hop": marker_weights_by_hop,
         "marker_available_by_hop": marker_available_by_hop,
     }
     return selected_subgraphs, info
+
+
+def _prepare_coverage_sampling(
+    subgraphs,
+    marker_names,
+    k_hops,
+    min_center_count,
+    min_pair_count,
+    threshold,
+):
+    """Precompute features, frequencies, targets, and empty coverage state."""
+    n_markers = len(marker_names)
+    n_hops = int(k_hops)
+    center_pos, ring_pos = _subgraph_marker_coverage(
+        subgraphs,
+        k_hops,
+        threshold=threshold,
+    )
+    center_feats, pair_feats = _feature_lists_for_subgraphs(center_pos, ring_pos)
+    center_freq, pair_freq = _global_feature_frequencies(
+        center_feats,
+        pair_feats,
+        n_markers,
+        n_hops,
+    )
+    return {
+        "n_markers": n_markers,
+        "n_hops": n_hops,
+        "n_subgraphs": len(subgraphs),
+        "center_feats": center_feats,
+        "pair_feats": pair_feats,
+        "center_freq": center_freq,
+        "pair_freq": pair_freq,
+        "target_center": np.full(
+            n_markers,
+            int(min_center_count),
+            dtype=np.int64,
+        ),
+        "target_pair": np.full(
+            (n_hops, n_markers, n_markers),
+            int(min_pair_count),
+            dtype=np.int64,
+        ),
+        "covered_center": np.zeros(n_markers, dtype=np.int64),
+        "covered_pair": np.zeros(
+            (n_hops, n_markers, n_markers),
+            dtype=np.int64,
+        ),
+    }
+
+
+def _coverage_gain(idx, state, center_weight, pair_weight):
+    """Return weighted unmet coverage gain for one candidate subgraph."""
+    gain = 0.0
+    for marker in state["center_feats"][idx]:
+        if state["covered_center"][marker] < state["target_center"][marker]:
+            gain += center_weight
+    for hop_idx, center_marker, source_marker in state["pair_feats"][idx]:
+        if (
+            state["covered_pair"][hop_idx, center_marker, source_marker]
+            < state["target_pair"][hop_idx, center_marker, source_marker]
+        ):
+            gain += pair_weight
+    return gain
+
+
+def _add_coverage_subgraph(idx, state):
+    """Update center and pair coverage after selecting one subgraph."""
+    for marker in state["center_feats"][idx]:
+        state["covered_center"][marker] += 1
+    for hop_idx, center_marker, source_marker in state["pair_feats"][idx]:
+        state["covered_pair"][hop_idx, center_marker, source_marker] += 1
+
+
+def _coverage_fill_weight(
+    idx,
+    state,
+    fill_weight_center,
+    fill_weight_pair,
+):
+    """Return rare-feature fill weight for one candidate subgraph."""
+    weight = 1.0
+    for marker in state["center_feats"][idx]:
+        freq = state["center_freq"][marker]
+        if freq > 0:
+            weight += fill_weight_center / freq
+    for hop_idx, center_marker, source_marker in state["pair_feats"][idx]:
+        freq = state["pair_freq"][hop_idx, center_marker, source_marker]
+        if freq > 0:
+            weight += fill_weight_pair / freq
+    return weight
+
+
+def _coverage_diagnostics(selected, state, marker_names):
+    """Build the common coverage diagnostics returned by coverage samplers."""
+    unsatisfied_center = np.flatnonzero(
+        state["covered_center"] < state["target_center"]
+    )
+    unsatisfied_pair = np.argwhere(
+        state["covered_pair"] < state["target_pair"]
+    )
+    return {
+        "selected_indices": np.asarray(selected, dtype=np.int64),
+        "n_selected": int(len(selected)),
+        "n_available": int(state["n_subgraphs"]),
+        "center_target": state["target_center"],
+        "center_covered": state["covered_center"],
+        "pair_target": state["target_pair"],
+        "pair_covered": state["covered_pair"],
+        "center_freq_global": state["center_freq"],
+        "pair_freq_global": state["pair_freq"],
+        "unsatisfied_center_markers": [
+            marker_names[int(i)] for i in unsatisfied_center
+        ],
+        "unsatisfied_pair_features": [
+            {
+                "hop": int(hop_idx + 1),
+                "center_marker": marker_names[int(center_marker)],
+                "neigh_marker": marker_names[int(source_marker)],
+                "covered": int(
+                    state["covered_pair"][
+                        hop_idx,
+                        center_marker,
+                        source_marker,
+                    ]
+                ),
+                "target": int(
+                    state["target_pair"][
+                        hop_idx,
+                        center_marker,
+                        source_marker,
+                    ]
+                ),
+                "global_available": int(
+                    state["pair_freq"][
+                        hop_idx,
+                        center_marker,
+                        source_marker,
+                    ]
+                ),
+            }
+            for hop_idx, center_marker, source_marker in unsatisfied_pair
+        ],
+    }
+
+
+def _single_source_cell_ids(subgraphs, k_hops, threshold=0.5):
+    """Map each single-mode marker case to its selected physical source cell.
+
+    Returns an object array with shape ``(subgraph, hop, marker)``. Entries are
+    ``(group_kind, group_value, original_node_index)`` or ``None``.
+    """
+    if len(subgraphs) == 0:
+        raise ValueError("subgraphs is empty")
+    group_ids = _subgraph_group_ids(subgraphs)
+    n_markers = int(subgraphs[0].x.shape[1])
+    source_ids = np.empty(
+        (len(subgraphs), int(k_hops), n_markers),
+        dtype=object,
+    )
+    source_ids.fill(None)
+
+    for subgraph_idx, subgraph in enumerate(subgraphs):
+        if not hasattr(subgraph, "orig_nodes"):
+            raise ValueError(
+                "Reuse-aware sampling requires .orig_nodes on every subgraph."
+            )
+        center = int(subgraph.center_idx)
+        rings = compute_hop_rings(
+            subgraph.edge_index,
+            center,
+            int(k_hops),
+        )
+        x = subgraph.x.detach().cpu().numpy()
+        original_nodes = subgraph.orig_nodes.detach().cpu().numpy()
+        group_kind, group_value = group_ids[subgraph_idx]
+
+        for hop_idx in range(int(k_hops)):
+            nodes = np.asarray(rings[hop_idx + 1], dtype=np.int64)
+            if len(nodes) == 0:
+                continue
+            for marker_idx in range(n_markers):
+                positive = np.flatnonzero(x[nodes, marker_idx] > threshold)
+                if len(positive) == 0:
+                    continue
+                local_node = int(nodes[int(positive[0])])
+                source_ids[subgraph_idx, hop_idx, marker_idx] = (
+                    group_kind,
+                    group_value,
+                    int(original_nodes[local_node]),
+                )
+    return source_ids
+
+
+def _candidate_source_reuse_keys(idx, state, source_cell_ids, *, unmet_only):
+    """Return unique `(hop, marker, physical cell)` keys for one candidate."""
+    keys = set()
+    for hop_idx, center_marker, source_marker in state["pair_feats"][idx]:
+        if unmet_only and (
+            state["covered_pair"][hop_idx, center_marker, source_marker]
+            >= state["target_pair"][hop_idx, center_marker, source_marker]
+        ):
+            continue
+        source_cell = source_cell_ids[idx, hop_idx, source_marker]
+        if source_cell is not None:
+            keys.add((hop_idx, source_marker, source_cell))
+    return keys
+
+
+def _update_source_reuse(idx, state, source_cell_ids, reuse_counts):
+    """Record physical source-cell use for every single-mode case in a subgraph."""
+    for key in _candidate_source_reuse_keys(
+        idx,
+        state,
+        source_cell_ids,
+        unmet_only=False,
+    ):
+        reuse_counts[key] = reuse_counts.get(key, 0) + 1
 
 
 def sample_subgraphs_coverage(
@@ -503,55 +730,34 @@ def sample_subgraphs_coverage(
         raise ValueError("max_subgraphs must be positive or None")
 
     rng = np.random.default_rng(seed)
-    M = len(marker_names)
-    H = int(k_hops)
-    S = len(subgraphs)
-
-    center_pos, ring_pos = _subgraph_marker_coverage(subgraphs, k_hops, threshold=threshold)
-    center_feats, pair_feats = _feature_lists_for_subgraphs(center_pos, ring_pos)
-
-    # Targets
-    target_center = np.full(M, int(min_center_count), dtype=np.int64)
-    target_pair = np.full((H, M, M), int(min_pair_count), dtype=np.int64)
-
-    # Tracking coverage in selected set
-    covered_center = np.zeros(M, dtype=np.int64)
-    covered_pair = np.zeros((H, M, M), dtype=np.int64)
-
+    state = _prepare_coverage_sampling(
+        subgraphs,
+        marker_names,
+        k_hops,
+        min_center_count,
+        min_pair_count,
+        threshold,
+    )
     selected = []
-    remaining = set(range(S))
-
-    def score_subgraph(idx):
-        score = 0.0
-
-        for y in center_feats[idx]:
-            deficit = max(0, target_center[y] - covered_center[y])
-            if deficit > 0:
-                score += center_weight
-
-        for hi, y, m in pair_feats[idx]:
-            deficit = max(0, target_pair[hi, y, m] - covered_pair[hi, y, m])
-            if deficit > 0:
-                score += pair_weight
-
-        return score
+    remaining = set(range(state["n_subgraphs"]))
 
     def add_subgraph(idx):
         selected.append(idx)
         remaining.remove(idx)
-
-        for y in center_feats[idx]:
-            covered_center[y] += 1
-
-        for hi, y, m in pair_feats[idx]:
-            covered_pair[hi, y, m] += 1
+        _add_coverage_subgraph(idx, state)
 
     # ---------------------------
     # Phase A: greedy coverage
     # ---------------------------
     while len(selected) < max_subgraphs and len(remaining) > 0:
         remaining_list = list(remaining)
-        scores = np.array([score_subgraph(i) for i in remaining_list], dtype=float)
+        scores = np.array(
+            [
+                _coverage_gain(i, state, center_weight, pair_weight)
+                for i in remaining_list
+            ],
+            dtype=float,
+        )
 
         best = scores.max()
         if best <= 0:
@@ -566,27 +772,19 @@ def sample_subgraphs_coverage(
     # Phase B: weighted random fill
     # ---------------------------
     if len(selected) < max_subgraphs and len(remaining) > 0:
-        center_freq_global, pair_freq_global = _global_feature_frequencies(center_feats, pair_feats, M, H)
-
         remaining_list = list(remaining)
-        weights = np.zeros(len(remaining_list), dtype=float)
-
-        for j, idx in enumerate(remaining_list):
-            w = 1.0
-
-            # favor rare center markers
-            for y in center_feats[idx]:
-                freq = center_freq_global[y]
-                if freq > 0:
-                    w += fill_weight_center / freq
-
-            # favor rare pair features
-            for hi, y, m in pair_feats[idx]:
-                freq = pair_freq_global[hi, y, m]
-                if freq > 0:
-                    w += fill_weight_pair / freq
-
-            weights[j] = w
+        weights = np.asarray(
+            [
+                _coverage_fill_weight(
+                    idx,
+                    state,
+                    fill_weight_center,
+                    fill_weight_pair,
+                )
+                for idx in remaining_list
+            ],
+            dtype=float,
+        )
 
         n_fill = min(max_subgraphs - len(selected), len(remaining_list))
 
@@ -597,43 +795,162 @@ def sample_subgraphs_coverage(
             for idx in chosen_fill:
                 add_subgraph(int(idx))
 
-    selected = np.array(selected, dtype=np.int64)
+    selected = np.asarray(selected, dtype=np.int64)
     subs_selected = [subgraphs[int(i)] for i in selected]
 
     if not return_info:
         return subs_selected
 
-    # Diagnostics
-    center_freq_global, pair_freq_global = _global_feature_frequencies(center_feats, pair_feats, M, H)
+    return subs_selected, _coverage_diagnostics(selected, state, marker_names)
 
-    unsatisfied_center = np.argwhere(covered_center < target_center).ravel().tolist()
-    unsatisfied_pair = np.argwhere(covered_pair < target_pair)
 
-    info = {
-        "selected_indices": selected,
-        "n_selected": int(len(selected)),
-        "n_available": int(S),
-        "center_target": target_center,
-        "center_covered": covered_center,
-        "pair_target": target_pair,
-        "pair_covered": covered_pair,
-        "center_freq_global": center_freq_global,
-        "pair_freq_global": pair_freq_global,
-        "unsatisfied_center_markers": [marker_names[i] for i in unsatisfied_center],
-        "unsatisfied_pair_features": [
-            {
-                "hop": int(hi + 1),
-                "center_marker": marker_names[int(y)],
-                "neigh_marker": marker_names[int(m)],
-                "covered": int(covered_pair[hi, y, m]),
-                "target": int(target_pair[hi, y, m]),
-                "global_available": int(pair_freq_global[hi, y, m]),
+def sample_subgraphs_coverage_reuse_aware(
+    subgraphs,
+    marker_names,
+    k_hops,
+    max_subgraphs,
+    min_center_count=40,
+    min_pair_count=12,
+    center_weight=1.0,
+    pair_weight=3.0,
+    reuse_penalty=1.0,
+    fill_weight_pair=2.0,
+    fill_weight_center=1.0,
+    fill_reuse_penalty=1.0,
+    seed=0,
+    threshold=0.5,
+    return_info=True,
+):
+    """Coverage-aware sampling with a soft penalty for physical-cell reuse.
+
+    This sampler targets the same center and
+    ``(hop, center marker, source marker)`` coverage as
+    :func:`sample_subgraphs_coverage`. During greedy coverage, candidate score
+    is:
+
+    ``coverage_gain - reuse_penalty * prior_source_cell_uses``.
+
+    Reuse is tracked separately for each hop and source marker, using the exact
+    physical cell that ``mode="single"`` perturbation would select. Coverage is
+    never blocked by the penalty: if all useful candidates require reuse, the
+    least-penalized candidate is still selected. The random fill phase also
+    downweights candidates that reuse physical source cells.
+    """
+    if reuse_penalty < 0 or fill_reuse_penalty < 0:
+        raise ValueError("reuse penalties must be non-negative")
+    if not np.isclose(threshold, 0.5):
+        raise ValueError(
+            "Reuse-aware sampling currently requires threshold=0.5 to match "
+            "the perturbation selector exactly."
+        )
+    if max_subgraphs is None or max_subgraphs >= len(subgraphs):
+        if return_info:
+            return list(subgraphs), {
+                "selected_indices": np.arange(len(subgraphs), dtype=np.int64),
+                "note": "No subsampling applied",
             }
-            for hi, y, m in unsatisfied_pair
-        ],
-    }
+        return list(subgraphs)
+    if max_subgraphs <= 0:
+        raise ValueError("max_subgraphs must be positive or None")
 
-    return subs_selected, info
+    rng = np.random.default_rng(seed)
+    state = _prepare_coverage_sampling(
+        subgraphs,
+        marker_names,
+        k_hops,
+        min_center_count,
+        min_pair_count,
+        threshold,
+    )
+    source_cell_ids = _single_source_cell_ids(
+        subgraphs,
+        k_hops,
+        threshold=threshold,
+    )
+    selected = []
+    remaining = set(range(state["n_subgraphs"]))
+    reuse_counts = {}
+
+    def add_subgraph(idx):
+        selected.append(idx)
+        remaining.remove(idx)
+        _add_coverage_subgraph(idx, state)
+        _update_source_reuse(idx, state, source_cell_ids, reuse_counts)
+
+    while len(selected) < max_subgraphs and remaining:
+        remaining_list = list(remaining)
+        coverage_gains = np.asarray(
+            [
+                _coverage_gain(idx, state, center_weight, pair_weight)
+                for idx in remaining_list
+            ],
+            dtype=float,
+        )
+        if coverage_gains.max() <= 0:
+            break
+
+        scores = coverage_gains.copy()
+        for position, idx in enumerate(remaining_list):
+            if coverage_gains[position] <= 0:
+                scores[position] = -np.inf
+                continue
+            reuse_keys = _candidate_source_reuse_keys(
+                idx,
+                state,
+                source_cell_ids,
+                unmet_only=True,
+            )
+            reuse_cost = sum(reuse_counts.get(key, 0) for key in reuse_keys)
+            scores[position] -= reuse_penalty * reuse_cost
+
+        best = np.nanmax(scores)
+        best_positions = np.flatnonzero(scores == best)
+        chosen = remaining_list[int(rng.choice(best_positions))]
+        add_subgraph(chosen)
+
+    while len(selected) < max_subgraphs and remaining:
+        remaining_list = list(remaining)
+        weights = np.empty(len(remaining_list), dtype=float)
+        for position, idx in enumerate(remaining_list):
+            weight = _coverage_fill_weight(
+                idx,
+                state,
+                fill_weight_center,
+                fill_weight_pair,
+            )
+            reuse_keys = _candidate_source_reuse_keys(
+                idx,
+                state,
+                source_cell_ids,
+                unmet_only=False,
+            )
+            reuse_cost = sum(reuse_counts.get(key, 0) for key in reuse_keys)
+            weights[position] = weight / (
+                1.0 + fill_reuse_penalty * reuse_cost
+            )
+        probabilities = weights / weights.sum()
+        chosen = int(rng.choice(remaining_list, p=probabilities))
+        add_subgraph(chosen)
+
+    selected = np.asarray(selected, dtype=np.int64)
+    selected_subgraphs = [subgraphs[int(idx)] for idx in selected]
+    if not return_info:
+        return selected_subgraphs
+
+    info = _coverage_diagnostics(selected, state, marker_names)
+    reuse_values = np.asarray(list(reuse_counts.values()), dtype=np.int64)
+    info.update(
+        {
+            "reuse_penalty": float(reuse_penalty),
+            "fill_reuse_penalty": float(fill_reuse_penalty),
+            "source_cell_reuse_counts": reuse_counts,
+            "n_unique_source_cell_hop_markers": int(len(reuse_counts)),
+            "max_source_cell_reuse": (
+                int(reuse_values.max()) if len(reuse_values) else 0
+            ),
+        }
+    )
+    return selected_subgraphs, info
 
 
 

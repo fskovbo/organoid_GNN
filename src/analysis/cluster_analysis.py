@@ -258,6 +258,378 @@ def get_top_cluster_exemplar_indices_unique_graphs(
     return out
 
 
+def _marker_presence_within_hops(
+    graphs,
+    extraction,
+    *,
+    num_hops,
+    n_markers,
+    marker_threshold=0.5,
+):
+    """Return whether each extracted node has each marker within its ego-neighborhood."""
+    if int(num_hops) < 0:
+        raise ValueError("num_hops must be non-negative.")
+    graph_index = np.asarray(extraction.graph_index, dtype=int)
+    local_node_index = np.asarray(extraction.local_node_index, dtype=int)
+    if graph_index.shape != local_node_index.shape:
+        raise ValueError("extraction graph and local-node indices must have equal shape.")
+
+    presence = np.zeros((len(graph_index), int(n_markers)), dtype=bool)
+    rows_by_graph = {}
+    for row, graph_id in enumerate(graph_index):
+        rows_by_graph.setdefault(int(graph_id), []).append(int(row))
+
+    for graph_id, rows in rows_by_graph.items():
+        graph = graphs[graph_id]
+        x = graph.x.detach().cpu().numpy() if hasattr(graph.x, "detach") else np.asarray(graph.x)
+        if x.ndim != 2 or x.shape[1] < n_markers:
+            raise ValueError(
+                f"Graph {graph_id} has marker shape {x.shape}; expected at least {n_markers} columns."
+            )
+
+        within_hops = np.asarray(x[:, :n_markers] > marker_threshold, dtype=bool)
+        edge_index = (
+            graph.edge_index.detach().cpu().numpy()
+            if hasattr(graph.edge_index, "detach")
+            else np.asarray(graph.edge_index)
+        )
+        if edge_index.size:
+            source = edge_index[0].astype(int, copy=False)
+            target = edge_index[1].astype(int, copy=False)
+            for _ in range(int(num_hops)):
+                previous = within_hops
+                expanded = previous.copy()
+                # Treat cell adjacency as undirected, matching the biological
+                # ego-neighborhood even if only one edge direction is stored.
+                np.logical_or.at(expanded, source, previous[target])
+                np.logical_or.at(expanded, target, previous[source])
+                within_hops = expanded
+
+        rows_array = np.asarray(rows, dtype=int)
+        nodes = local_node_index[rows_array]
+        if np.any(nodes < 0) or np.any(nodes >= within_hops.shape[0]):
+            raise IndexError(f"Extraction contains invalid node indices for graph {graph_id}.")
+        presence[rows_array] = within_hops[nodes]
+
+    return presence
+
+
+def get_marker_enriched_cluster_exemplar_indices_unique_graphs(
+    graphs,
+    extraction,
+    clustering_result,
+    marker_names,
+    *,
+    top_k_per_cluster=5,
+    num_hops=2,
+    require_assigned_label=True,
+    marker_threshold=0.5,
+    min_global_positive_nodes=5,
+    min_cluster_positive_nodes=1,
+    min_enrichment_ratio=1.25,
+):
+    """Select cluster exemplars by enriched-marker coverage, then confidence.
+
+    The enrichment score is ``P(marker positive | cluster) / P(marker positive)``.
+    Qualifying markers are considered from highest to lowest enrichment. For each
+    still-uncovered marker, the highest-membership candidate whose ego-subgraph
+    contains that marker is selected, subject to at most one exemplar per graph.
+    Remaining slots are filled by descending cluster-membership probability.
+
+    Returns
+    -------
+    indices_by_cluster : dict[int, ndarray]
+        Extraction row indices in selection order.
+    diagnostics : dict
+        Dataframe-friendly marker and selection records.
+    """
+    marker_names = list(marker_names)
+    labels = np.asarray(clustering_result.labels, dtype=int)
+    probabilities = clustering_result.probabilities
+    graph_index = np.asarray(extraction.graph_index, dtype=int)
+    x_markers = np.asarray(extraction.x_markers)
+
+    if probabilities is None:
+        raise ValueError("Marker-enriched exemplar selection requires soft cluster probabilities.")
+    probabilities = np.asarray(probabilities, dtype=float)
+    if x_markers.ndim != 2 or x_markers.shape[0] != len(labels):
+        raise ValueError("extraction.x_markers must align with clustering labels.")
+    if x_markers.shape[1] < len(marker_names):
+        raise ValueError("marker_names is longer than extraction.x_markers columns.")
+    if probabilities.shape[0] != len(labels):
+        raise ValueError("Cluster probabilities must align with clustering labels.")
+    if not 0 <= float(marker_threshold):
+        raise ValueError("marker_threshold must be non-negative.")
+    if int(top_k_per_cluster) < 1:
+        raise ValueError("top_k_per_cluster must be at least 1.")
+    if int(min_global_positive_nodes) < 1:
+        raise ValueError("min_global_positive_nodes must be at least 1.")
+    if int(min_cluster_positive_nodes) < 1:
+        raise ValueError("min_cluster_positive_nodes must be at least 1.")
+    if float(min_enrichment_ratio) <= 0:
+        raise ValueError("min_enrichment_ratio must be positive.")
+
+    positive = x_markers[:, :len(marker_names)] > float(marker_threshold)
+    global_counts = positive.sum(axis=0).astype(int)
+    global_prevalence = global_counts / max(len(labels), 1)
+    neighborhood_presence = _marker_presence_within_hops(
+        graphs,
+        extraction,
+        num_hops=num_hops,
+        n_markers=len(marker_names),
+        marker_threshold=marker_threshold,
+    )
+
+    indices_by_cluster = {}
+    marker_rows = []
+    selection_rows = []
+    selection_details = {}
+
+    for cluster in range(probabilities.shape[1]):
+        assigned = labels == cluster
+        candidate_indices = (
+            np.flatnonzero(assigned)
+            if require_assigned_label
+            else np.arange(len(labels), dtype=int)
+        )
+        cluster_size = int(assigned.sum())
+        cluster_counts = positive[assigned].sum(axis=0).astype(int)
+        cluster_prevalence = cluster_counts / max(cluster_size, 1)
+        enrichment = np.divide(
+            cluster_prevalence,
+            global_prevalence,
+            out=np.full(len(marker_names), np.nan, dtype=float),
+            where=global_prevalence > 0,
+        )
+        qualifies = (
+            (global_counts >= int(min_global_positive_nodes))
+            & (cluster_counts >= int(min_cluster_positive_nodes))
+            & np.isfinite(enrichment)
+            & (enrichment >= float(min_enrichment_ratio))
+        )
+        qualifying_markers = np.flatnonzero(qualifies)
+        qualifying_markers = sorted(
+            qualifying_markers.tolist(),
+            key=lambda marker: (
+                -enrichment[marker],
+                global_counts[marker],
+                marker_names[marker],
+            ),
+        )
+
+        chosen = []
+        chosen_set = set()
+        used_graphs = set()
+        covered_markers = set()
+
+        for target_marker in qualifying_markers:
+            if target_marker in covered_markers or len(chosen) >= top_k_per_cluster:
+                continue
+            eligible = [
+                int(row)
+                for row in candidate_indices
+                if int(row) not in chosen_set
+                and int(graph_index[row]) not in used_graphs
+                and neighborhood_presence[row, target_marker]
+            ]
+            if not eligible:
+                continue
+            selected = max(
+                eligible,
+                key=lambda row: (
+                    probabilities[row, cluster],
+                    int(np.sum([
+                        neighborhood_presence[row, marker]
+                        for marker in qualifying_markers
+                        if marker not in covered_markers
+                    ])),
+                    -row,
+                ),
+            )
+            newly_covered = {
+                marker
+                for marker in qualifying_markers
+                if marker not in covered_markers
+                and neighborhood_presence[selected, marker]
+            }
+            chosen.append(selected)
+            chosen_set.add(selected)
+            used_graphs.add(int(graph_index[selected]))
+            covered_markers.update(newly_covered)
+            selection_details[(cluster, selected)] = {
+                "selection_reason": "marker_coverage",
+                "target_marker": marker_names[target_marker],
+                "newly_covered_markers": [
+                    marker_names[marker] for marker in qualifying_markers
+                    if marker in newly_covered
+                ],
+            }
+
+        confidence_order = candidate_indices[
+            np.argsort(-probabilities[candidate_indices, cluster], kind="stable")
+        ]
+        for row in confidence_order:
+            row = int(row)
+            if len(chosen) >= top_k_per_cluster:
+                break
+            graph_id = int(graph_index[row])
+            if row in chosen_set or graph_id in used_graphs:
+                continue
+            chosen.append(row)
+            chosen_set.add(row)
+            used_graphs.add(graph_id)
+            selection_details[(cluster, row)] = {
+                "selection_reason": "confidence_fill",
+                "target_marker": None,
+                "newly_covered_markers": [],
+            }
+
+        indices_by_cluster[cluster] = np.asarray(chosen, dtype=int)
+        for rank, row in enumerate(chosen, start=1):
+            details = selection_details[(cluster, row)]
+            selection_rows.append({
+                "cluster": cluster,
+                "rank": rank,
+                "row_index": row,
+                "graph_index": int(graph_index[row]),
+                "node_index": int(extraction.local_node_index[row]),
+                "probability": float(probabilities[row, cluster]),
+                **details,
+            })
+
+        for marker, marker_name in enumerate(marker_names):
+            marker_rows.append({
+                "cluster": cluster,
+                "marker_index": marker,
+                "marker": marker_name,
+                "global_positive_nodes": int(global_counts[marker]),
+                "cluster_positive_nodes": int(cluster_counts[marker]),
+                "global_prevalence": float(global_prevalence[marker]),
+                "cluster_prevalence": float(cluster_prevalence[marker]),
+                "enrichment_ratio": float(enrichment[marker]),
+                "qualifies": bool(qualifies[marker]),
+                "candidate_subgraphs_with_marker": int(
+                    neighborhood_presence[candidate_indices, marker].sum()
+                ),
+                "covered": bool(marker in covered_markers),
+            })
+
+    return indices_by_cluster, {
+        "marker_diagnostics": pd.DataFrame(marker_rows),
+        "selection_diagnostics": pd.DataFrame(selection_rows),
+        "selection_details": selection_details,
+        "neighborhood_marker_presence": neighborhood_presence,
+    }
+
+
+def _build_cluster_exemplar_items(
+    graphs,
+    extraction,
+    clustering_result,
+    indices_by_cluster,
+    *,
+    num_hops,
+    copy_graph_level_attrs,
+    target_index,
+    store_all_targets,
+    selection_details=None,
+):
+    """Build exemplar subgraphs and metadata from preselected extraction rows."""
+    probabilities = clustering_result.probabilities
+    exemplars = {}
+
+    for cluster, rows in indices_by_cluster.items():
+        center_specs = [
+            (int(extraction.graph_index[row]), int(extraction.local_node_index[row]))
+            for row in rows
+        ]
+        subgraphs = build_ego_subgraphs_for_center_specs(
+            graphs=graphs,
+            center_specs=center_specs,
+            num_hops=num_hops,
+            copy_graph_level_attrs=copy_graph_level_attrs,
+        )
+
+        items = []
+        for row, subgraph in zip(rows, subgraphs):
+            row = int(row)
+            y_true = extraction.y_true[row]
+            y_pred = extraction.y_pred[row]
+            item = {
+                "row_index": row,
+                "probability": float(probabilities[row, cluster]),
+                "graph_index": int(extraction.graph_index[row]),
+                "node_index": int(extraction.local_node_index[row]),
+                "y_true": _select_exemplar_scalar(y_true, target_index, name="y_true"),
+                "y_pred": _select_exemplar_scalar(y_pred, target_index, name="y_pred"),
+                "subgraph": subgraph,
+            }
+            if selection_details is not None:
+                item.update(selection_details.get((cluster, row), {}))
+            if extraction.log_var is not None:
+                log_var = extraction.log_var[row]
+                item["log_var"] = _select_exemplar_scalar(
+                    log_var, target_index, name="log_var"
+                )
+                item["pred_var"] = float(np.exp(item["log_var"]))
+            if store_all_targets:
+                item["y_true_all"] = _as_serializable_target_value(y_true)
+                item["y_pred_all"] = _as_serializable_target_value(y_pred)
+                if extraction.log_var is not None:
+                    item["log_var_all"] = _as_serializable_target_value(
+                        extraction.log_var[row]
+                    )
+            items.append(item)
+        exemplars[cluster] = items
+
+    return exemplars
+
+
+def build_marker_enriched_cluster_exemplar_subgraphs(
+    graphs,
+    extraction,
+    clustering_result,
+    marker_names,
+    *,
+    top_k_per_cluster=5,
+    num_hops=2,
+    require_assigned_label=True,
+    copy_graph_level_attrs=True,
+    target_index=None,
+    store_all_targets=True,
+    marker_threshold=0.5,
+    min_global_positive_nodes=5,
+    min_cluster_positive_nodes=1,
+    min_enrichment_ratio=1.25,
+):
+    """Build exemplars with greedy coverage of cluster-enriched markers."""
+    indices, diagnostics = get_marker_enriched_cluster_exemplar_indices_unique_graphs(
+        graphs,
+        extraction,
+        clustering_result,
+        marker_names,
+        top_k_per_cluster=top_k_per_cluster,
+        num_hops=num_hops,
+        require_assigned_label=require_assigned_label,
+        marker_threshold=marker_threshold,
+        min_global_positive_nodes=min_global_positive_nodes,
+        min_cluster_positive_nodes=min_cluster_positive_nodes,
+        min_enrichment_ratio=min_enrichment_ratio,
+    )
+    exemplars = _build_cluster_exemplar_items(
+        graphs,
+        extraction,
+        clustering_result,
+        indices,
+        num_hops=num_hops,
+        copy_graph_level_attrs=copy_graph_level_attrs,
+        target_index=target_index,
+        store_all_targets=store_all_targets,
+        selection_details=diagnostics["selection_details"],
+    )
+    return exemplars, diagnostics
+
+
 
 def build_cluster_exemplar_subgraphs(
     graphs,
@@ -309,48 +681,16 @@ def build_cluster_exemplar_subgraphs(
         variance_mode=variance_mode,
     )
 
-    probs = clustering_result.probabilities
-    exemplars = {}
-
-    for k, rows in top_idx.items():
-        center_specs = [
-            (int(extraction.graph_index[i]), int(extraction.local_node_index[i]))
-            for i in rows
-        ]
-        subs = build_ego_subgraphs_for_center_specs(
-            graphs=graphs,
-            center_specs=center_specs,
-            num_hops=num_hops,
-            copy_graph_level_attrs=copy_graph_level_attrs,
-        )
-
-        items = []
-        for i, sub in zip(rows, subs):
-            y_true_i = extraction.y_true[i]
-            y_pred_i = extraction.y_pred[i]
-            item = {
-                "row_index": int(i),
-                "probability": float(probs[i, k]),
-                "graph_index": int(extraction.graph_index[i]),
-                "node_index": int(extraction.local_node_index[i]),
-                # Scalar display fields used by existing plotting code.
-                "y_true": _select_exemplar_scalar(y_true_i, target_index, name="y_true"),
-                "y_pred": _select_exemplar_scalar(y_pred_i, target_index, name="y_pred"),
-                "subgraph": sub,
-            }
-            if extraction.log_var is not None:
-                log_var_i = extraction.log_var[i]
-                item["log_var"] = _select_exemplar_scalar(log_var_i, target_index, name="log_var")
-                item["pred_var"] = float(np.exp(item["log_var"]))
-            if store_all_targets:
-                item["y_true_all"] = _as_serializable_target_value(y_true_i)
-                item["y_pred_all"] = _as_serializable_target_value(y_pred_i)
-                if extraction.log_var is not None:
-                    item["log_var_all"] = _as_serializable_target_value(extraction.log_var[i])
-            items.append(item)
-        exemplars[k] = items
-
-    return exemplars
+    return _build_cluster_exemplar_items(
+        graphs,
+        extraction,
+        clustering_result,
+        top_idx,
+        num_hops=num_hops,
+        copy_graph_level_attrs=copy_graph_level_attrs,
+        target_index=target_index,
+        store_all_targets=store_all_targets,
+    )
 
 
 

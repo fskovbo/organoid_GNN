@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 import torch
 
@@ -660,6 +662,273 @@ def _update_source_reuse(idx, state, source_cell_ids, reuse_counts):
         reuse_counts[key] = reuse_counts.get(key, 0) + 1
 
 
+def _physical_cell_adjacency_from_subgraphs(subgraphs):
+    """Reconstruct original-graph adjacency from ego-subgraph edge lists."""
+    group_ids = _subgraph_group_ids(subgraphs)
+    adjacency = {}
+    for subgraph_idx, subgraph in enumerate(subgraphs):
+        if not hasattr(subgraph, "orig_nodes"):
+            raise ValueError(
+                "Non-overlap sampling requires .orig_nodes on every subgraph."
+            )
+        group_id = group_ids[subgraph_idx]
+        group_adjacency = adjacency.setdefault(group_id, {})
+        original_nodes = subgraph.orig_nodes.detach().cpu().numpy().astype(
+            int,
+            copy=False,
+        )
+        edge_index = subgraph.edge_index.detach().cpu().numpy().astype(
+            int,
+            copy=False,
+        )
+        for src_local, dst_local in edge_index.T:
+            src = int(original_nodes[src_local])
+            dst = int(original_nodes[dst_local])
+            group_adjacency.setdefault(src, set()).add(dst)
+            group_adjacency.setdefault(dst, set()).add(src)
+    return adjacency
+
+
+def _physical_cell_adjacency_from_graphs(graphs):
+    """Build physical-cell adjacency directly from full graph edge lists."""
+    adjacency = {}
+    for graph_idx, graph in enumerate(graphs):
+        group_adjacency = adjacency.setdefault(("graph_idx", int(graph_idx)), {})
+        edge_index = graph.edge_index.detach().cpu().numpy().astype(
+            int,
+            copy=False,
+        )
+        for src, dst in edge_index.T:
+            src = int(src)
+            dst = int(dst)
+            group_adjacency.setdefault(src, set()).add(dst)
+            group_adjacency.setdefault(dst, set()).add(src)
+    return adjacency
+
+
+def _physical_cells_within_hops(adjacency, source_cell, max_hops):
+    """Return physical cells within graph distance <= max_hops from source_cell."""
+    _, group_value, source_node = source_cell
+    group_key = (source_cell[0], group_value)
+    graph_adjacency = adjacency.get(group_key, {})
+    source_node = int(source_node)
+    max_hops = int(max_hops)
+
+    visited = {source_node}
+    queue = deque([(source_node, 0)])
+    while queue:
+        node, dist = queue.popleft()
+        if dist >= max_hops:
+            continue
+        for neighbor in graph_adjacency.get(node, ()):
+            neighbor = int(neighbor)
+            if neighbor in visited:
+                continue
+            visited.add(neighbor)
+            queue.append((neighbor, dist + 1))
+    return {(source_cell[0], group_value, int(node)) for node in visited}
+
+
+def _source_cell_from_case_row(
+    row,
+    *,
+    graph_column,
+    organoid_column,
+    source_node_column,
+):
+    source_node = getattr(row, source_node_column)
+    if source_node is None:
+        return None
+    try:
+        if not np.isfinite(float(source_node)):
+            return None
+    except (TypeError, ValueError):
+        return None
+
+    graph_value = getattr(row, graph_column, None)
+    if graph_value is not None:
+        try:
+            if np.isfinite(float(graph_value)):
+                return ("graph_idx", int(graph_value), int(source_node))
+        except (TypeError, ValueError):
+            pass
+
+    organoid_value = getattr(row, organoid_column, None)
+    if organoid_value is not None:
+        return ("organoid_str", str(organoid_value), int(source_node))
+    return None
+
+
+def flag_non_overlapping_source_cases(
+    case_df,
+    *,
+    graphs=None,
+    subgraphs=None,
+    group_columns=("hop", "center_marker", "source_marker"),
+    hop_column="hop",
+    graph_column="graph_idx",
+    organoid_column="organoid_str",
+    source_node_column="orig_source_node",
+    seed=0,
+    shuffle=True,
+):
+    """Flag single-source perturbation cases passing a stratified non-overlap rule.
+
+    The rule is enforced independently within each group in ``group_columns``.
+    For the center-resolved ablation heatmaps, the intended grouping is
+    ``(hop, center_marker, source_marker)``. Within one such group, a retained
+    source cell at hop distance ``d`` blocks other source cells within graph
+    distance ``d`` in the same original organoid graph.
+
+    This operates at case level rather than subgraph level, so unrelated
+    center-marker/source-marker/hop cases from the same ego-subgraph are not
+    discarded.
+    """
+    if graphs is None and subgraphs is None:
+        raise ValueError("Pass graphs or subgraphs to compute source-cell distances.")
+    if source_node_column not in case_df.columns:
+        raise ValueError(f"case_df is missing {source_node_column!r}.")
+    for column in group_columns:
+        if column not in case_df.columns:
+            raise ValueError(f"case_df is missing group column {column!r}.")
+
+    if graphs is not None:
+        adjacency = _physical_cell_adjacency_from_graphs(graphs)
+    else:
+        adjacency = _physical_cell_adjacency_from_subgraphs(subgraphs)
+
+    flagged = case_df.copy().reset_index(drop=True)
+    passes = np.zeros(len(flagged), dtype=bool)
+    rng = np.random.default_rng(seed)
+    neighborhood_cache = {}
+
+    grouped_positions = flagged.groupby(
+        list(group_columns),
+        dropna=False,
+        sort=False,
+    ).indices
+    for positions in grouped_positions.values():
+        positions = np.asarray(positions, dtype=int)
+        if shuffle and len(positions) > 1:
+            positions = rng.permutation(positions)
+        blocked = set()
+        for position in positions:
+            row = flagged.iloc[int(position)]
+            source_cell = _source_cell_from_case_row(
+                row,
+                graph_column=graph_column,
+                organoid_column=organoid_column,
+                source_node_column=source_node_column,
+            )
+            if source_cell is None:
+                continue
+            hop = int(getattr(row, hop_column))
+            if source_cell in blocked:
+                continue
+            passes[int(position)] = True
+            cache_key = (source_cell, hop)
+            if cache_key not in neighborhood_cache:
+                neighborhood_cache[cache_key] = _physical_cells_within_hops(
+                    adjacency,
+                    source_cell,
+                    hop,
+                )
+            blocked.update(neighborhood_cache[cache_key])
+
+    flagged["passes_non_overlap"] = passes
+    flagged["non_overlap_excluded"] = ~passes
+    return flagged
+
+
+def _candidate_source_keys(idx, state, source_cell_ids, *, unmet_only=False):
+    """Return unique ``(hop_idx, marker_idx, source_cell)`` keys for a candidate."""
+    keys = set()
+    for hop_idx, center_marker, source_marker in state["pair_feats"][idx]:
+        if unmet_only and (
+            state["covered_pair"][hop_idx, center_marker, source_marker]
+            >= state["target_pair"][hop_idx, center_marker, source_marker]
+        ):
+            continue
+        source_cell = source_cell_ids[idx, hop_idx, source_marker]
+        if source_cell is not None:
+            keys.add((hop_idx, source_marker, source_cell))
+    return keys
+
+
+def _is_nonoverlap_compatible(
+    idx,
+    state,
+    source_cell_ids,
+    blocked_cells,
+    adjacency,
+    neighborhood_cache,
+):
+    """Return True if all source cells introduced by candidate are unblocked."""
+    keys = _candidate_source_keys(
+        idx,
+        state,
+        source_cell_ids,
+    )
+    for hop_idx, _, source_cell in keys:
+        if source_cell in blocked_cells.get(hop_idx, set()):
+            return False
+
+    # Also reject a subgraph if it would internally introduce two distinct
+    # perturbation source cells that violate the same hop-specific exclusion.
+    by_hop = {}
+    for hop_idx, _, source_cell in keys:
+        by_hop.setdefault(hop_idx, set()).add(source_cell)
+    for hop_idx, source_cells in by_hop.items():
+        source_cells = list(source_cells)
+        radius = int(hop_idx + 1)
+        for left_position, left_cell in enumerate(source_cells):
+            cache_key = (left_cell, radius)
+            if cache_key not in neighborhood_cache:
+                neighborhood_cache[cache_key] = _physical_cells_within_hops(
+                    adjacency,
+                    left_cell,
+                    radius,
+                )
+            blocked_by_left = neighborhood_cache[cache_key]
+            for right_cell in source_cells[left_position + 1 :]:
+                if right_cell != left_cell and right_cell in blocked_by_left:
+                    return False
+    return True
+
+
+def _update_nonoverlap_blocks(
+    idx,
+    state,
+    source_cell_ids,
+    blocked_cells,
+    adjacency,
+    neighborhood_cache,
+):
+    """Block nearby physical source cells for each selected hop source."""
+    for hop_idx, _, source_cell in _candidate_source_keys(
+        idx,
+        state,
+        source_cell_ids,
+    ):
+        radius = int(hop_idx + 1)
+        cache_key = (source_cell, radius)
+        if cache_key not in neighborhood_cache:
+            neighborhood_cache[cache_key] = _physical_cells_within_hops(
+                adjacency,
+                source_cell,
+                radius,
+            )
+        blocked_cells.setdefault(hop_idx, set()).update(
+            neighborhood_cache[cache_key]
+        )
+
+
+def _source_marker_priority(state):
+    """Return source marker order from sparse to abundant."""
+    source_frequency = state["pair_freq"].sum(axis=(0, 1))
+    return np.argsort(source_frequency, kind="stable")
+
+
 def sample_subgraphs_coverage(
     subgraphs,
     marker_names,
@@ -948,6 +1217,227 @@ def sample_subgraphs_coverage_reuse_aware(
             "max_source_cell_reuse": (
                 int(reuse_values.max()) if len(reuse_values) else 0
             ),
+        }
+    )
+    return selected_subgraphs, info
+
+
+def sample_subgraphs_coverage_non_overlapping_sources(
+    subgraphs,
+    marker_names,
+    k_hops,
+    max_subgraphs,
+    min_center_count=40,
+    min_pair_count=12,
+    center_weight=1.0,
+    pair_weight=3.0,
+    fill_weight_pair=2.0,
+    fill_weight_center=1.0,
+    seed=0,
+    threshold=0.5,
+    return_info=True,
+):
+    """Coverage-aware sampling with hard non-overlap of perturbation source cells.
+
+    This diagnostic sampler is intended for ``mode="single"`` ablation. For a
+    selected perturbation source cell at hop distance ``d``, no other selected
+    perturbation source cell at the same hop may lie within graph distance
+    ``d`` in the original organoid graph. The sampler first satisfies center
+    marker coverage, then tries to satisfy sparse source markers before more
+    abundant source markers, while retaining the same center/pair coverage diagnostics as
+    :func:`sample_subgraphs_coverage`.
+    """
+    if not np.isclose(threshold, 0.5):
+        raise ValueError(
+            "Non-overlap sampling currently requires threshold=0.5 to match "
+            "the perturbation selector exactly."
+        )
+    if max_subgraphs is None or max_subgraphs >= len(subgraphs):
+        if return_info:
+            return list(subgraphs), {
+                "selected_indices": np.arange(len(subgraphs), dtype=np.int64),
+                "note": "No subsampling applied",
+            }
+        return list(subgraphs)
+    if max_subgraphs <= 0:
+        raise ValueError("max_subgraphs must be positive or None")
+
+    rng = np.random.default_rng(seed)
+    state = _prepare_coverage_sampling(
+        subgraphs,
+        marker_names,
+        k_hops,
+        min_center_count,
+        min_pair_count,
+        threshold,
+    )
+    source_cell_ids = _single_source_cell_ids(
+        subgraphs,
+        k_hops,
+        threshold=threshold,
+    )
+    adjacency = _physical_cell_adjacency_from_subgraphs(subgraphs)
+
+    selected = []
+    remaining = set(range(state["n_subgraphs"]))
+    blocked_cells = {}
+    neighborhood_cache = {}
+
+    def compatible(idx):
+        return _is_nonoverlap_compatible(
+            idx,
+            state,
+            source_cell_ids,
+            blocked_cells,
+            adjacency,
+            neighborhood_cache,
+        )
+
+    def add_subgraph(idx):
+        selected.append(idx)
+        remaining.remove(idx)
+        _add_coverage_subgraph(idx, state)
+        _update_nonoverlap_blocks(
+            idx,
+            state,
+            source_cell_ids,
+            blocked_cells,
+            adjacency,
+            neighborhood_cache,
+        )
+
+    # Phase A: cover center markers first so rare centers are not lost as a
+    # side effect of perturbation-source blocking.
+    for center_marker in np.argsort(state["center_freq"], kind="stable"):
+        if state["center_freq"][center_marker] <= 0:
+            continue
+        while (
+            len(selected) < max_subgraphs
+            and state["covered_center"][center_marker]
+            < state["target_center"][center_marker]
+            and remaining
+        ):
+            candidates = [
+                idx
+                for idx in remaining
+                if center_marker in state["center_feats"][idx] and compatible(idx)
+            ]
+            if not candidates:
+                break
+            scores = np.asarray(
+                [
+                    _coverage_gain(
+                        idx,
+                        state,
+                        center_weight,
+                        pair_weight,
+                    )
+                    for idx in candidates
+                ],
+                dtype=float,
+            )
+            best = scores.max()
+            best_positions = np.flatnonzero(scores == best)
+            chosen = candidates[int(rng.choice(best_positions))]
+            add_subgraph(chosen)
+
+    # Phase B: satisfy sparse source markers before abundant source markers.
+    for source_marker in _source_marker_priority(state):
+        for hop_idx in range(state["n_hops"]):
+            feature_order = np.argsort(
+                state["pair_freq"][hop_idx, :, source_marker],
+                kind="stable",
+            )
+            for center_marker in feature_order:
+                if state["pair_freq"][hop_idx, center_marker, source_marker] <= 0:
+                    continue
+                feature = (hop_idx, int(center_marker), int(source_marker))
+                while (
+                    len(selected) < max_subgraphs
+                    and state["covered_pair"][feature] < state["target_pair"][feature]
+                    and remaining
+                ):
+                    candidates = [
+                        idx
+                        for idx in remaining
+                        if feature in state["pair_feats"][idx] and compatible(idx)
+                    ]
+                    if not candidates:
+                        break
+                    scores = np.asarray(
+                        [
+                            _coverage_gain(
+                                idx,
+                                state,
+                                center_weight,
+                                pair_weight,
+                            )
+                            for idx in candidates
+                        ],
+                        dtype=float,
+                    )
+                    best = scores.max()
+                    best_positions = np.flatnonzero(scores == best)
+                    chosen = candidates[int(rng.choice(best_positions))]
+                    add_subgraph(chosen)
+
+    # Phase C: cover any remaining center markers if possible without violating
+    # non-overlap. This can still help if pair coverage selected new compatible
+    # candidates.
+    while len(selected) < max_subgraphs and remaining:
+        candidates = [idx for idx in remaining if compatible(idx)]
+        if not candidates:
+            break
+        scores = np.asarray(
+            [
+                sum(
+                    state["covered_center"][marker] < state["target_center"][marker]
+                    for marker in state["center_feats"][idx]
+                )
+                for idx in candidates
+            ],
+            dtype=float,
+        )
+        if scores.max() <= 0:
+            break
+        best_positions = np.flatnonzero(scores == scores.max())
+        chosen = candidates[int(rng.choice(best_positions))]
+        add_subgraph(chosen)
+
+    # Phase D: fill with compatible rare-feature candidates.
+    while len(selected) < max_subgraphs and remaining:
+        candidates = [idx for idx in remaining if compatible(idx)]
+        if not candidates:
+            break
+        weights = np.asarray(
+            [
+                _coverage_fill_weight(
+                    idx,
+                    state,
+                    fill_weight_center,
+                    fill_weight_pair,
+                )
+                for idx in candidates
+            ],
+            dtype=float,
+        )
+        probabilities = weights / weights.sum()
+        chosen = int(rng.choice(candidates, p=probabilities))
+        add_subgraph(chosen)
+
+    selected = np.asarray(selected, dtype=np.int64)
+    selected_subgraphs = [subgraphs[int(idx)] for idx in selected]
+    if not return_info:
+        return selected_subgraphs
+
+    info = _coverage_diagnostics(selected, state, marker_names)
+    info.update(
+        {
+            "sampler": "non_overlapping",
+            "n_blocked_hop_cells": {
+                f"hop_{hop_idx + 1}": len(cells)
+                for hop_idx, cells in blocked_cells.items()
+            },
         }
     )
     return selected_subgraphs, info

@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from src.models.gnn import _FinalHead
+
 
 # ---------------------------------------------------------------------
 # Graph utilities
@@ -95,6 +97,18 @@ def _pooled_from_ring_features(x_ring, ring_sizes, n_markers, k_hops, include_ce
     denom = rs.sum(dim=1).clamp_min(1.0)
 
     return weighted_sum / denom
+
+
+def _concat_global_features(h, data, global_dim, global_attr):
+    if global_dim <= 0:
+        return h
+
+    gfeat_node = _broadcast_global_features(data, global_attr)
+    if gfeat_node.shape[1] != global_dim:
+        raise ValueError(
+            f"Expected {global_dim} global features, got {gfeat_node.shape[1]}"
+        )
+    return torch.cat([h, gfeat_node], dim=1)
 
 
 
@@ -237,7 +251,13 @@ class RingFractionMLP(nn.Module):
         in_dim = (k_hops + 1) * n_markers
 
         self.encoder = _MLPHead(in_dim, hidden_dim, dropout, norm)
-        self.head = nn.Linear(hidden_dim + global_dim, _gaussian_head_output_dim(self.target_dim, self.covariance_mode))
+        self.head = _FinalHead(
+            hidden_dim + global_dim,
+            hidden_dim,
+            dropout,
+            target_dim=self.target_dim,
+            covariance_mode=self.covariance_mode,
+        )
 
     def forward(self, x, edge_index, data=None):
         if data is not None and hasattr(data, self.feature_attr):
@@ -249,15 +269,7 @@ class RingFractionMLP(nn.Module):
 
         h = self.encoder(ring_x)
 
-        if self.global_dim > 0:
-            gfeat_node = _broadcast_global_features(data, self.global_attr)
-            if gfeat_node.shape[1] != self.global_dim:
-                raise ValueError(
-                    f"Expected {self.global_dim} global features, got {gfeat_node.shape[1]}"
-                )
-            h_out = torch.cat([h, gfeat_node], dim=1)
-        else:
-            h_out = h
+        h_out = _concat_global_features(h, data, self.global_dim, self.global_attr)
 
         out = self.head(h_out)
 
@@ -269,6 +281,102 @@ class RingFractionMLP(nn.Module):
         )
 
         return (mu, log_scale2), h
+
+    def num_parameters(self, trainable_only=True):
+        if trainable_only:
+            return sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return sum(p.numel() for p in self.parameters())
+
+
+# ---------------------------------------------------------------------
+# Ring-fraction + ring-size model (radial marker composition and topology)
+# ---------------------------------------------------------------------
+
+class RingFractionSizeMLP(nn.Module):
+    """
+    MLP that receives exact-hop marker fractions and exact-hop ring sizes.
+
+    This control keeps the radial marker-composition input of ``RingFractionMLP``
+    but also exposes the number of cells in each hop shell, making it a closer
+    match to the count-sensitive signal available to a one-layer GIN.
+    """
+
+    def __init__(
+        self,
+        n_markers,
+        k_hops=3,
+        hidden_dim=64,
+        dropout=0.2,
+        norm="layer",
+        feature_attr="x_ring",
+        ring_sizes_attr="ring_sizes",
+        log_scale2_clamp=(-10.0, 10.0),
+        global_dim=0,
+        global_attr="global_feat",
+        target_dim=1,
+        covariance_mode="diagonal",
+    ):
+        super().__init__()
+
+        self.n_markers = n_markers
+        self.k_hops = k_hops
+        self.feature_attr = feature_attr
+        self.ring_sizes_attr = ring_sizes_attr
+        self.log_scale2_clamp = log_scale2_clamp
+        self.global_dim = global_dim
+        self.global_attr = global_attr
+        self.target_dim = int(target_dim)
+        self.covariance_mode = _normalize_covariance_mode(covariance_mode)
+
+        in_dim = (k_hops + 1) * n_markers + (k_hops + 1)
+
+        self.encoder = _MLPHead(in_dim, hidden_dim, dropout, norm)
+        self.head = _FinalHead(
+            hidden_dim + global_dim,
+            hidden_dim,
+            dropout,
+            target_dim=self.target_dim,
+            covariance_mode=self.covariance_mode,
+        )
+
+    def forward(self, x, edge_index, data=None):
+        if (
+            data is not None
+            and hasattr(data, self.feature_attr)
+            and hasattr(data, self.ring_sizes_attr)
+        ):
+            ring_x_full = getattr(data, self.feature_attr)
+            ring_sizes_full = getattr(data, self.ring_sizes_attr)
+            n_keep = (self.k_hops + 1) * self.n_markers
+            ring_x = ring_x_full[:, :n_keep].float()
+            ring_sizes = ring_sizes_full[:, : self.k_hops + 1].float()
+        else:
+            ring_x, ring_sizes = _compute_ring_fraction_features_and_sizes(
+                x,
+                edge_index,
+                self.k_hops,
+            )
+            ring_x = ring_x.float()
+            ring_sizes = ring_sizes.float()
+
+        feats = torch.cat([ring_x, ring_sizes], dim=1)
+        h = self.encoder(feats)
+        h_out = _concat_global_features(h, data, self.global_dim, self.global_attr)
+        out = self.head(h_out)
+
+        mu, log_scale2 = _finalize_distribution_outputs(
+            out,
+            self.log_scale2_clamp,
+            self.target_dim,
+            self.covariance_mode,
+        )
+
+        return (mu, log_scale2), h
+
+    def num_parameters(self, trainable_only=True):
+        if trainable_only:
+            return sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return sum(p.numel() for p in self.parameters())
 
 
 # ---------------------------------------------------------------------
@@ -305,7 +413,13 @@ class PooledKHopMLP(nn.Module):
         self.covariance_mode = _normalize_covariance_mode(covariance_mode)
 
         self.encoder = _MLPHead(n_markers, hidden_dim, dropout, norm)
-        self.head = nn.Linear(hidden_dim + global_dim, _gaussian_head_output_dim(self.target_dim, self.covariance_mode))
+        self.head = _FinalHead(
+            hidden_dim + global_dim,
+            hidden_dim,
+            dropout,
+            target_dim=self.target_dim,
+            covariance_mode=self.covariance_mode,
+        )
 
     def forward(self, x, edge_index, data=None):
         if data is not None and hasattr(data, self.feature_attr) and hasattr(data, "ring_sizes"):
@@ -324,15 +438,7 @@ class PooledKHopMLP(nn.Module):
 
         h = self.encoder(pooled_x)
 
-        if self.global_dim > 0:
-            gfeat_node = _broadcast_global_features(data, self.global_attr)
-            if gfeat_node.shape[1] != self.global_dim:
-                raise ValueError(
-                    f"Expected {self.global_dim} global features, got {gfeat_node.shape[1]}"
-                )
-            h_out = torch.cat([h, gfeat_node], dim=1)
-        else:
-            h_out = h
+        h_out = _concat_global_features(h, data, self.global_dim, self.global_attr)
 
         out = self.head(h_out)
 
@@ -344,6 +450,11 @@ class PooledKHopMLP(nn.Module):
         )
 
         return (mu, log_scale2), h
+
+    def num_parameters(self, trainable_only=True):
+        if trainable_only:
+            return sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return sum(p.numel() for p in self.parameters())
     
 
 
@@ -418,7 +529,13 @@ class RingSizeMLP(nn.Module):
             nn.Dropout(dropout if dropout > 0 else 0.0),
         )
 
-        self.head = nn.Linear(hidden_dim + global_dim, _gaussian_head_output_dim(self.target_dim, self.covariance_mode))
+        self.head = _FinalHead(
+            hidden_dim + global_dim,
+            hidden_dim,
+            dropout,
+            target_dim=self.target_dim,
+            covariance_mode=self.covariance_mode,
+        )
 
     def forward(self, x, edge_index, data=None):
         # use precomputed ring sizes if available, otherwise recompute
@@ -437,15 +554,7 @@ class RingSizeMLP(nn.Module):
 
         h = self.encoder(feats)
 
-        if self.global_dim > 0:
-            gfeat_node = _broadcast_global_features(data, self.global_attr)
-            if gfeat_node.shape[1] != self.global_dim:
-                raise ValueError(
-                    f"Expected {self.global_dim} global features, got {gfeat_node.shape[1]}"
-                )
-            h_out = torch.cat([h, gfeat_node], dim=1)
-        else:
-            h_out = h
+        h_out = _concat_global_features(h, data, self.global_dim, self.global_attr)
 
         out = self.head(h_out)
 

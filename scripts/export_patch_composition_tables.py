@@ -91,6 +91,32 @@ ORIGINAL_GRAPH_MARKER_NAME_KEYS = ("marker_names", "markers", "marker_cols")
 ORIGINAL_GRAPH_MARKER_FIELD = "markers_bin"
 NEGATIVE_ALL_MARKERS_NAME = "Negative for all markers"
 
+# Export-only marker preprocessing. The GNN model is still trained on the full
+# marker signal stored in graph.x; these rules are applied only to the marker
+# matrix used for patch-composition CSV columns.
+APPLY_COMPOSITION_MARKER_HARMONIZATION = True
+COMPOSITION_MARKER_HARMONIZATION_RULES = {
+    "KI67": ["KI67", "Cyclin A", "Cyclin D"],
+}
+COMPOSITION_MARKER_HARMONIZATION_KEEP_UNMAPPED = True
+
+APPLY_COMPOSITION_MARKER_EXCLUSIVITY = True
+COMPOSITION_EXCLUSIVITY_RULES = {
+    "LGR5": ["Chroma", "Mucin 2", "AldoB", "Glucagon", "Agr2", "Serotonin", "Lysozyme"],
+    "Chroma": ["Mucin 2", "Glucagon", "Serotonin", "Lysozyme"],
+    "Mucin 2": ["Chroma", "Glucagon", "Serotonin", "Lysozyme"],
+    "AldoB": ["Chroma", "Mucin 2", "Glucagon", "Agr2", "Serotonin", "Lysozyme"],
+    "Glucagon": ["Serotonin"],
+    "Agr2": ["Chroma", "Mucin 2", "Glucagon", "Serotonin", "Lysozyme"],
+    "Serotonin": [],
+    "Lysozyme": ["Chroma", "Glucagon", "Serotonin"],
+    "Cyclin D": ["LGR5", "Chroma", "Mucin 2", "AldoB", "Glucagon", "Agr2", "Serotonin", "Lysozyme"],
+    "Cyclin A": ["LGR5", "Chroma", "Mucin 2", "AldoB", "Glucagon", "Agr2", "Serotonin", "Lysozyme"],
+    "KI67": ["LGR5", "Chroma", "Mucin 2", "AldoB", "Glucagon", "Agr2", "Serotonin", "Lysozyme"],
+}
+COMPOSITION_EXCLUSIVITY_INCLUDE_UNASSIGNED = True
+COMPOSITION_EXCLUSIVITY_UNASSIGNED_LABEL = "unassigned"
+
 
 def parse_int_list(text: str) -> list[int]:
     if text is None or str(text).strip() == "":
@@ -219,6 +245,143 @@ _ORIGINAL_MARKER_PANEL_CACHE: dict[str, dict[str, Any] | None] = {}
 _WARNED_ORIGINAL_MARKER_FALLBACKS: set[str] = set()
 
 
+
+def _as_bool_marker_matrix(markers: Any) -> np.ndarray:
+    X = np.asarray(markers)
+    if X.ndim != 2:
+        raise ValueError(f"Marker matrix must be 2D; got shape {X.shape}.")
+    return X > 0
+
+
+def marker_alias_candidates(marker_name: str) -> list[str]:
+    aliases = {
+        "ChromA": ["ChromA", "Chroma", "Chromogranin A", "ChromograninA", "CHROMA"],
+        "Chroma": ["Chroma", "ChromA", "Chromogranin A", "ChromograninA", "CHROMA"],
+        "Mucin 2": ["Mucin 2", "Mucin2", "Mucin", "MUC"],
+        "Agr2": ["Agr2", "Agr 2", "AGR"],
+        "AldoB": ["AldoB", "Aldob", "ALDOB"],
+        "LGR5": ["LGR5", "Lgr5", "LGR"],
+        "Glucagon": ["Glucagon", "GLUC"],
+        "Serotonin": ["Serotonin", "Sero", "SERO"],
+        "Lysozyme": ["Lysozyme", "Lyso", "LYZ"],
+        "KI67": ["KI67", "Ki67"],
+        "Cyclin A": ["Cyclin A", "CyclinA", "CYCA"],
+        "Cyclin D": ["Cyclin D", "CyclinD", "CYCD"],
+    }
+    return aliases.get(str(marker_name), [str(marker_name)])
+
+
+def resolve_marker_indices(marker_names: list[str], requested_markers: Iterable[str]) -> list[int]:
+    lower_to_index = {str(name).strip().lower(): i for i, name in enumerate(marker_names)}
+    exact_to_index = {str(name): i for i, name in enumerate(marker_names)}
+    out: list[int] = []
+    for marker in requested_markers:
+        for alias in marker_alias_candidates(str(marker)):
+            idx = exact_to_index.get(str(alias))
+            if idx is None:
+                idx = lower_to_index.get(str(alias).strip().lower())
+            if idx is not None and idx not in out:
+                out.append(int(idx))
+                break
+    return out
+
+
+def marker_consumed_by_composition_harmonization(marker_name: str) -> bool:
+    if not APPLY_COMPOSITION_MARKER_HARMONIZATION:
+        return False
+    for out_name, source_names in COMPOSITION_MARKER_HARMONIZATION_RULES.items():
+        if marker_name == out_name:
+            continue
+        if marker_name in source_names:
+            return True
+    return False
+
+
+def harmonize_composition_marker_matrix(markers_bin: Any, marker_names: list[str]) -> tuple[np.ndarray, list[str]]:
+    X = _as_bool_marker_matrix(markers_bin)
+    names = [str(name) for name in marker_names]
+    if not APPLY_COMPOSITION_MARKER_HARMONIZATION:
+        return X.astype(np.float32), names
+
+    out_cols: list[np.ndarray] = []
+    out_names: list[str] = []
+    consumed_idx: set[int] = set()
+
+    for out_name, source_names in COMPOSITION_MARKER_HARMONIZATION_RULES.items():
+        source_idx = resolve_marker_indices(names, source_names)
+        if not source_idx:
+            continue
+        out_cols.append(np.any(X[:, source_idx], axis=1))
+        out_names.append(str(out_name))
+        consumed_idx.update(source_idx)
+
+    if COMPOSITION_MARKER_HARMONIZATION_KEEP_UNMAPPED:
+        for idx, name in enumerate(names):
+            if idx in consumed_idx:
+                continue
+            if name in out_names:
+                continue
+            out_cols.append(X[:, idx])
+            out_names.append(name)
+
+    if not out_cols:
+        return np.zeros((X.shape[0], 0), dtype=np.float32), []
+    return np.column_stack(out_cols).astype(np.float32), out_names
+
+
+def apply_composition_marker_exclusivity(markers_bin: Any, marker_names: list[str]) -> tuple[np.ndarray, list[str]]:
+    X_raw = _as_bool_marker_matrix(markers_bin)
+    X = X_raw.copy()
+    names = [str(name) for name in marker_names]
+    if not APPLY_COMPOSITION_MARKER_EXCLUSIVITY:
+        return X.astype(np.float32), names
+
+    for marker, forbidden_markers in COMPOSITION_EXCLUSIVITY_RULES.items():
+        if marker_consumed_by_composition_harmonization(marker):
+            continue
+        marker_idx = resolve_marker_indices(names, [marker])
+        if not marker_idx:
+            continue
+        forbidden_idx = resolve_marker_indices(names, forbidden_markers)
+        if forbidden_idx:
+            suppress = np.any(X_raw[:, forbidden_idx], axis=1)
+            X[:, marker_idx[0]] = X_raw[:, marker_idx[0]] & ~suppress
+
+    label_sources: list[tuple[int, str]] = []
+    label_names: list[str] = []
+    for marker in COMPOSITION_EXCLUSIVITY_RULES:
+        if marker_consumed_by_composition_harmonization(marker):
+            continue
+        idx = resolve_marker_indices(names, [marker])
+        if not idx:
+            continue
+        label_sources.append((idx[0], marker))
+        if marker not in label_names:
+            label_names.append(marker)
+
+    if COMPOSITION_EXCLUSIVITY_INCLUDE_UNASSIGNED and COMPOSITION_EXCLUSIVITY_UNASSIGNED_LABEL not in label_names:
+        label_names.append(COMPOSITION_EXCLUSIVITY_UNASSIGNED_LABEL)
+
+    label_to_idx = {label: i for i, label in enumerate(label_names)}
+    out = np.zeros((X.shape[0], len(label_names)), dtype=bool)
+    assigned = np.zeros(X.shape[0], dtype=bool)
+    for source_idx, label in label_sources:
+        take = (X[:, source_idx] > 0) & ~assigned
+        if np.any(take):
+            out[take, label_to_idx[label]] = True
+            assigned[take] = True
+
+    if COMPOSITION_EXCLUSIVITY_INCLUDE_UNASSIGNED:
+        out[~assigned, label_to_idx[COMPOSITION_EXCLUSIVITY_UNASSIGNED_LABEL]] = True
+
+    return out.astype(np.float32), label_names
+
+
+def effective_composition_marker_matrix(markers_bin: Any, marker_names: list[str]) -> tuple[np.ndarray, list[str]]:
+    X, names = harmonize_composition_marker_matrix(markers_bin, marker_names)
+    X, names = apply_composition_marker_exclusivity(X, names)
+    return X.astype(np.float32), list(names)
+
 def infer_original_marker_names(original_graph) -> list[str]:
     for key in ORIGINAL_GRAPH_MARKER_NAME_KEYS:
         names = original_graph.graph.get(key, None)
@@ -319,10 +482,11 @@ def original_marker_panel_for_graph(
                     f"{len(missing_nodes)} mapped node ids missing from original graph; "
                     f"first examples: {missing_nodes[:5]}"
                 )
+            x_eff, marker_names_eff = effective_composition_marker_matrix(x, marker_names)
             return {
-                "marker_names": marker_names,
-                "x": x,
-                "source": "original",
+                "marker_names": marker_names_eff,
+                "x": x_eff,
+                "source": "original_exclusive" if APPLY_COMPOSITION_MARKER_EXCLUSIVITY else "original",
                 "graph_path": str(graph_path),
             }
         except Exception as exc:
@@ -330,10 +494,13 @@ def original_marker_panel_for_graph(
     else:
         warn_original_marker_fallback(graph, "metadata has no graph_path")
 
+    fallback_x = np.asarray(as_numpy(graph.x), dtype=np.float32)
+    fallback_names = list(fallback_marker_names)
+    fallback_x_eff, fallback_names_eff = effective_composition_marker_matrix(fallback_x, fallback_names)
     return {
-        "marker_names": list(fallback_marker_names),
-        "x": np.asarray(as_numpy(graph.x), dtype=np.float32),
-        "source": "harmonized_fallback",
+        "marker_names": fallback_names_eff,
+        "x": fallback_x_eff,
+        "source": "harmonized_fallback_exclusive" if APPLY_COMPOSITION_MARKER_EXCLUSIVITY else "harmonized_fallback",
         "graph_path": None,
     }
 
@@ -418,7 +585,9 @@ def dataset_specific_patch_table(
     out = table.loc[dataset_mask].copy()
 
     marker_columns_all = set(marker_stat_columns(all_marker_names))
-    marker_names_keep = list(dataset_marker_names) + [NEGATIVE_ALL_MARKERS_NAME]
+    marker_names_keep = list(dataset_marker_names)
+    if NEGATIVE_ALL_MARKERS_NAME in all_marker_names and NEGATIVE_ALL_MARKERS_NAME not in marker_names_keep:
+        marker_names_keep.append(NEGATIVE_ALL_MARKERS_NAME)
     marker_columns_keep = marker_stat_columns(marker_names_keep)
 
     base_columns = [
@@ -537,17 +706,18 @@ def rows_for_graph(
             )
             row[f"center_{slug}_positive"] = int(x[center, source_column] > 0.5)
 
-        if x_pool.shape[1] == 0:
-            negative = np.full(len(pool_arr), False)
-            center_negative = np.nan
-        else:
-            negative = np.all(x_pool <= 0.5, axis=1)
-            center_negative = int(np.all(x[center] <= 0.5))
-        row[f"n_{negative_slug}_positive"] = int(np.sum(negative))
-        row[f"frac_{negative_slug}_positive"] = (
-            float(np.mean(negative)) if len(negative) else np.nan
-        )
-        row[f"center_{negative_slug}_positive"] = center_negative
+        if NEGATIVE_ALL_MARKERS_NAME in marker_names:
+            if x_pool.shape[1] == 0:
+                negative = np.full(len(pool_arr), False)
+                center_negative = np.nan
+            else:
+                negative = np.all(x_pool <= 0.5, axis=1)
+                center_negative = int(np.all(x[center] <= 0.5))
+            row[f"n_{negative_slug}_positive"] = int(np.sum(negative))
+            row[f"frac_{negative_slug}_positive"] = (
+                float(np.mean(negative)) if len(negative) else np.nan
+            )
+            row[f"center_{negative_slug}_positive"] = center_negative
 
         for name, pred in pred_map.items():
             predicted_value = float(np.asarray(pred).reshape(-1)[center])
@@ -918,9 +1088,10 @@ Each row corresponds to one sampled center node in one organoid graph.
 
 ## Marker Columns
 
-Patch-composition markers in this export are taken from the original
-OrganoGraph graph files whenever `graph_path` metadata is available. These are
-not the harmonized GNN input markers.
+Patch-composition markers in this export are resolved from the original
+OrganoGraph graph files whenever `graph_path` metadata is available, then
+processed with the export-only marker harmonization/exclusivity rules. These
+rules do not modify the full marker signal used to train the GNN model.
 
 `{marker_cols}`
 
@@ -934,9 +1105,11 @@ Marker names are sanitized for column names, for example spaces and punctuation
 are replaced by underscores. If a marker was not measured in a given original
 dataset, its values are left as `NaN` rather than treated as negative.
 
-The tables also include a pseudo-marker `{NEGATIVE_ALL_MARKERS_NAME}`. It is
-positive for cells that are negative for all measured original markers in that
-organoid.
+When exclusivity exports do not include an explicit unassigned class, the tables
+also include a pseudo-marker `{NEGATIVE_ALL_MARKERS_NAME}`. It is positive for
+cells that are negative for all measured composition markers in that organoid.
+When the explicit `{COMPOSITION_EXCLUSIVITY_UNASSIGNED_LABEL}` class is exported,
+that class carries the unassigned-cell count instead.
 
 The GNN model itself is trained on the harmonized marker space:
 
@@ -1008,7 +1181,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timepoint-filter-mode",
         choices=["rest", "day3p5", "all"],
-        default="rest",
+        default="day3p5",
         help='"rest" drops day3p5, "day3p5" keeps only day3p5, and "all" keeps every timepoint.',
     )
     parser.add_argument("--day3p5-timepoint", default="day3p5")
@@ -1128,10 +1301,13 @@ def main(argv: list[str] | None = None) -> int:
         g_train_raw + g_val_raw,
         fallback_marker_names=marker_names,
     )
-    composition_marker_names = original_marker_names + [NEGATIVE_ALL_MARKERS_NAME]
+    if APPLY_COMPOSITION_MARKER_EXCLUSIVITY and COMPOSITION_EXCLUSIVITY_INCLUDE_UNASSIGNED:
+        composition_marker_names = list(original_marker_names)
+    else:
+        composition_marker_names = original_marker_names + [NEGATIVE_ALL_MARKERS_NAME]
     print(
-        "Patch-composition marker columns use original marker panels: "
-        f"{len(original_marker_names)} measured markers + 1 all-negative pseudo-marker."
+        "Patch-composition marker columns use export-only exclusivity rules: "
+        f"{len(composition_marker_names)} composition markers."
     )
 
     print("\n=== Exporting training patch-composition table ===")
@@ -1219,6 +1395,11 @@ def main(argv: list[str] | None = None) -> int:
         "model_marker_names": marker_names,
         "composition_marker_names": composition_marker_names,
         "composition_marker_names_by_dataset": original_marker_names_by_dataset,
+        "composition_marker_harmonization_enabled": APPLY_COMPOSITION_MARKER_HARMONIZATION,
+        "composition_marker_harmonization_rules": COMPOSITION_MARKER_HARMONIZATION_RULES,
+        "composition_marker_exclusivity_enabled": APPLY_COMPOSITION_MARKER_EXCLUSIVITY,
+        "composition_marker_exclusivity_rules": COMPOSITION_EXCLUSIVITY_RULES,
+        "composition_exclusivity_unassigned_label": COMPOSITION_EXCLUSIVITY_UNASSIGNED_LABEL,
         "negative_all_markers_name": NEGATIVE_ALL_MARKERS_NAME,
         "split_info": split_info,
         "training_csv": train_csv,

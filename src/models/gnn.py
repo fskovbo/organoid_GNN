@@ -317,6 +317,10 @@ class GINCurvature(nn.Module):
         head_in_dim = node_head_dim + global_dim
         self.head = _FinalHead(head_in_dim, hidden_dim, dropout, target_dim=self.target_dim, covariance_mode=self.covariance_mode)
 
+    def _condition_update(self, h, layer_index, data):
+        """Optional conditioning after normalization and before activation."""
+        return h
+
     def forward(self, x, edge_index, data=None):
         """Run GIN message passing and predict nodewise mean and log-variance."""
         if self.num_layers == 0:
@@ -328,6 +332,7 @@ class GINCurvature(nn.Module):
             for i, (conv, norm) in enumerate(zip(self.convs, self.norms)):
                 h_new = conv(h, edge_index)
                 h_new = norm(h_new)
+                h_new = self._condition_update(h_new, i, data)
                 h_new = F.relu(h_new, inplace=False)
 
                 h_new = _apply_residual(
@@ -359,6 +364,65 @@ class GINCurvature(nn.Module):
     def num_parameters(self, trainable_only: bool = True) -> int:
         """Count the number of model parameters."""
         return count_parameters(self, trainable_only=trainable_only)
+
+
+class SizeFiLMGINCurvature(GINCurvature):
+    """GIN conditioned on one standardized log-cell-count feature per graph.
+
+    Each layer computes ``(1 + delta_gamma(t)) * norm(h) + beta(t)``
+    before ReLU and the existing residual connection. FiLM starts as the
+    identity. Conditioning is computed once per graph, then broadcast to
+    nodes; cell count is never included in the GIN neighbor sum.
+
+    ``global_dim`` controls the features supplied to the prediction head.
+    FiLM uses only column ``size_feature_index`` of that vector, allowing
+    additional global features to enter the head without conditioning FiLM.
+    Set ``global_dim=0`` for a conditioning-only head ablation; in that case
+    ``data.<global_attr>`` must still contain one size feature per graph.
+    """
+
+    def __init__(
+        self, n_markers: int, *, film_hidden_dim: int = 16,
+        global_dim: int = 1, global_attr: str = "global_feat",
+        size_feature_index: int = 0, **kwargs,
+    ):
+        if global_dim < 0:
+            raise ValueError("global_dim must be nonnegative.")
+        if not 0 <= size_feature_index < max(1, global_dim):
+            raise ValueError("size_feature_index must select a global size feature.")
+        if film_hidden_dim < 1:
+            raise ValueError("film_hidden_dim must be positive.")
+        super().__init__(
+            n_markers, global_dim=global_dim, global_attr=global_attr, **kwargs,
+        )
+        self.film_hidden_dim = int(film_hidden_dim)
+        self.size_feature_index = int(size_feature_index)
+        self.film_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(1, self.film_hidden_dim),
+                nn.SiLU(),
+                nn.Linear(self.film_hidden_dim, 2 * self.hidden_dim),
+            )
+            for _ in range(self.num_layers)
+        ])
+        for film in self.film_layers:
+            nn.init.zeros_(film[-1].weight)
+            nn.init.zeros_(film[-1].bias)
+
+    def _condition_update(self, h, layer_index, data):
+        if data is None or not hasattr(data, self.global_attr):
+            raise ValueError("Size FiLM requires a graph-level log-cell-count feature.")
+        if getattr(data, "batch", None) is None:
+            raise ValueError("Size FiLM requires the PyG batch vector.")
+        size = getattr(data, self.global_attr)
+        if size.ndim == 1:
+            size = size.unsqueeze(-1)
+        expected_dim = max(1, self.global_dim)
+        if size.ndim != 2 or size.shape[1] != expected_dim:
+            raise ValueError(f"Size FiLM expects exactly {expected_dim} global features per graph.")
+        size = size[:, self.size_feature_index:self.size_feature_index + 1]
+        delta_gamma, beta = self.film_layers[layer_index](size).chunk(2, dim=-1)
+        return (1.0 + delta_gamma[data.batch]) * h + beta[data.batch]
 
 
 # ---------------------------------------------------------------------

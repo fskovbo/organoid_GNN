@@ -109,7 +109,9 @@ def evaluate_size_ablation(
         for case in chunk:
             graph = copy.copy(base_graphs[case["subgraph_index"]])
             graph.x = graph.x.clone()
-            graph.x[case["source_node"], case["source_marker"]] = 0
+            # Optional full-source-fate control; ordinary cases still edit one bit.
+            columns = case.get("source_markers_to_zero", case["source_marker"])
+            graph.x[case["source_node"], columns] = 0
             perturbed.append(graph)
         pert_z, pert_lv = predict_subgraph_center_distribution(
             perturbed, model, batch_size=batch_size, device=device,

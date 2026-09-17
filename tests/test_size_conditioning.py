@@ -260,14 +260,15 @@ class SizeConditioningTests(unittest.TestCase):
         for index, cell in enumerate(notebook['cells']):
             if cell['cell_type'] != 'code':
                 continue
-            if 'saved_results_plotting' in cell.get('metadata', {}).get('tags', []):
+            if {'saved_results_plotting', 'niche_hypotheses'} & set(cell.get('metadata', {}).get('tags', [])):
                 continue  # This independent section reads the completed experiment.
             # Stored notebook outputs do not affect the synthetic workflow check.
             exec(compile(''.join(cell['source']), f'notebook_cell_{index}', 'exec'), ns)
             if index == 3:
                 ns.update(RUN_TRAINING=True, RUN_ABLATIONS=True, N_FOLDS=2, MODEL_SEEDS=[42],
                           HIDDEN_DIM=8, FILM_HIDDEN_DIM=4, NUM_WORKERS=0, DEVICE='cpu',
-                          FILTER_BLACKLISTED_ORGANOIDS=False, INTERPOLATE_TARGET_OUTLIERS=False,
+                          FILTER_BLACKLISTED_ORGANOIDS=False, APPLY_SPHERICITY_FILTER=False,
+                          INTERPOLATE_TARGET_OUTLIERS=False,
                           BOOTSTRAP_SAMPLES=20, MIN_ORGANOIDS_PER_EFFECT=1,
                           ABLATION_CENTERS_PER_ORGANOID=2, SWEEP_CENTERS_PER_ORGANOID=1,
                           SWEEP_N_POINTS=3, N_SIZE_BINS=2, SAVE_DIR=tmp_path / 'synthetic')

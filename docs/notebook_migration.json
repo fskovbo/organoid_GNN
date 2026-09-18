@@ -1,0 +1,108 @@
+{
+  "clustering_analysis": [
+    "embeddings/clustering.ipynb"
+  ],
+  "ablation_sampling_exploration": [
+    "ablation/sampling_diagnostics.ipynb"
+  ],
+  "center_inclusive_marker_ablation_radius": [
+    "ablation/marker_zeroing.ipynb"
+  ],
+  "dcrypt_region_marker_informativeness": [
+    "training/lineage_removal_training.ipynb",
+    "marker_subsets/marker_informativeness.ipynb"
+  ],
+  "lineage_removal": [
+    "training/lineage_removal_training.ipynb",
+    "marker_subsets/marker_informativeness.ipynb"
+  ],
+  "marker_subset_depth_comparison": [
+    "training/lineage_removal_training.ipynb",
+    "marker_subsets/marker_informativeness.ipynb"
+  ],
+  "permutations_tests": [
+    "training/graph_controls_training.ipynb",
+    "benchmarks/graph_signal_controls.ipynb"
+  ],
+  "structure_only_tests": [
+    "training/graph_controls_training.ipynb",
+    "benchmarks/graph_signal_controls.ipynb"
+  ],
+  "signal_composition_analysis": [
+    "training/graph_controls_training.ipynb",
+    "benchmarks/graph_signal_controls.ipynb"
+  ],
+  "neighborhood_predictability_analysis": [
+    "neighborhoods/region_predictability.ipynb"
+  ],
+  "patch_composition_sampling_analysis": [
+    "embeddings/patch_composition.ipynb"
+  ],
+  "prediction_illustration": [
+    "visualizations/organoid_predictions.ipynb"
+  ],
+  "compare_models": [
+    "training/gin_depth_training.ipynb",
+    "benchmarks/model_comparison.ipynb"
+  ],
+  "scan_model_parameters": [
+    "training/gin_depth_training.ipynb",
+    "benchmarks/model_comparison.ipynb"
+  ],
+  "train_single_model": [
+    "training/gin_depth_training.ipynb",
+    "benchmarks/model_comparison.ipynb"
+  ],
+  "scan_model_depth_motifs": [
+    "training/gin_depth_training.ipynb",
+    "benchmarks/model_comparison.ipynb"
+  ],
+  "GNN_illustration": [
+    "visualizations/organoid_predictions.ipynb"
+  ],
+  "blacklist_candidate_review": [
+    "data_quality/cohort_review.ipynb"
+  ],
+  "exclusive_size_conditioned_clustering": [
+    "embeddings/clustering.ipynb",
+    "embeddings/embedding_responses.ipynb"
+  ],
+  "ki67_observed_neighborhoods": [
+    "neighborhoods/ki67_observed_neighborhoods.ipynb"
+  ],
+  "unassigned_cell_analysis": [
+    "neighborhoods/unassigned_cells.ipynb"
+  ],
+  "plot_experiment_results": [
+    "training/gin_depth_training.ipynb",
+    "benchmarks/model_comparison.ipynb"
+  ],
+  "exclusive_fate_masking": [
+    "training/fate_masking_training.ipynb",
+    "benchmarks/masking_quality_and_robustness.ipynb"
+  ],
+  "exclusive_replacement_ablation": [
+    "ablation/fate_interventions.ipynb"
+  ],
+  "exclusive_size_conditioned_ablation": [
+    "training/gin_depth_training.ipynb",
+    "ablation/fate_interventions.ipynb"
+  ],
+  "size_conditioned_ablation": [
+    "training/gin_depth_training.ipynb",
+    "ablation/marker_zeroing.ipynb",
+    "ablation/niche_hypotheses.ipynb"
+  ],
+  "ablation_analysis": [
+    "ablation/marker_zeroing.ipynb"
+  ],
+  "tests/PyG_vs_networkx": [
+    "data_quality/graph_and_mesh_checks.ipynb"
+  ],
+  "tests/marker_complexity_filtering": [
+    "data_quality/marker_complexity.ipynb"
+  ],
+  "training/size_conditioned_film_training.ipynb": [
+    "training/gin_depth_training.ipynb"
+  ]
+}

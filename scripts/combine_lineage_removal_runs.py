@@ -2,7 +2,7 @@
 """Combine result tables from multiple ``lineage_removal.ipynb`` runs.
 
 The output is a synthetic lineage-removal result directory that can be loaded by
-``experiments/plot_experiment_results.ipynb`` via ``LINEAGE_RUN_DIR`` or by
+``experiments/archive/combined_result_figures.ipynb`` via ``LINEAGE_RUN_DIR`` or by
 auto-discovery if it is the newest complete run.
 """
 
@@ -220,7 +220,7 @@ def write_readme(output_dir: Path, runs: list[dict]) -> None:
         [
             "",
             "This directory preserves the table names expected by "
-            "`experiments/plot_experiment_results.ipynb`.",
+            "`experiments/archive/combined_result_figures.ipynb`.",
             "",
             "Global-baseline tables are taken from the first input run to "
             "avoid double-counting organoids in downstream SEM calculations.",
@@ -369,7 +369,7 @@ def main() -> None:
     )
     print(f"Wrote combined lineage-removal run to {output_dir}")
     print(
-        "Set LINEAGE_RUN_DIR to this path in experiments/plot_experiment_results.ipynb "
+        "Set LINEAGE_RUN_DIR to this path in experiments/archive/combined_result_figures.ipynb "
         "or leave LINEAGE_RUN_DIR=None if this is the newest complete lineage run."
     )
 

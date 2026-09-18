@@ -16,6 +16,7 @@ exported even when the GNN itself uses a harmonized marker space.
 """
 
 from __future__ import annotations
+from src.artifacts import pickle_compat as artifact_pickle
 
 import argparse
 import copy
@@ -37,7 +38,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.analysis.motif_clustering import run_embedding_clustering
+from src.analysis.embeddings.clustering import run_embedding_clustering
 from src.data.filters import (
     filter_graphs_by_blacklist,
     filter_graphs_by_marker_diversity,
@@ -416,7 +417,7 @@ def load_original_marker_panel_from_path(graph_path: str | Path) -> dict[str, An
         raise FileNotFoundError(path)
 
     with path.open("rb") as handle:
-        original_graph = pickle.load(handle)
+        original_graph = artifact_pickle.load(handle)
 
     marker_names = infer_original_marker_names(original_graph)
     n_markers = len(marker_names)
@@ -1145,7 +1146,7 @@ Predictions are inverse-transformed back to original curvature units before expo
 
 ## Training and Clustering Defaults
 
-The model table uses settings patterned after `experiments/scan_model_depth_motifs.ipynb`:
+The model table uses settings patterned after `experiments/archive/scan_model_depth_motifs.ipynb`:
 
 - GIN depth: `{args.depth}`
 - Hidden dimension: `{args.hidden_dim}`

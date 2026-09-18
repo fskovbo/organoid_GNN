@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import pandas as pd
-from src.analysis.geometric_normalization import fit_area_references, normalize_cases
+from src.analysis.normalization.geometry import fit_area_references, normalize_cases
 
 
 class GeometricNormalizationTests(unittest.TestCase):

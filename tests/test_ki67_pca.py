@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 import torch
 from src.models.gnn import SizeFiLMGINCurvature
-from src.analysis.size_embedding_focus import head_prediction
-from src.analysis.ki67_pca import fit_weighted_pca, fit_response_svd, exact_readout, bilinear_change
+from src.analysis.embeddings.readout import head_prediction
+from src.analysis.embeddings.response_geometry import fit_weighted_pca, fit_response_svd, exact_readout, bilinear_change
 
 
 class KI67PCATests(unittest.TestCase):

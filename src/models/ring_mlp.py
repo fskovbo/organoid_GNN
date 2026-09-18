@@ -111,8 +111,6 @@ def _concat_global_features(h, data, global_dim, global_attr):
     return torch.cat([h, gfeat_node], dim=1)
 
 
-
-
 def _broadcast_global_features(data, global_attr: str = "global_feat"):
     """Broadcast graph-level features to nodes using the PyG batch vector."""
     if data is None:
@@ -242,6 +240,9 @@ class RingFractionMLP(nn.Module):
         self.n_markers = n_markers
         self.k_hops = k_hops
         self.feature_attr = feature_attr
+        self.hidden_dim = hidden_dim
+        self.dropout = dropout
+        self.norm = norm
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
         self.global_attr = global_attr
@@ -321,6 +322,9 @@ class RingFractionSizeMLP(nn.Module):
         self.n_markers = n_markers
         self.k_hops = k_hops
         self.feature_attr = feature_attr
+        self.hidden_dim = hidden_dim
+        self.dropout = dropout
+        self.norm = norm
         self.ring_sizes_attr = ring_sizes_attr
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim
@@ -405,6 +409,9 @@ class PooledKHopMLP(nn.Module):
         self.n_markers = n_markers
         self.k_hops = k_hops
         self.feature_attr = feature_attr
+        self.hidden_dim = hidden_dim
+        self.dropout = dropout
+        self.norm = norm
         self.include_center = include_center
         self.log_scale2_clamp = log_scale2_clamp
         self.global_dim = global_dim

@@ -27,7 +27,7 @@ def test_full_fate_control_changes_only_selected_source_and_preserves_input():
     import torch
     from torch_geometric.data import Data
     from unittest.mock import patch
-    from src.analysis.pseudotime import evaluate_size_ablation
+    from src.analysis.interventions.size_sweeps import evaluate_size_ablation
     graph=Data(x=torch.tensor([[1.,0.],[1.,1.],[0.,1.]]),global_feat=torch.tensor([[0.]]))
     original=graph.x.clone();captured=[]
     def predict(graphs,*args,**kwargs):
@@ -36,7 +36,7 @@ def test_full_fate_control_changes_only_selected_source_and_preserves_input():
     class Identity:
         def inverse_distribution(self,y,z,log_var=None):return y,z,log_var
     case=dict(subgraph_index=0,source_node=1,source_marker=0,observed_n=100.)
-    with patch('src.analysis.pseudotime.predict_subgraph_center_distribution',predict):
+    with patch('src.analysis.interventions.size_sweeps.predict_subgraph_center_distribution',predict):
         evaluate_size_ablation([graph],[case],None,Identity(),size_center=0,size_scale=1,count=100)
         evaluate_size_ablation([graph],[dict(case,source_markers_to_zero=[0,1])],None,Identity(),size_center=0,size_scale=1,count=100)
     assert torch.equal(captured[1][1],torch.tensor([0.,1.]))

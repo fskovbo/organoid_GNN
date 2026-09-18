@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch_geometric.data import Data
 
-from src.analysis.perturbation import compute_perturbation_influence_maps
+from src.analysis.interventions.perturbation import compute_perturbation_influence_maps
 
 
 class _DummyModel(nn.Module):

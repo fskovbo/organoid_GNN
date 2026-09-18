@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch_geometric.data import Data, Batch
 
-from src.analysis.size_embedding import (EmbeddingConfig, infer_states, fit_shared_atlas,
+from src.analysis.embeddings.size_responses import (EmbeddingConfig, infer_states, fit_shared_atlas,
     project_atlas, representation_change, paired_bootstrap_curves, assign_observed_windows,
     _transitions)
 from src.data.subgraphs import build_ego_subgraphs_for_graph

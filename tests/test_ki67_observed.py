@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import pandas as pd
-from src.analysis.ki67_observed import adjacency_rings, ring_average, neck_regions, within_organoid_contrast
+from src.analysis.spatial.neighborhoods import adjacency_rings, ring_average, neck_regions, within_organoid_contrast
 
 
 class ObservedKI67Tests(unittest.TestCase):

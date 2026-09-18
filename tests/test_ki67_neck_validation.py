@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from src.analysis.ki67_neck_validation import classify_profile, qualified_assignment
+from src.analysis.spatial.necks import classify_profile, qualified_assignment
 
 
 class NeckValidationTests(unittest.TestCase):

@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 from torch_geometric.data import Data
-from src.analysis.niche_hypotheses import crypt_membership, source_state, rings, predict
+from src.analysis.spatial.niche_inference import crypt_membership, source_state, rings, predict
 from src.data.subgraphs import build_ego_subgraphs_for_graph
 from src.models.gnn import SizeFiLMGINCurvature
 

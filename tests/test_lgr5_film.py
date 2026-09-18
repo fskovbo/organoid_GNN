@@ -3,8 +3,8 @@ import numpy as np
 import torch
 from torch_geometric.data import Data, Batch
 from src.models.gnn import SizeFiLMGINCurvature
-from src.analysis.lgr5_film import infer_requests, mixed_difference, build_requests, hidden_comparison
-from src.analysis.lgr5_film_summary import scale_statistics, cluster_summary
+from src.analysis.conditioning.film import infer_requests, mixed_difference, build_requests, hidden_comparison
+from src.analysis.conditioning.response_statistics import scale_statistics, cluster_summary
 import pandas as pd
 
 

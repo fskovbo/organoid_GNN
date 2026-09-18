@@ -278,6 +278,32 @@ def filter_graphs_by_metadata(
     )
 
 
+def filter_graphs_by_timepoints(graphs, timepoints=None, *, print_summary=False):
+    """Select a shared cohort before splitting; None retains all timepoints.
+
+    Explicit selections must be nonempty lists/tuples of exact metadata labels.
+    Reject unknown labels so a typo cannot silently select a different cohort.
+    Set print_summary=True for kept/total fractions per dataset and timepoint.
+    """
+    if timepoints is None:
+        if print_summary:
+            _print_filter_summary(graphs, np.ones(len(graphs), dtype=bool),
+                                  label='Timepoint selection (all timepoints)')
+        return list(graphs)
+    if not isinstance(timepoints, (list, tuple)) or not timepoints or not all(
+        isinstance(t, str) for t in timepoints
+    ):
+        raise ValueError('timepoints must be None or a nonempty list/tuple of timepoint labels')
+    available = {get_graph_metadata_value(g, 'timepoint', default=None, strict=False)
+                 for g in graphs}
+    unknown = set(timepoints) - available
+    if unknown:
+        raise ValueError(f'Unknown timepoints: {sorted(unknown)}; available: '
+                         f'{sorted(str(t) for t in available if t is not None)}')
+    return filter_graphs_by_metadata(graphs, 'timepoint', keep_values=timepoints,
+                                     missing='drop', print_summary=print_summary)
+
+
 def filter_graphs_by_numeric_metadata(
     graphs,
     key,

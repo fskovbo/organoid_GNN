@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.analysis.size_embedding_focus import (curvature_order, remap_table,
+from src.analysis.embeddings.readout import (curvature_order, remap_table,
     shapley_changes, head_prediction, decompose_interval)
 
 

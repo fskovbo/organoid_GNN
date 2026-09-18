@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 import pandas as pd
-from src.analysis.unassigned_cells import majority_context, neighbor_contrasts, UnassignedConfig
-from src.analysis.ki67_observed import MARKERS
+from src.analysis.spatial.unassigned import majority_context, neighbor_contrasts, UnassignedConfig
+from src.analysis.spatial.neighborhoods import MARKERS
 
 
 class UnassignedTests(unittest.TestCase):

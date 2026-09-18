@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "organoid-graph-learning"
+version = "0.1.0"
+description = "Graph learning of organoid fate and curvature"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy", "pandas>=2.2", "scipy", "scikit-learn", "torch", "torch-geometric",
+  "matplotlib", "networkx", "plotly",
+]
+
+[project.optional-dependencies]
+notebooks = ["ipykernel", "nbformat", "nbclient"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "scripts*"]
+namespaces = true

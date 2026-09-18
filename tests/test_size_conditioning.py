@@ -31,7 +31,7 @@ from torch import nn
 from torch_geometric.data import Batch, Data
 
 
-from src.analysis.pseudotime import (
+from src.analysis.interventions.size_sweeps import (
     evaluate_size_ablation,
     expand_center_markers,
     make_size_ablation_cases,
@@ -215,7 +215,7 @@ class SizeConditioningTests(unittest.TestCase):
         """Exercise all notebook cells with synthetic data and a no-optimization stub.
 
         No project data, experiment outputs, or trained checkpoints are used.
-        The stub verifies the four-feature baseline and all four model input paths.
+        The stub verifies the four-feature baseline and geometry-head GIN/FiLM paths.
         """
         tmp_path = Path(self.enterContext(TemporaryDirectory()))
         import matplotlib
@@ -241,6 +241,9 @@ class SizeConditioningTests(unittest.TestCase):
         self.patch_attribute(io, 'load_graph_dataset_from_dir', lambda path: copy.deepcopy(fixtures))
         self.patch_attribute(metadata, 'load_aux_metadata_for_dir', lambda path: {})
         self.patch_attribute(metadata, 'load_marker_names_from_dir', lambda path: ['center', 'source'])
+        import src.analysis.size_conditioning.cohort_inputs as saved_data
+        self.patch_attribute(saved_data, 'load_graph_dataset_from_dir', lambda path: copy.deepcopy(fixtures))
+        self.patch_attribute(saved_data, 'load_aux_metadata_for_dir', lambda path: {})
         calls = []
 
         def no_training(model, train_graphs, val_graphs, cfg):
@@ -255,31 +258,37 @@ class SizeConditioningTests(unittest.TestCase):
 
         self.patch_attribute(training, 'train', no_training)
         self.patch_attribute(plt, 'show', lambda: plt.close('all'))
-        notebook = json.loads((Path(__file__).resolve().parents[1] / 'experiments/size_conditioned_ablation.ipynb').read_text())
+        notebook = json.loads((Path(__file__).resolve().parents[1] / 'experiments/training/gin_depth_training.ipynb').read_text())
         ns = {}
         for index, cell in enumerate(notebook['cells']):
             if cell['cell_type'] != 'code':
                 continue
-            if {'saved_results_plotting', 'niche_hypotheses'} & set(cell.get('metadata', {}).get('tags', [])):
-                continue  # This independent section reads the completed experiment.
-            # Stored notebook outputs do not affect the synthetic workflow check.
-            exec(compile(''.join(cell['source']), f'notebook_cell_{index}', 'exec'), ns)
-            if index == 3:
-                ns.update(RUN_TRAINING=True, RUN_ABLATIONS=True, N_FOLDS=2, MODEL_SEEDS=[42],
-                          HIDDEN_DIM=8, FILM_HIDDEN_DIM=4, NUM_WORKERS=0, DEVICE='cpu',
-                          FILTER_BLACKLISTED_ORGANOIDS=False, APPLY_SPHERICITY_FILTER=False,
-                          INTERPOLATE_TARGET_OUTLIERS=False,
-                          BOOTSTRAP_SAMPLES=20, MIN_ORGANOIDS_PER_EFFECT=1,
-                          ABLATION_CENTERS_PER_ORGANOID=2, SWEEP_CENTERS_PER_ORGANOID=1,
-                          SWEEP_N_POINTS=3, N_SIZE_BINS=2, SAVE_DIR=tmp_path / 'synthetic')
+            source = ''.join(cell['source'])
+            exec(compile(source, f'notebook_cell_{index}', 'exec'), ns)
+            if 'SETTINGS = dict(' in source:
+                ns.update(RUN_TRAINING=True, DEVICE='cpu', RUN_DIR=tmp_path/'synthetic')
+                ns['SETTINGS'].update(model_types=['gin','film'], depths=[2], hidden_dims=[8],
+                    timepoints=None, sphericity_max=None, complexity_min=None,
+                    seeds=[42], n_folds=2, film_hidden_dim=4, num_workers=0,
+                    blacklist=False, interpolate_outliers=False, residualize=True,
+                    global_features=['log_num_cells','log_surface_area','log_volume','log_volume_over_area'])
         assert calls.count('GlobalFeatureMLP') == 2
-        assert calls.count('GINCurvature') == calls.count('SizeFiLMGINCurvature') == 4
-        assert len(ns['mse_df']) == 32
-        assert set(ns['mse_df'].model) == set(ns['MODEL_NAMES'])
-        assert set(ns['paired_overall'].comparison) == set(ns['comparisons'])
-        assert ns['sweep_cases_df'].delta_mse.isna().all()
-        assert ns['observed_cases'].delta_mse.notna().all()
-        assert (tmp_path / 'synthetic/tables/paired_size_endpoint_contrast.csv').is_file()
+        assert calls.count('GINCurvature') == calls.count('SizeFiLMGINCurvature') == 2
+        assert len(ns['scores_df']) == 16
+
+        def forbid_training(*args, **kwargs):
+            raise AssertionError('Analysis attempted to train a model')
+        self.patch_attribute(training, 'train', forbid_training)
+        from src.artifacts.runs import AnalysisRun
+        restored_run = AnalysisRun(tmp_path/'synthetic')
+        assert set(restored_run.records.name) == {'gin', 'film'}
+        for row in restored_run.records.itertuples():
+            restored = restored_run.select(row.key)
+            assert restored['model'].global_dim == 4
+            assert all(g.global_feat.shape == (1,4) for g in restored['groups']['val'])
+            assert restored['global_features'] == ns['SETTINGS']['global_features']
+
+
 
 
 

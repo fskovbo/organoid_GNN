@@ -9,11 +9,11 @@ import torch
 from torch import nn
 from torch_geometric.data import Data
 
-from src.analysis.replacement_ablation import (
+from src.analysis.interventions.replacement import (
     MatchConfig, ReplacementMatcher, describe_graph, identity_codes, make_cases,
     replacement_weights, evaluate_replacements, contrast_table, load_comparison,
 )
-from src.analysis.pseudotime import evaluate_size_ablation
+from src.analysis.interventions.size_sweeps import evaluate_size_ablation
 from src.data.target_transforms import IdentityTransform
 
 

@@ -1,5 +1,6 @@
 __pycache__/
 training_data/
 legacy/
-saved_models/
+training_results/
 results_experiments/
+training_results/

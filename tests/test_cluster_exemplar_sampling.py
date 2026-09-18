@@ -2,12 +2,12 @@ import numpy as np
 import torch
 from torch_geometric.data import Data
 
-from src.analysis.cluster_analysis import (
+from src.analysis.embeddings.clusters import (
     _marker_presence_within_hops,
     build_cluster_exemplar_subgraphs,
     build_marker_enriched_cluster_exemplar_subgraphs,
 )
-from src.analysis.motif_clustering import (
+from src.analysis.embeddings.clustering import (
     ClusteringResult,
     EmbeddingExtractionResult,
 )

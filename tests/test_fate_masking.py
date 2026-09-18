@@ -12,16 +12,23 @@ import torch
 from torch import nn
 from torch_geometric.data import Data, Batch
 
-from src.analysis.fate_masking import (
+from src.analysis.interventions.masking import (
     MaskTrainingConfig, encode_fates, random_mask, make_mask_model, ObservedFateAdapter,
     inner_split, train_mask_model, evaluate_single_mask, score_arrays,
-    train_masking_experiment, benchmark_masking_experiment, load_mask_benchmarks,
+    load_mask_benchmarks,
     make_quality_cases, _forward_with_mask,
 )
-from src.analysis.exclusive_size_ablation import make_model
-from src.analysis.replacement_ablation import make_cases, MatchConfig, run_replacement_analysis
-from src.analysis.masking_ablation import reconstruct_cases, run_masking_ablation, load_masking_comparison
+from src.analysis.size_conditioning.cohort_inputs import make_model
+from src.analysis.interventions.replacement import make_cases, MatchConfig
+from src.analysis.interventions.masking_comparison import reconstruct_cases, load_masking_comparison
 from src.data.target_transforms import IdentityTransform
+from src.artifacts.runs import AnalysisRun
+
+from notebook_workflows import workflow
+train_masking_experiment = workflow('training/fate_masking_training.ipynb', 'train_masking_experiment')
+benchmark_masking_experiment = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'benchmark_masking_experiment')
+run_replacement_analysis = workflow('ablation/fate_interventions.ipynb', 'run_replacement_analysis')
+run_masking_ablation = workflow('ablation/fate_interventions.ipynb', 'run_masking_ablation')
 
 
 SETTINGS=dict(HIDDEN_DIM=8, NUM_LAYERS=2, DROPOUT=0., RESIDUAL=True, NORM='batch',
@@ -91,6 +98,26 @@ class FateMaskingTests(unittest.TestCase):
         _,b=make_quality_cases([changed],['A','B'],centers_per_organoid=3,seed=3)
         pd.testing.assert_frame_equal(a[['orig_center','orig_source_node','hop']],
                                       b[['orig_center','orig_source_node','hop']])
+
+    def test_initialization_and_receptive_fields_across_depths(self):
+        g = graph()
+        for depth in (0, 1, 3, 4):
+            for width in (2, 3, 8):
+                with self.subTest(depth=depth, width=width):
+                    settings = dict(SETTINGS, NUM_LAYERS=depth, HIDDEN_DIM=width, NORM='layer')
+                    base = make_model(settings, ['A', 'B'], seed=42).eval()
+                    masked = make_mask_model(settings, ['A', 'B'], seed=42).eval()
+                    batch = Batch.from_data_list([g])
+                    (expected, _), _ = base(batch.x, batch.edge_index, data=batch)
+                    (actual, _), _ = masked(encode_fates(batch.x), batch.edge_index, data=batch)
+                    torch.testing.assert_close(actual, expected)
+                    subs, cases, _ = make_cases([g], ['A', 'B'], receptive_hops=max(2, depth))
+                    frame = evaluate_single_mask(subs, cases, masked, IdentityTransform(),
+                        size_center=0, size_scale=1, device='cpu')
+                    np.testing.assert_allclose(frame.intact_z,
+                        actual.detach().numpy()[frame.orig_center.to_numpy(int)], atol=1e-6)
+                    if depth == 0:
+                        np.testing.assert_allclose(frame.mask_delta_z, 0, atol=1e-7)
 
     def test_single_neighbor_masks_keep_center_and_graph_observed(self):
         g=graph();subs,cases,_=make_cases([g],['A','B'],centers_per_identity=1)
@@ -172,6 +199,28 @@ class FateMaskingTests(unittest.TestCase):
                         min_identity_organoids=1,max_composition_l1=2))
                 run_masking_ablation(root,old,out,aug,rate=.1,batch_size=16,device='cpu')
                 result=load_masking_comparison(aug,bootstrap_samples=5)
+                # Override the reference architecture, then load it through the
+                # same saved-run interface used by downstream analysis notebooks.
+                custom = root / 'masking_depth3'
+                overrides = dict(depth=3, hidden_dim=12, film_hidden_dim=6,
+                                 dropout=.2, norm='layer', residual=False, lr=.001,
+                                 weight_decay=.01, edge_loss_weight=0.)
+                train_masking_experiment(root, reference, custom, config=config,
+                    device='cpu', model_overrides=overrides)
+                run = AnalysisRun(custom, root=root)
+                selected = run.select(run.records.iloc[0].key)
+                self.assertEqual(selected['model'].num_layers, 3)
+                self.assertEqual(selected['model'].hidden_dim, 12)
+                self.assertEqual(selected['model'].dropout, .2)
+                self.assertEqual(selected['model'].norm, 'layer')
+                self.assertFalse(selected['model'].residual)
+                saved = json.loads((custom/'settings.json').read_text())
+                self.assertEqual(saved['model_overrides'], overrides)
+                self.assertEqual(json.loads((reference/'settings.json').read_text())['NUM_LAYERS'], 2)
+                benchmark_masking_experiment(root, custom, centers_per_identity=1,
+                                             batch_size=16, device='cpu')
+                run_masking_ablation(root, old, custom, root/'mask_ablation_depth3',
+                                    rate=.1, batch_size=16, device='cpu')
             self.assertIn('masking',result['summary'].method.unique())
             self.assertEqual(len(result['methods']),4)
             frame=result['cases'];u=frame[frame.source_marker_name=='Unassigned']
@@ -182,8 +231,12 @@ class FateMaskingTests(unittest.TestCase):
             # Exercise plots and summaries as well as all inference entry points.
             import matplotlib
             matplotlib.use('Agg')
-            from src.plotting.fate_masking import benchmark_tables,plot_intact_quality,plot_masked_quality,plot_training_robustness,plot_effect_robustness
-            from src.plotting.replacement_ablation import plot_pair_grid
+            benchmark_tables = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_benchmark_tables')
+            plot_intact_quality = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_intact_quality')
+            plot_masked_quality = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_masked_quality')
+            plot_training_robustness = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_training_robustness')
+            plot_effect_robustness = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_effect_robustness')
+            plot_pair_grid = workflow('ablation/fate_interventions.ipynb', 'replacement_plot_pair_grid')
             import matplotlib.pyplot as plt
             tables=benchmark_tables(benchmark,bootstrap_samples=5)
             figures=[plot_intact_quality(tables),plot_masked_quality(tables),

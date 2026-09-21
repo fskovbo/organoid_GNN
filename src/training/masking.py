@@ -8,6 +8,7 @@ from torch_geometric.loader import DataLoader
 from src.data.fate_masking import random_mask, _forward_with_mask
 from src.models.size_models import seed_all
 from src.training.losses import CompositeLoss, make_base_loss, WeightedLossTerm, edge_loss_term
+from src.training.progress import log_epochs, report_epoch
 
 def rate_tag(rate):
     return f'p{float(rate):g}'
@@ -66,7 +67,8 @@ def intact_validation_mse(model, loader, device):
     return total / n
 
 
-def train_mask_model(model, train_graphs, early_graphs, settings, config, *, rate, seed, device):
+def train_mask_model(model, train_graphs, early_graphs, settings, config, *, rate, seed, device,
+                     verbose=None, epoch_callback=None):
     """Matched optimizer steps/BN passes even for rate 0; select on intact inner MSE.
 
     Backpropagate the two weighted passes separately before one optimizer step,
@@ -82,6 +84,7 @@ def train_mask_model(model, train_graphs, early_graphs, settings, config, *, rat
     optimizer = torch.optim.AdamW(model.parameters(), lr=settings['LR'], weight_decay=settings['WEIGHT_DECAY'])
     loss_fn = _loss(settings)
     best, best_state, remaining, history = np.inf, None, config.patience, []
+    best_epoch = 0
     for epoch in range(1, config.max_epochs + 1):
         model.train(); total_loss = 0.; total_nodes = 0; masked_nodes = 0
         for batch in loader:
@@ -109,14 +112,19 @@ def train_mask_model(model, train_graphs, early_graphs, settings, config, *, rat
             raise FloatingPointError('Non-finite early-stopping score.')
         history.append(dict(epoch=epoch, train_loss=total_loss/total_nodes, inner_intact_mse_z=score,
                             realized_mask_rate=masked_nodes/total_nodes))
-        print(f'{rate_tag(rate)} seed={seed} epoch={epoch}: loss={history[-1]["train_loss"]:.5g}, '
-              f'inner intact MSE={score:.5g}', flush=True)
+        if log_epochs(verbose):
+            print(f'{rate_tag(rate)} seed={seed} epoch={epoch}: loss={history[-1]["train_loss"]:.5g}, '
+                  f'inner intact MSE={score:.5g}', flush=True)
         if score < best - 1e-7:
             best = score; remaining = config.patience
+            best_epoch = epoch
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
         else:
             remaining -= 1
-            if remaining <= 0:
-                break
+        report_epoch(dict(epoch=epoch, max_epochs=config.max_epochs, metric='Inner intact MSE (transformed)',
+                          value=score, best_value=best, best_epoch=best_epoch,
+                          bad_epochs=config.patience-remaining, patience=config.patience), epoch_callback)
+        if remaining <= 0:
+            break
     model.load_state_dict(best_state)
     return model, pd.DataFrame(history)

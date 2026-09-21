@@ -6,7 +6,7 @@
     "ablation/sampling_diagnostics.ipynb"
   ],
   "center_inclusive_marker_ablation_radius": [
-    "ablation/marker_zeroing.ipynb"
+    "ablation/total_analysis.ipynb"
   ],
   "dcrypt_region_marker_informativeness": [
     "training/lineage_removal_training.ipynb",
@@ -33,7 +33,10 @@
     "benchmarks/graph_signal_controls.ipynb"
   ],
   "neighborhood_predictability_analysis": [
-    "neighborhoods/region_predictability.ipynb"
+    "training/fate_masking_training.ipynb",
+    "training/gin_depth_training.ipynb",
+    "training/graph_controls_training.ipynb",
+    "training/lineage_removal_training.ipynb"
   ],
   "patch_composition_sampling_analysis": [
     "embeddings/patch_composition.ipynb"
@@ -82,19 +85,21 @@
     "benchmarks/masking_quality_and_robustness.ipynb"
   ],
   "exclusive_replacement_ablation": [
-    "ablation/fate_interventions.ipynb"
+    "ablation/total_analysis.ipynb",
+    "ablation/size_dependent_ablation.ipynb",
+    "ablation/ablation_comparison.ipynb"
   ],
   "exclusive_size_conditioned_ablation": [
     "training/gin_depth_training.ipynb",
-    "ablation/fate_interventions.ipynb"
+    "ablation/size_dependent_ablation.ipynb"
   ],
   "size_conditioned_ablation": [
     "training/gin_depth_training.ipynb",
-    "ablation/marker_zeroing.ipynb",
-    "ablation/niche_hypotheses.ipynb"
+    "ablation/size_dependent_ablation.ipynb",
+    "visualizations/niche_reports.ipynb"
   ],
   "ablation_analysis": [
-    "ablation/marker_zeroing.ipynb"
+    "ablation/total_analysis.ipynb"
   ],
   "tests/PyG_vs_networkx": [
     "data_quality/graph_and_mesh_checks.ipynb"
@@ -104,5 +109,16 @@
   ],
   "training/size_conditioned_film_training.ipynb": [
     "training/gin_depth_training.ipynb"
+  ],
+  "fate_interventions": [
+    "ablation/total_analysis.ipynb",
+    "ablation/size_dependent_ablation.ipynb",
+    "ablation/ablation_comparison.ipynb"
+  ],
+  "niche_hypotheses": [
+    "visualizations/niche_reports.ipynb"
+  ],
+  "marker_zeroing": [
+    "ablation/total_analysis.ipynb"
   ]
 }

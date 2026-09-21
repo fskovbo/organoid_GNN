@@ -325,3 +325,129 @@ def plot_influence_center_resolved(
     fig.tight_layout()
 
     return fig, axes
+
+
+def plot_pair_heatmaps(summary, *, title='', min_organoids=1, min_cases=None,
+                       limit=None, hops=None, marker_names=None):
+    """Recipient/source heatmaps with historical white, hatched low-support cells.
+
+    ``min_cases`` accepts a scalar or per-hop dict and uses distinct retained
+    physical cases (``n_cases``), not rows replicated across fitted model seeds.
+    An additional organoid threshold can be enforced independently.
+    """
+    if summary.empty:
+        raise ValueError('No supported effects to plot.')
+    hops = sorted(summary.hop.unique()) if hops is None else list(hops)
+    recipients = sorted(summary.center_marker.unique()) if marker_names is None else list(marker_names)
+    sources = sorted(summary.source_marker_name.unique()) if marker_names is None else list(marker_names)
+    limit = (float(summary['mean'].abs().max()) or 1.) if limit is None else limit
+    fig, axes = plt.subplots(1, len(hops), figsize=(5*len(hops), 5), squeeze=False)
+    for hi, (ax, hop) in enumerate(zip(axes[0], hops)):
+        part = summary[summary.hop == hop]
+        def matrix(column, fill=np.nan):
+            return part.pivot(index='center_marker', columns='source_marker_name', values=column).reindex(
+                index=recipients, columns=sources).fillna(fill).to_numpy(float)
+        values = matrix('mean')
+        low = (matrix('n_organoids', 0) < min_organoids) | ~np.isfinite(values)
+        threshold = _min_count_for_hop(min_cases, hop, hi)
+        if threshold is not None:
+            low |= matrix('n_cases', 0) < threshold
+        values[low] = np.nan
+        im = _draw_heatmap(ax, values, cmap=_cmap_with_bad_color('RdBu_r', 'white'), vmin=-limit, vmax=limit)
+        _overlay_heatmap_hatches(ax, low)
+        ax.set(title=f'Hop {hop}', xlabel='Source fate', ylabel='Recipient fate',
+            xticks=np.arange(len(sources))+.5, xticklabels=sources,
+            yticks=np.arange(len(recipients))+.5, yticklabels=recipients)
+        ax.tick_params(axis='x', rotation=90)
+        fig.colorbar(im, ax=ax, label='Edited − intact prediction')
+    fig.suptitle(title + '\nHatched: insufficient retained cases or organoids')
+    fig.tight_layout()
+    return fig
+
+
+def plot_pair_count_heatmaps(counts, *, hops, marker_names, title='Retained sample counts', vmax=None):
+    """Annotated pair counts per hop, with a shared logarithmic blue scale.
+
+    Expects one row per (hop, center_marker, source_marker_name), with n_cases
+    counting unique physical cases. Zeros are white but still annotated; low
+    counts remain visible irrespective of effect-plot display thresholds.
+    """
+    from matplotlib.colors import LogNorm
+    hops, names = list(hops), list(marker_names)
+    if not hops or not names:
+        raise ValueError('Provide at least one hop and marker identity.')
+    keys = ['hop', 'center_marker', 'source_marker_name']
+    if counts.duplicated(keys).any():
+        raise ValueError('Select one method and observed/sweep cohort before plotting counts.')
+    matrices = []
+    for hop in hops:
+        part = counts[counts.hop == hop]
+        matrix = part.pivot(index='center_marker', columns='source_marker_name', values='n_cases').reindex(
+            index=names, columns=names).fillna(0).to_numpy(float)
+        if not np.isfinite(matrix).all() or (matrix < 0).any() or (matrix != np.floor(matrix)).any():
+            raise ValueError('Sample counts must be finite nonnegative integers.')
+        matrices.append(matrix)
+    # LogNorm needs a nondegenerate positive range, including all-zero inputs.
+    maximum = max(float(m.max()) for m in matrices) if vmax is None else float(vmax)
+    norm = LogNorm(vmin=1, vmax=max(2, maximum))
+    fig, axes = plt.subplots(1, len(hops), figsize=(max(4.5, .6*len(names))*len(hops),
+        max(4, .5*len(names)+1.5)), squeeze=False, constrained_layout=True)
+    for ax, hop, matrix in zip(axes[0], hops, matrices):
+        image = _draw_heatmap(ax, np.ma.masked_less_equal(matrix, 0),
+            cmap=_cmap_with_bad_color('Blues', 'white'), norm=norm)
+        for row, column in np.ndindex(matrix.shape):
+            value = int(matrix[row, column])
+            rgba = (1, 1, 1, 1) if value == 0 else image.cmap(norm(value))
+            luminance = .299*rgba[0] + .587*rgba[1] + .114*rgba[2]
+            ax.text(column+.5, row+.5, str(value), ha='center', va='center',
+                color='white' if luminance < .45 else 'black', fontsize=8.5)
+        ax.set(title=f'Hop {hop}', xlabel='Perturbation marker (source)', ylabel='Center marker (recipient)',
+            xticks=np.arange(len(names))+.5, xticklabels=names,
+            yticks=np.arange(len(names))+.5, yticklabels=names)
+        ax.tick_params(axis='x', rotation=60)
+        plt.setp(ax.get_xticklabels(), ha='right')
+    fig.colorbar(image, ax=list(axes[0]), fraction=.046, pad=.04,
+                 label='Retained unique cases (log color scale)')
+    fig.suptitle(title)
+    return fig
+
+
+def plot_pair_size_curves(summary, *, hop, title='', min_organoids=1, min_cases=None):
+    """Pair curves with distinct method/mode colors and an explicit hop title."""
+    import matplotlib.pyplot as plt
+    part = summary[summary.hop==hop].copy()
+    if part.empty:
+        raise ValueError(f'No supported effects at hop {hop}.')
+    if 'label' not in part:
+        part['label'] = 'Effect'
+    centers = sorted(part.center_marker.unique());sources = sorted(part.source_marker_name.unique())
+    labels = list(part.label.unique())
+    palette = plt.get_cmap('tab10' if len(labels) <= 5 else 'tab20')
+    colors = {(label, mode): palette((2*i+j) % palette.N)
+              for i, label in enumerate(labels) for j, mode in enumerate(('observed', 'sweep'))}
+    fig,axes = plt.subplots(len(centers),len(sources),figsize=(3*len(sources),2.5*len(centers)),squeeze=False)
+    for i,center in enumerate(centers):
+        for j,source in enumerate(sources):
+            ax=axes[i,j]
+            selected=part[(part.center_marker==center)&(part.source_marker_name==source)].copy()
+            low = selected.n_organoids < min_organoids
+            threshold = _min_count_for_hop(min_cases, hop, sorted(summary.hop.unique()).index(hop))
+            if threshold is not None:
+                low |= selected.n_cases < threshold
+            # Gaps, rather than lines joining across unsupported size bins.
+            selected.loc[low, ['mean', 'ci_low', 'ci_high']] = np.nan
+            for (label,mode),curve in selected.groupby(['label','analysis'],sort=False):
+                curve=curve.sort_values('N')
+                color = colors[label, mode]
+                ax.plot(curve.N,curve['mean'],'o-' if mode=='observed' else 's--',color=color,label=f'{label}: {mode}')
+                ax.fill_between(curve.N,curve.ci_low,curve.ci_high,color=color,alpha=.13)
+            ax.axhline(0,color='grey',lw=.6)
+            ax.set_xlim(part.N.min()*.9,part.N.max()*1.1)
+            ax.set(xscale='log',xlabel='Cell count N',ylabel='Edited − intact prediction',title=f'{center} ← {source}')
+    handles={}
+    for ax in axes.ravel():
+        h,l=ax.get_legend_handles_labels();handles.update(zip(l,h))
+    fig.legend(handles.values(),handles.keys(),loc='upper center',ncol=max(1,min(4,len(handles))))
+    fig.suptitle(f'{title} — Hop {hop}' if title else f'Hop {hop}',y=1.02)
+    fig.tight_layout(rect=(0,0,1,.96))
+    return fig

@@ -14,7 +14,7 @@ from torch_geometric.data import Batch, Data
 from src.artifacts.bundle import save_bundle, load_bundle, graph_membership, indexed_membership
 from src.artifacts.checkpoints import build_model, model_spec, load_weights
 from src.artifacts.paths import project_root
-from src.artifacts.provenance import workflow_fingerprint
+from src.artifacts.provenance import workflow_fingerprint, analysis_output_path
 from src.models.gnn import GINCurvature, SizeFiLMGINCurvature
 from src.data.target_transforms import StandardizeTransform
 
@@ -96,6 +96,28 @@ class TrainingArtifactsTests(unittest.TestCase):
         notebook.write_text(json.dumps(obj)); self.assertEqual(original, workflow_fingerprint(notebook))
         helper.write_text('value = 2\n'); self.assertNotEqual(original, workflow_fingerprint(notebook))
         self.assertEqual(project_root(notebook.parent), self.root)
+
+    def test_changed_analysis_settings_preserve_previous_results(self):
+        base = self.root / 'default'
+        old = dict(sampling_scheme='stratified', code_sha256='before')
+        new = dict(sampling_scheme='coverage', code_sha256='after', groups=('hop', 'marker'))
+        self.assertEqual(analysis_output_path(base, old), base)
+        self.assertFalse(base.exists())
+        base.mkdir()
+        (base / 'settings.json').write_text(json.dumps(old))
+        (base / 'cases.csv').write_text('old results')
+        self.assertEqual(analysis_output_path(base, old), base)
+        selected = analysis_output_path(base, new)
+        self.assertNotEqual(selected, base)
+        self.assertFalse(selected.exists())
+        selected.mkdir()
+        (selected / 'settings.json').write_text(json.dumps(new))
+        self.assertEqual(analysis_output_path(base, new), selected)
+        self.assertEqual(json.loads((base / 'settings.json').read_text()), old)
+        self.assertEqual((base / 'cases.csv').read_text(), 'old results')
+        # Untracked results also must not be reused or overwritten.
+        (base / 'settings.json').unlink()
+        self.assertEqual(analysis_output_path(base, new), selected)
 
     def test_saved_cohort_selection_ignores_extra_source_graphs_and_keeps_order(self):
         from src.analysis.size_conditioning.cohort_inputs import load_cohort

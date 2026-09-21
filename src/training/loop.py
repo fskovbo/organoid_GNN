@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch_geometric.loader import DataLoader
 
 from src.training.losses import CompositeLoss, make_base_loss
+from src.training.progress import log_epochs, report_epoch
 
 
 def _as_matrix(x: torch.Tensor) -> torch.Tensor:
@@ -88,7 +89,7 @@ def epoch_pass(model, loader, cfg, loss_fn, optimizer=None):
     return total_loss / max(total_n, 1), total_mae / max(total_n, 1)
 
 
-def train(model, train_graphs, val_graphs, cfg=TrainConfig(), loss_fn=None):
+def train(model, train_graphs, val_graphs, cfg=TrainConfig(), loss_fn=None, *, verbose=None, epoch_callback=None):
     """Train the model with early stopping and return the best checkpoint by val MAE."""
     model = model.to(cfg.device)
     train_loader, val_loader = make_loaders(train_graphs, val_graphs, cfg)
@@ -106,17 +107,19 @@ def train(model, train_graphs, val_graphs, cfg=TrainConfig(), loss_fn=None):
     )
 
     best_val, best_state, patience_left = math.inf, None, cfg.patience
+    best_epoch = 0
     hist = {"train_loss": [], "train_mae": [], "val_loss": [], "val_mae": []}
 
     for epoch in range(1, cfg.max_epochs + 1):
         tr_loss, tr_mae = epoch_pass(model, train_loader, cfg, loss_fn, optimizer=opt)
         vl_loss, vl_mae = epoch_pass(model, val_loader, cfg, loss_fn, optimizer=None)
 
-        print(
-            f"epoch {epoch:03d} | "
-            f"train loss {tr_loss:.4f} mae {tr_mae:.4f} | "
-            f"val loss {vl_loss:.4f} mae {vl_mae:.4f}"
-        )
+        if log_epochs(verbose):
+            print(
+                f"epoch {epoch:03d} | "
+                f"train loss {tr_loss:.4f} mae {tr_mae:.4f} | "
+                f"val loss {vl_loss:.4f} mae {vl_mae:.4f}"
+            )
 
         hist["train_loss"].append(tr_loss)
         hist["train_mae"].append(tr_mae)
@@ -125,12 +128,16 @@ def train(model, train_graphs, val_graphs, cfg=TrainConfig(), loss_fn=None):
 
         if vl_mae < best_val - 1e-7:
             best_val = vl_mae
+            best_epoch = epoch
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             patience_left = cfg.patience
         else:
             patience_left -= 1
-            if patience_left <= 0:
-                break
+        report_epoch(dict(epoch=epoch, max_epochs=cfg.max_epochs, metric='Validation MAE',
+                          value=vl_mae, best_value=best_val, best_epoch=best_epoch,
+                          bad_epochs=cfg.patience-patience_left, patience=cfg.patience), epoch_callback)
+        if patience_left <= 0:
+            break
 
     if best_state is not None:
         model.load_state_dict(best_state)

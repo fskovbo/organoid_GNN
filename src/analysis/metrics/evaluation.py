@@ -4,6 +4,22 @@ import pandas as pd
 from src.inference.predict import predict_targets
 
 
+def organoid_mse_summary(scores, by=(), *, value='mse'):
+    """Equal-organoid mean and SEM, averaging repeated predictions per organoid.
+
+    Seeds/repeated splits are not independent organoids. The SEM is descriptive
+    held-out organoid variation conditional on the fitted models, not retraining
+    uncertainty. With fewer than two organoids, SEM remains undefined (NaN).
+    """
+    by = [by] if isinstance(by, str) else list(by)
+    units = scores.groupby(by + ['organoid_str'], observed=True, dropna=False)[value].mean()
+    if by:
+        return units.groupby(level=by, observed=True, dropna=False).agg(
+            ['mean', 'std', 'sem', 'count']).reset_index()
+    return pd.DataFrame([dict(mean=units.mean(), std=units.std(),
+                              sem=units.sem(), count=units.count())])
+
+
 def compare_baseline_mse(scores, baseline_scores):
     """Pair physical-curvature MSEs by fold/organoid, preserving model weighting."""
     baseline = pd.DataFrame(baseline_scores)[['fold', 'organoid_str', 'mse']].rename(
@@ -45,3 +61,22 @@ def prediction_table(selection, *, role='val', device='cpu', batch_size=64):
         rows.append(frame)
         start = stop
     return pd.concat(rows, ignore_index=True)
+
+
+def regional_mse(predictions, annotations):
+    """Physical MSE per organoid/region, preserving node identity and baseline.
+
+    Expects predictions from one checkpoint. No variance or curvature matching
+    enters the region assignment. Organoids without cells in a region contribute
+    no row, rather than a zero error.
+    """
+    keys = ['organoid_str', 'node']
+    if predictions.duplicated(keys).any() or annotations.duplicated(keys).any():
+        raise ValueError('Regional evaluation requires unique organoid/node keys.')
+    cells = predictions.merge(annotations[keys + ['region']], on=keys, how='left', validate='one_to_one')
+    if cells.region.isna().any():
+        raise ValueError('Missing region annotations for predicted cells.')
+    aggregations = dict(n_cells=('node', 'size'), mse=('squared_error', 'mean'))
+    if 'baseline_squared_error' in cells:
+        aggregations['baseline_mse'] = ('baseline_squared_error', 'mean')
+    return cells.groupby(['organoid_str', 'region'], observed=True).agg(**aggregations).reset_index()

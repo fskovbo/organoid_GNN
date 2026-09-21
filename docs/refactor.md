@@ -152,3 +152,51 @@ The unified training layout passes 69 tests. Synthetic checks exercise both GIN 
 at multiple depths, marker combinations with identical fold membership, tagged run names,
 unambiguous analysis selection, and a new FiLM bundle exported into masking training,
 masking benchmarks and replacement inference. Production training was not repeated.
+
+## Ablation notebook separation and settings placement
+
+The ablation folder now contains exactly `total_analysis`, `size_dependent_ablation`,
+`ablation_comparison` and `sampling_diagnostics`. Both inference notebooks select any of
+marker zeroing, trained masking or exclusive-fate replacement. They restore every saved
+fold at a chosen depth and probe exact hops 1..depth, never the recipient center. Total
+analysis pools observed-size effects; size analysis separates observed-size bins from
+fixed-neighborhood N sweeps. Shared sampling and inference live in `interventions/fate_edits.py`;
+restoration, donor fitting and checkpoint loops remain visible in notebooks.
+
+Ordinary GIN and FiLM are supported. Replacement requires exclusive identities and uses
+training-only matched donors; it no longer requires a log-N-only FiLM head. Sweeps require
+`log_num_cells`. Masking requires a positive-rate masking-trained model, which can also be
+used for zeroing/replacement. Comparison intersects supported physical source cases across
+methods, preserves constant sweep cohorts, and flags different fitted models. Summaries
+average cases/seeds within organoids before equal-organoid averaging and bootstrapping.
+Settings are the first analysis code cell after bootstrap in every analysis notebook.
+
+Validation: 75 tests pass, including all three methods executed through both analysis
+notebooks and saved-output comparison on synthetic data. Higher-hop sampling/matching,
+training-only donor selection, unchanged graphs/recipients and all-fold selection are
+checked. No production analyses or training were rerun.
+
+The historical niche/route report viewer lives in `visualizations/niche_reports.ipynb`
+and no longer launches old model inference. Removed full/exclusive historical appendices,
+old normalization panels and their notebook outputs are preserved in the gzipped notebook
+archive under `results_experiments/refactor_20260918/`; scientific result directories and
+checkpoints were not deleted or changed. Modern size-dependent inference uses the selected
+training run, not any hard-coded historical checkpoint.
+
+## Historical coverage sampling restored
+
+Commit `9ae3657` is the reference for the ablation center/pair coverage sampler, its
+2000/50/25 defaults, per-pair/per-hop case-level source non-overlap, and the 20-case
+hatched heatmap threshold. The original reusable `sample_subgraphs_coverage` and
+`flag_non_overlapping_source_cases` functions are called directly. The no-subsampling
+branch now also returns full coverage diagnostics. Current ablation adapters additionally
+include unassigned identities and support all selected model hops. Pair memberships are
+filtered independently for coexpressing recipients without modifying their input features.
+Output summaries distinguish unique physical cases from repeated seed rows. Coverage
+settings are mirrored across inference and diagnostics, and checked when comparing runs.
+
+Verification: 78 unittest checks pass, including all three intervention methods through
+both analysis notebooks and the comparison notebook; coverage selection and non-overlap
+are checked against the historical helpers. Plot checks cover below-threshold, exactly-at-
+threshold and missing pairs, plus gaps in unsupported size curves. No production analysis
+or model training was run.

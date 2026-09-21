@@ -511,3 +511,31 @@ def plot_all_aggregates_metric_vs_depth(
     fig.suptitle(title, y=1.02)
     plt.tight_layout()
     return fig, axes
+
+def plot_regional_mse(scores, *, regions=('crypt', 'neck', 'villus')):
+    """Plot depth-wise organoid means/SEM for each model variant and region."""
+    from src.analysis.metrics.evaluation import organoid_mse_summary
+    variants = [c for c in ('name', 'subset', 'signal', 'hidden_dim', 'rate') if c in scores]
+    fig, axes = plt.subplots(1, len(regions), figsize=(5 * len(regions), 4), squeeze=False)
+    for ax, region in zip(axes.ravel(), regions):
+        frame = scores[scores.region == region]
+        ax.set(title='Villus (distance proxy)' if region == 'villus' else region.capitalize(),
+               xlabel='Model depth / ring radius', ylabel='Validation MSE (curvature²)')
+        ax.set_xticks(sorted(scores.depth.unique()))
+        if frame.empty:
+            ax.text(.5, .5, 'No qualified validation cells', ha='center', transform=ax.transAxes)
+            continue
+        for label, part in frame.groupby(variants, dropna=False, observed=True):
+            curve = organoid_mse_summary(part, 'depth')
+            line, = ax.plot(curve.depth, curve['mean'], 'o-', label=str(label))
+            ax.fill_between(curve.depth, curve['mean']-curve['sem'], curve['mean']+curve['sem'],
+                            color=line.get_color(), alpha=.18)
+        if 'baseline_mse' in frame:
+            baseline = organoid_mse_summary(frame, 'depth', value='baseline_mse')
+            ax.plot(baseline.depth, baseline['mean'], '--', color='black', label='Global baseline')
+            ax.fill_between(baseline.depth, baseline['mean']-baseline['sem'], baseline['mean']+baseline['sem'],
+                            color='black', alpha=.12)
+        ax.legend(fontsize=7)
+    fig.suptitle('Regional validation MSE: mean ± SEM across organoids')
+    fig.tight_layout()
+    return fig

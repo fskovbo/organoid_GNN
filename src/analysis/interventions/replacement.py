@@ -56,7 +56,7 @@ def identity_codes(x):
     return np.where(x.sum(1) == 0, x.shape[1], x.argmax(1))
 
 
-def describe_graph(graph):
+def describe_graph(graph, *, max_hops=2):
     """Full-graph source context; never truncate descriptors to a center ego.
 
     reach_h is a bit mask of identities at exact hop h. The candidate's own
@@ -79,7 +79,19 @@ def describe_graph(graph):
                               identity=labels, n_cells=n, degree=degree))
     for j in range(k):
         frame[f'fraction_{j}'] = fractions[:, j]
-    for hop, adjacency in [(1, a), (2, two)]:
+    adjacencies = [(1, a), (2, two)]
+    reached = a + sparse.eye(n, format='csr')
+    frontier = a
+    for hop in range(2, max_hops + 1):
+        frontier = frontier @ a
+        frontier.data[:] = 1
+        frontier = frontier - frontier.multiply(reached)
+        frontier.eliminate_zeros()
+        reached = reached + frontier
+        reached.data[:] = 1
+        if hop > 2:
+            adjacencies.append((hop, frontier))
+    for hop, adjacency in adjacencies:
         frame[f'reach_{hop}'] = ((adjacency @ onehot > 0) * (1 << np.arange(k))).sum(1).astype(int)
     return frame
 

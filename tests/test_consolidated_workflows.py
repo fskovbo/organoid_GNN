@@ -44,6 +44,79 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
                 organoid_str=f'org_{i}',meta=dict(total_surface_area=10.+i,total_volume=20.+i,
                     timepoint='day4',dataset='fixture',label_uid=str(i))))
 
+    def check_reference_controls(self, max_folds=None):
+        """Run the actual control notebook, forbidding preprocessing/data refits."""
+        from src.training.loop import train as actual_train
+        controls_out = self.out.parent/f'controls_{max_folds}'
+        expected_folds = [0, 1] if max_folds is None else [0]
+        reference_count = 2 * len(expected_folds)
+        namespace = {}
+        with patch('src.training.preparation.prepare_fold', side_effect=AssertionError('Refitted preprocessing')), \
+             patch('src.data.io.load_graph_dataset_from_dir', side_effect=AssertionError('Reloaded raw data')), \
+             patch('src.models.ring_mlp._compute_ring_fraction_features_and_sizes',
+                   side_effect=AssertionError('Rebuilt ring features during forward pass')), \
+             patch('src.training.loop.train', wraps=actual_train) as training:
+            for source in notebook_sources('training/graph_controls_training.ipynb'):
+                source = source.replace(
+                    "resolve_training_run(ROOT, CONTROL_SETTINGS['reference_notebook'], CONTROL_SETTINGS['reference_run'])",
+                    f'Path({str(self.out)!r})')
+                exec(compile(source,'controls','exec'),namespace)
+                if 'CONTROL_SETTINGS = dict(' in source:
+                    namespace.update(RUN_TRAINING=True, RUN_DIR=controls_out, DEVICE='cpu')
+                    namespace['CONTROL_SETTINGS'].update(reference_family='film', max_folds=max_folds)
+            self.assertEqual(training.call_count, reference_count * 8)
+        control = AnalysisRun(controls_out)
+        reference = AnalysisRun(self.out)
+        progress_rows = pd.read_csv(controls_out/'training_progress.csv')
+        self.assertEqual((progress_rows.kind == 'copied').sum(), reference_count)
+        self.assertEqual((progress_rows.kind == 'model').sum(), reference_count * 8)
+        self.assertTrue(progress_rows.status.eq('completed').all())
+        self.assertEqual(len(control.records), reference_count * 9)
+        source_splits = json.loads((self.out/'splits.json').read_text())
+        self.assertEqual(json.loads((controls_out/'splits.json').read_text()),
+                         [s for s in source_splits if s['fold'] in expected_folds])
+        self.assertEqual(set(control.records.fold), set(expected_folds))
+        self.assertEqual(control.settings['selected_folds'], expected_folds)
+        self.assertEqual(control.settings['n_folds'], len(expected_folds))
+        self.assertEqual(control.settings['reference_n_folds'], 2)
+        from src.artifacts.runs import select_depth_records
+        self.assertEqual(set(select_depth_records(control,2,model_name='film').fold), set(expected_folds))
+        for setting in ['depths','hidden_dims','seeds','timepoints','residualize','global_features','max_epochs','lr']:
+            self.assertEqual(control.settings[setting],reference.settings[setting])
+        for row in control.records.to_dict('records'):
+            restored = control.select(row['key'])
+            original = reference.select(row['reference_key'])
+            if row['reused_reference']:
+                source_record = reference.records.set_index('key').loc[row['reference_key']]
+                for source_file in (self.out/source_record.bundle).iterdir():
+                    self.assertEqual(source_file.read_bytes(),
+                                     (controls_out/row['bundle']/source_file.name).read_bytes())
+                for name,weights in original['model'].state_dict().items():
+                    torch.testing.assert_close(restored['model'].state_dict()[name],weights,rtol=0,atol=0)
+            for name, weights in original['baseline'].model.state_dict().items():
+                torch.testing.assert_close(restored['baseline'].model.state_dict()[name],weights,rtol=0,atol=0)
+            for role in ['train','val']:
+                self.assertEqual([g.organoid_str for g in restored['groups'][role]],
+                                 [g.organoid_str for g in original['groups'][role]])
+                for a,b in zip(restored['groups'][role],original['groups'][role]):
+                    for attr in ['y','edge_index','global_feat']:
+                        torch.testing.assert_close(getattr(a,attr),getattr(b,attr),rtol=0,atol=0)
+                    if row['signal']=='intact':torch.testing.assert_close(a.x,b.x,rtol=0,atol=0)
+                    elif row['signal']=='constant':torch.testing.assert_close(a.x,torch.ones_like(b.x))
+                    else:self.assertEqual(sorted(map(tuple,a.x.tolist())),sorted(map(tuple,b.x.tolist())))
+                    np.testing.assert_array_equal(restored['transform'].inverse(a.y),original['transform'].inverse(b.y))
+                    np.testing.assert_array_equal(restored['baseline_offsets'][a.organoid_str],original['baseline_offsets'][a.organoid_str])
+        self.assertTrue((controls_out/'reference.json').exists())
+        self.assertTrue((controls_out/'regional_evaluation/validation_mse.csv').exists())
+        # All model/data restoration works with the original reference unavailable.
+        reference_location = self.out.with_name('hidden_reference')
+        self.out.rename(reference_location)
+        try:
+            restored = AnalysisRun(controls_out).select(control.records.iloc[0].key)
+            self.assertTrue(restored['groups']['val'])
+        finally:
+            reference_location.rename(self.out)
+
     def test_train_save_and_analyze_without_refitting(self):
         import src.data.io as data_io
         import src.data.metadata as metadata
@@ -70,6 +143,8 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
             self.assertEqual(run.settings['timepoints'], ['day4'])
             self.assertTrue((self.out/'cohort/inputs.pkl').exists())
             self.assertEqual(len(list((self.out/'inputs').glob('*/inputs.pkl'))),2)
+            self.check_reference_controls()
+            self.check_reference_controls(max_folds=1)
             restored=run.select(run.records.iloc[0].key)
             self.assertEqual(set(restored['raw_graphs']), {g.organoid_str for g in self.graphs[:6]})
             self.assertTrue(all(g.meta['timepoint'] == 'day4' for g in restored['raw_graphs'].values()))
@@ -118,25 +193,144 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
                 benchmark = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'benchmark_masking_experiment')
                 benchmark(ROOT, masking_out, centers_per_identity=1, quality_centers_per_organoid=2,
                           batch_size=8, device='cpu')
+                from src.analysis.metrics.evaluation import organoid_mse_summary
+                region_ns = dict(ROOT=ROOT, MASKING_RUN=masking_out, DEVICE='cpu', REGION_SETTINGS={},
+                                 AnalysisRun=AnalysisRun, json=json, pd=pd, plt=plt,
+                                 organoid_mse_summary=organoid_mse_summary, display=lambda *args: None)
+                exec(notebook_sources('training/fate_masking_training.ipynb')[-1], region_ns)
+                mask_regions = pd.read_csv(masking_out/'regional_evaluation/validation_mse.csv')
+                self.assertEqual(set(mask_regions.rate), {0., .02})
+                self.assertTrue(mask_regions.baseline_mse.notna().all())
                 from src.analysis.interventions.replacement import MatchConfig
-                replacement = workflow('ablation/fate_interventions.ipynb', 'run_replacement_analysis')
-                replacement(ROOT, reference, self.out.parent/'replacement', counts=[14,16], folds=[0], seeds=[42],
-                    centers_per_identity=1, sweep_centers_per_identity=1, batch_size=8, device='cpu',
-                    matcher_config=MatchConfig(neighbors=16, min_cells=1, min_organoids=1,
-                        min_identity_cells=1, min_identity_organoids=1))
+                from src.analysis.interventions.fate_edits import (
+                    fate_graphs, sample_fate_contexts, build_replacement_reference,
+                    replacement_distribution, evaluate_fate_edit)
+                subs,cases = sample_fate_contexts(fate_graphs(source),source['marker_names'],2,centers=1)
+                matcher,contexts = build_replacement_reference(source,cases,2,
+                    config=MatchConfig(neighbors=16,min_cells=1,min_organoids=1,min_identity_cells=1,min_identity_organoids=1))
+                weights,_ = replacement_distribution(cases,contexts,matcher,source['marker_names'])
+                effects = evaluate_fate_edit(source,subs,cases,'replacement',count=14,weights=weights,device='cpu')
+                self.assertEqual(len(effects),len(cases))
             # Reopening starts from saved data; no fitted state comes from the training namespace.
             del ns
             with patch('src.training.loop.train',side_effect=AssertionError('Analysis retrained')):
-                for path in ['benchmarks/model_comparison.ipynb','ablation/marker_zeroing.ipynb',
-                             'ablation/sampling_diagnostics.ipynb','embeddings/embedding_responses.ipynb',
+                for path in ['benchmarks/model_comparison.ipynb','ablation/total_analysis.ipynb',
+                             'ablation/size_dependent_ablation.ipynb',
+                             'ablation/sampling_diagnostics.ipynb','data_quality/cohort_review.ipynb','embeddings/embedding_responses.ipynb',
                              'embeddings/clustering.ipynb', 'embeddings/patch_composition.ipynb']:
                     ns={}
                     for source in notebook_sources(path):
                         source=source.replace("resolve_training_run(ROOT, TRAINING_NOTEBOOK, TRAINING_RUN)",f'Path({str(self.out)!r})')
+                        source=source.replace("resolve_training_run(ROOT, TRAINING_SUBFOLDER, TRAINING_RUN)",f'Path({str(self.out)!r})')
+                        source=source.replace("resolve_training_run(ROOT,TRAINING_SUBFOLDER,TRAINING_RUN)",f'Path({str(self.out)!r})')
                         exec(compile(source,path,'exec'),ns)
+                        if 'MODEL_DEPTH =' in source and 'MODEL_FOLD =' in source:
+                            ns.update(MODEL_DEPTH=2, MODEL_FOLD=0, MODEL_NAME='gin', MODEL_KEY=None,
+                                      MODEL_SEED=None, HIDDEN_DIM=None, DEVICE='cpu')
+                        if "ABLATION_TYPE = 'marker_zeroing'" in source:
+                            ns.update(RUN_INFERENCE=True, DEVICE='cpu', SWEEP_COUNTS=[16,32],
+                                      BOOTSTRAP_SAMPLES=5, MIN_PLOT_ORGANOIDS=1, MODEL_NAME='gin')
+                        if 'SAMPLING_SCHEMES =' in source:
+                            ns.update(MODEL_NAME='gin',SAMPLING_REPEATS=[1701])
                         if 'MODEL_KEY = run.records.iloc[0].key' in source:
                             ns['DEVICE']='cpu'
-            self.assertTrue((self.out/'analysis/clustering'/run.records.iloc[0].key/'atlas.pkl').exists())
+                    if path == 'data_quality/cohort_review.ipynb':
+                        self.assertEqual(ns['selected_record'].depth,2)
+                        self.assertEqual(ns['selected_record'].fold,0)
+                        self.assertTrue(ns['ranked'].mse.is_monotonic_decreasing)
+                        np.testing.assert_array_equal(ns['ranked'].mse_rank,np.arange(1,len(ns['ranked'])+1))
+                        self.assertTrue(ns['ranked'].sphericity.notna().all())
+                        for org,row in ns['ranked'].iterrows():
+                            meta=ns['selection']['raw_graphs'][org].meta
+                            self.assertAlmostEqual(row.sphericity,36*np.pi*meta['total_volume']**2/meta['total_surface_area']**3)
+                        ns['candidate_browser'].close()
+                        for control in ns['candidate_controls'].values():control.close()
+                    if path == 'ablation/total_analysis.ipynb':
+                        self.assertEqual(set(ns['cases'].fold), {0,1})
+                        for fold, rows in ns['cases'].groupby('fold'):
+                            record = run.records.query("name == 'gin' and depth == 2 and fold == @fold").iloc[0]
+                            pack = run.select(record.key)
+                            self.assertEqual(set(rows.organoid_str), {g.organoid_str for g in pack['groups']['val']})
+                    if path == 'ablation/size_dependent_ablation.ipynb':
+                        self.assertEqual(set(ns['cases'].fold), {0,1})
+                        self.assertEqual(set(ns['cases'].analysis), {'observed','sweep'})
+                        self.assertEqual(set(ns['cases'].query("analysis == 'sweep'").evaluated_n), {16,32})
+            cluster_key = run.records.query("name == 'gin' and depth == 2 and fold == 0").iloc[0].key
+            cluster_dir = self.out/'analysis/clustering'/cluster_key
+            self.assertTrue((cluster_dir/'atlas.pkl').exists())
+            for figure in ['tsne_clusters_full.png','tsne_clusters_filtered.png',
+                           'marker_composition_full.png','marker_composition_filtered.png',
+                           'cluster_residual_curvature.png','crypt_distance_categories.png']:
+                self.assertTrue((cluster_dir/figure).is_file(),figure)
+            # Marker-population denominators include all positive cells in the
+            # displayed subset, even when some clusters have no assigned cells.
+            for subset in ['full','filtered']:
+                counts = pd.read_csv(cluster_dir/f'marker_counts_{subset}.csv',index_col=0)
+                distribution = pd.read_csv(cluster_dir/f'marker_population_{subset}.csv',index_col=0)
+                present = counts.sum()>0
+                np.testing.assert_allclose(distribution.loc[:,present].sum(),1.)
+                self.assertTrue(distribution.loc[:,~present].isna().all().all())
+                distances = pd.read_csv(cluster_dir/f'dcrypt_category_fractions_{subset}.csv',index_col=0)
+                np.testing.assert_allclose(distances.dropna().sum(axis=1),1.)
+            cells = pd.read_csv(cluster_dir/'cells.csv.gz')
+            np.testing.assert_allclose(cells.y_true_residual+cells.baseline_prediction,cells.y_true,atol=1e-10)
+            np.testing.assert_allclose(cells.y_pred_residual+cells.baseline_prediction,cells.y_pred,atol=1e-10)
+
+    def test_clustering_selects_one_explicit_depth_fold_and_reselects(self):
+        from types import SimpleNamespace
+        source = next(source for source in notebook_sources('embeddings/clustering.ipynb')
+                      if '# Saved model selection: one depth' in source)
+        source = source[source.index('# Saved model selection: one depth'):source.index('# Inference resources')]
+        rows = [dict(key=f'{name}_d{depth}_f{fold}',name=name,depth=depth,fold=fold,seed=42,hidden_dim=8)
+                for name in ['gin','film'] for depth in [0,2] for fold in [0,1]]
+        ns = dict(run=SimpleNamespace(records=pd.DataFrame(rows),legacy=None),MODEL_KEY=None,
+                  MODEL_DEPTH=2,MODEL_FOLD=0,MODEL_NAME='gin',MODEL_SEED=None,HIDDEN_DIM=None)
+        with contextlib.redirect_stdout(io.StringIO()):
+            exec(source,ns)
+            self.assertEqual(ns['SELECTED_MODEL_KEY'],'gin_d2_f0')
+            self.assertIsNone(ns['MODEL_KEY'])
+            ns.update(MODEL_DEPTH=0,MODEL_FOLD=1)
+            exec(source,ns)
+            self.assertEqual(ns['SELECTED_MODEL_KEY'],'gin_d0_f1')
+            ns.update(MODEL_DEPTH=2,MODEL_NAME='film')
+            exec(source,ns)
+            self.assertEqual(ns['SELECTED_MODEL_KEY'],'film_d2_f1')
+            ns['MODEL_NAME']=None
+            with self.assertRaisesRegex(ValueError,'exactly one'):
+                exec(source,ns)
+            ns['MODEL_DEPTH']=99
+            with self.assertRaisesRegex(ValueError,'exactly one'):
+                exec(source,ns)
+            ns['MODEL_KEY']='gin_d2_f0'
+            exec(source,ns)
+            self.assertEqual(ns['SELECTED_MODEL_KEY'],'gin_d2_f0')
+
+    def test_restored_clustering_distance_and_residual_semantics(self):
+        import ast
+        function = next(node for source in notebook_sources('embeddings/clustering.ipynb')
+                        for node in ast.parse(source).body if isinstance(node,ast.FunctionDef) and node.name=='min_node_dcrypt')
+        namespace = dict(np=np,torch=torch)
+        exec(compile(ast.Module(body=[function],type_ignores=[]),'clustering helper','exec'),namespace)
+        nearest = namespace['min_node_dcrypt']
+        distances = np.array([[.1,.9,1.4,np.nan],[.4,1.,2.,np.nan]])
+        for array in [distances,distances.T]:
+            np.testing.assert_allclose(nearest(array,4),[.1,.9,1.4,np.nan],equal_nan=True)
+        self.assertTrue(np.isnan(nearest(None,4)).all())
+        self.assertTrue(np.isnan(nearest(np.empty((0,4)),4)).all())
+        with self.assertRaisesRegex(ValueError,'unambiguously'):
+            nearest(np.zeros((4,4)),4)
+        prepare = next(source for source in notebook_sources('embeddings/clustering.ipynb')
+                       if "if 'baseline_prediction' not in predictions:" in source)
+        table = pd.DataFrame(dict(y_true=[2.,3.,4.,5.],y_pred=[2.1,3.2,4.3,5.4],
+            baseline_prediction=[1.,1.,2.,2.],squared_error=[.01,.04,.09,.16],node=range(4),cluster=[0,0,1,1]))
+        ns=dict(predictions=table.copy(),selection={'residualized':False,'baseline_offsets':{'org':np.zeros(4)}},
+                labels=np.array([0,0,1,1]),cluster_order=np.arange(2),np=np,pd=pd,
+                ERROR_FILTER_DROP_FRACTION=.5,ERROR_FILTER_MIN_RETAINED_PER_CLUSTER=1,
+                SHOW_ACCURACY_FILTERED=True,display=lambda *args:None)
+        exec(prepare,ns)
+        np.testing.assert_allclose(ns['predictions'].y_true_residual,[1.,2.,2.,3.])
+        np.testing.assert_allclose(ns['predictions'].y_pred_residual,[1.1,2.2,2.3,3.4])
+        np.testing.assert_array_equal(ns['retained_mask'],[True,False,True,False])
 
     def test_baseline_is_saved_without_residualization_or_gnn_globals(self):
         split=dict(train_indices=list(range(6)),val_indices=[6,7])
@@ -212,8 +406,7 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
         import src.data.metadata as metadata
         for graph in self.graphs[-2:]:
             graph.meta['timepoint'] = 'day5'
-        notebooks = ['gin_depth_training', 'graph_controls_training',
-                     'lineage_removal_training']
+        notebooks = ['gin_depth_training', 'lineage_removal_training']
         with contextlib.redirect_stdout(io.StringIO()), \
              patch.object(data_io, 'load_graph_dataset_from_dir', side_effect=lambda _: copy.deepcopy(self.graphs)), \
              patch.object(metadata, 'load_aux_metadata_for_dir', return_value={}), \

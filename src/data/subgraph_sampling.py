@@ -989,10 +989,15 @@ def sample_subgraphs_coverage(
     """
     if max_subgraphs is None or max_subgraphs >= len(subgraphs):
         if return_info:
-            return list(subgraphs), {
-                "selected_indices": np.arange(len(subgraphs), dtype=np.int64),
-                "note": "No subsampling applied",
-            }
+            state = _prepare_coverage_sampling(
+                subgraphs, marker_names, k_hops, min_center_count, min_pair_count, threshold,
+            )
+            selected = np.arange(len(subgraphs), dtype=np.int64)
+            for idx in selected:
+                _add_coverage_subgraph(idx, state)
+            info = _coverage_diagnostics(selected, state, marker_names)
+            info['note'] = 'No subsampling applied'
+            return list(subgraphs), info
         return list(subgraphs)
 
     if max_subgraphs <= 0:

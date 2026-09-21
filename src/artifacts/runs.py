@@ -13,6 +13,53 @@ from src.models.gnn import GINCurvature, SizeFiLMGINCurvature
 from .checkpoints import load_weights
 
 
+def select_depth_records(run, depth, *, model_name=None, hidden_dim=None, seeds=None, rate=None):
+    """Select one intact full-panel architecture at a depth across every saved fold.
+
+    Reject ambiguous widths/families and incomplete fold/seed grids. Validation
+    inputs are subsequently restored with ``run.select`` for each returned key.
+    """
+    if not isinstance(depth, int) or isinstance(depth, bool) or depth < 0:
+        raise ValueError('Model depth must be a nonnegative integer.')
+    records = run.records
+    rows = records[(records.depth == depth) & (records.subset == 'all') & (records.signal == 'intact')].copy()
+    if model_name is not None:
+        rows = rows[rows.name == model_name]
+    if hidden_dim is not None:
+        if 'hidden_dim' in rows:
+            rows = rows[rows.hidden_dim == hidden_dim]
+        elif run.legacy.settings['HIDDEN_DIM'] != hidden_dim:
+            rows = rows.iloc[:0]
+    if rate is not None:
+        if 'rate' not in rows:
+            raise ValueError('This run has no masking rates.')
+        rows = rows[rows.rate == rate]
+    elif 'rate' in rows and rows.rate.notna().any():
+        raise ValueError('Select a saved masking rate explicitly.')
+    if rows.empty:
+        raise ValueError(f'No matching all-marker intact models at depth {depth}; inspect the run catalog.')
+    family_columns = ['name'] + (['hidden_dim'] if 'hidden_dim' in rows else [])
+    if len(rows[family_columns].drop_duplicates()) != 1:
+        raise ValueError('Select MODEL_NAME and HIDDEN_DIM to identify one model architecture.')
+    if run.modern:
+        splits = json.loads((run.directory / 'splits.json').read_text())
+        expected_folds = {s['fold'] for s in splits}
+        expected_seeds = set(run.settings['seeds'])
+    else:
+        expected_folds = set(run.legacy.metadata.get('folds', [s['fold'] for s in run.legacy.splits]))
+        expected_seeds = set(run.legacy.metadata.get('seeds', run.legacy.settings['MODEL_SEEDS']))
+    if seeds is not None:
+        if not seeds or len(set(seeds)) != len(seeds) or not set(seeds) <= expected_seeds:
+            raise ValueError('Select distinct seeds present in the training settings.')
+        expected_seeds = set(seeds)
+        rows = rows[rows.seed.isin(seeds)]
+    expected = {(fold, seed) for fold in expected_folds for seed in expected_seeds}
+    actual = set(zip(rows.fold, rows.seed))
+    if actual != expected or rows.duplicated(['fold', 'seed']).any():
+        raise ValueError(f'Incomplete or duplicate model grid at depth {depth}; missing: {sorted(expected - actual)}')
+    return rows.sort_values(['fold', 'seed']).reset_index(drop=True)
+
+
 class SavedRun:
     def __init__(self, directory):
         self.directory = Path(directory).resolve()

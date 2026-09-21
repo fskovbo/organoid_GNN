@@ -5,6 +5,7 @@ from pathlib import Path
 import pickle
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -27,8 +28,10 @@ from src.artifacts.runs import AnalysisRun
 from notebook_workflows import workflow
 train_masking_experiment = workflow('training/fate_masking_training.ipynb', 'train_masking_experiment')
 benchmark_masking_experiment = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'benchmark_masking_experiment')
-run_replacement_analysis = workflow('ablation/fate_interventions.ipynb', 'run_replacement_analysis')
-run_masking_ablation = workflow('ablation/fate_interventions.ipynb', 'run_masking_ablation')
+from src.analysis.interventions.fate_edits import (
+    fate_graphs, sample_fate_contexts, build_replacement_reference, replacement_distribution,
+    evaluate_fate_edit, summarize_fate_effects, align_method_cases,
+)
 
 
 SETTINGS=dict(HIDDEN_DIM=8, NUM_LAYERS=2, DROPOUT=0., RESIDUAL=True, NORM='batch',
@@ -194,11 +197,20 @@ class FateMaskingTests(unittest.TestCase):
                 benchmark=load_mask_benchmarks(out)
                 self.assertEqual(set(benchmark['intact'].mask_rate),{0.,.1})
                 self.assertEqual(set(benchmark['masked'].mask_rate),{.1})
-                run_replacement_analysis(root,reference,old,centers_per_identity=1,batch_size=16,device='cpu',
-                    matcher_config=MatchConfig(neighbors=64,min_cells=1,min_organoids=1,min_identity_cells=1,
+                selected = AnalysisRun(out,root=root).select('gin_film_size_f0_s42_p0.1')
+                subs,cases = sample_fate_contexts(fate_graphs(selected),['A','B'],2,centers=2)
+                matcher,contexts = build_replacement_reference(selected,cases,2,
+                    config=MatchConfig(neighbors=64,min_cells=1,min_organoids=1,min_identity_cells=1,
                         min_identity_organoids=1,max_composition_l1=2))
-                run_masking_ablation(root,old,out,aug,rate=.1,batch_size=16,device='cpu')
-                result=load_masking_comparison(aug,bootstrap_samples=5)
+                weights,audit = replacement_distribution(cases,contexts,matcher,['A','B'])
+                methods = {}
+                for method in ['marker_zeroing','masking','replacement']:
+                    frames = [evaluate_fate_edit(selected,subs,cases,method,count=count,weights=weights,
+                        device='cpu',batch_size=16).assign(fold=0,seed=42,model_key='mask_p0.1') for count in [None,12,24]]
+                    methods[method] = pd.concat(frames,ignore_index=True)
+                aligned = align_method_cases(methods)
+                total = summarize_fate_effects(aligned['masking'],view='total',draws=5)
+                size = summarize_fate_effects(aligned['masking'],view='size',draws=5)
                 # Override the reference architecture, then load it through the
                 # same saved-run interface used by downstream analysis notebooks.
                 custom = root / 'masking_depth3'
@@ -208,7 +220,7 @@ class FateMaskingTests(unittest.TestCase):
                 train_masking_experiment(root, reference, custom, config=config,
                     device='cpu', model_overrides=overrides)
                 run = AnalysisRun(custom, root=root)
-                selected = run.select(run.records.iloc[0].key)
+                selected = run.select(run.records.query('rate > 0').iloc[0].key)
                 self.assertEqual(selected['model'].num_layers, 3)
                 self.assertEqual(selected['model'].hidden_dim, 12)
                 self.assertEqual(selected['model'].dropout, .2)
@@ -219,13 +231,13 @@ class FateMaskingTests(unittest.TestCase):
                 self.assertEqual(json.loads((reference/'settings.json').read_text())['NUM_LAYERS'], 2)
                 benchmark_masking_experiment(root, custom, centers_per_identity=1,
                                              batch_size=16, device='cpu')
-                run_masking_ablation(root, old, custom, root/'mask_ablation_depth3',
-                                    rate=.1, batch_size=16, device='cpu')
-            self.assertIn('masking',result['summary'].method.unique())
-            self.assertEqual(len(result['methods']),4)
-            frame=result['cases'];u=frame[frame.source_marker_name=='Unassigned']
-            np.testing.assert_allclose(u.zero_delta_mu,0,atol=1e-7)
-            self.assertTrue((frame.fixed_supported==frame.dependent_supported).all())
+                subs3,cases3 = sample_fate_contexts(fate_graphs(selected),['A','B'],3,centers=2)
+                self.assertEqual(set(cases3.hop),{1,2,3})
+                deeper = evaluate_fate_edit(selected,subs3,cases3,'masking',device='cpu')
+                self.assertTrue(np.isfinite(deeper.delta_mu).all())
+            self.assertEqual(set(aligned), {'marker_zeroing','masking','replacement'})
+            zeros = methods['marker_zeroing'].query("source_marker_name == 'Unassigned'")
+            np.testing.assert_allclose(zeros.delta_mu,0,atol=1e-7)
             membership=json.loads((out/'fold_0_membership.json').read_text())
             self.assertFalse(set(membership['benchmark']) & set(membership['early_stopping']))
             # Exercise plots and summaries as well as all inference entry points.
@@ -236,13 +248,49 @@ class FateMaskingTests(unittest.TestCase):
             plot_masked_quality = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_masked_quality')
             plot_training_robustness = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_training_robustness')
             plot_effect_robustness = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'masking_plot_effect_robustness')
-            plot_pair_grid = workflow('ablation/fate_interventions.ipynb', 'replacement_plot_pair_grid')
+            from src.plotting.influence_maps import plot_pair_heatmaps, plot_pair_size_curves
             import matplotlib.pyplot as plt
             tables=benchmark_tables(benchmark,bootstrap_samples=5)
             figures=[plot_intact_quality(tables),plot_masked_quality(tables),
                      plot_training_robustness(benchmark,tables),plot_effect_robustness(benchmark,tables,min_organoids=1),
-                     plot_pair_grid(result,min_organoids=1)]
+                     plot_pair_heatmaps(total),plot_pair_size_curves(size,hop=1)]
             for i,fig in enumerate(figures):fig.savefig(root/f'figure_{i}.png');plt.close(fig)
+            # Execute the public notebooks for every method, then compare their
+            # saved outputs. This exercises the actual settings/load/save paths.
+            outputs = {}
+            import src.artifacts.paths as artifact_paths
+            notebook_root = Path(__file__).resolve().parents[1]/'experiments/ablation'
+            with contextlib.redirect_stdout(io.StringIO()), \
+                 patch.object(artifact_paths,'resolve_training_run',return_value=out), \
+                 patch.object(plt,'show',side_effect=lambda:plt.close('all')):
+                for notebook_name in ['total_analysis','size_dependent_ablation']:
+                    for method in ['marker_zeroing','masking','replacement']:
+                        namespace = {}
+                        notebook = json.loads((notebook_root/f'{notebook_name}.ipynb').read_text())
+                        for cell in notebook['cells']:
+                            if cell['cell_type']!='code':continue
+                            source = ''.join(cell['source'])
+                            exec(compile(source,notebook_name,'exec'),namespace)
+                            if "ABLATION_TYPE = 'marker_zeroing'" in source:
+                                namespace.update(ROOT=root,ABLATION_TYPE=method,MASKING_RATE=.1,MODEL_DEPTH=2,
+                                    CENTERS_PER_ORGANOID=2,DEVICE='cpu',BOOTSTRAP_SAMPLES=5,
+                                    MIN_PLOT_ORGANOIDS=1,SWEEP_COUNTS=[12,24],MATCHING=MatchConfig(
+                                        neighbors=64,min_cells=1,min_organoids=1,min_identity_cells=1,
+                                        min_identity_organoids=1,max_composition_l1=2))
+                        outputs[(notebook_name,method)] = namespace['OUTPUT_DIR']
+                        self.assertEqual(set(namespace['cases'].hop),{1,2})
+                        self.assertFalse(namespace['summary'].empty)
+                comparison = json.loads((notebook_root/'ablation_comparison.ipynb').read_text())
+                for mode in ['total_analysis','size_dependent_ablation']:
+                    namespace = {}
+                    for cell in comparison['cells']:
+                        if cell['cell_type']!='code':continue
+                        source=''.join(cell['source'])
+                        exec(compile(source,'comparison','exec'),namespace)
+                        if 'ANALYSIS_DIRS = {' in source:
+                            namespace.update(ANALYSIS_DIRS={method:outputs[(mode,method)] for method in methods},
+                                BOOTSTRAP_SAMPLES=5,MIN_PLOT_ORGANOIDS=1,OUTPUT_DIR=root/f'comparison_{mode}')
+                    self.assertEqual(set(namespace['total'].label),set(methods))
 
 
 if __name__=='__main__':unittest.main()

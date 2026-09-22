@@ -136,7 +136,7 @@ def train(model, train_graphs, val_graphs, cfg=TrainConfig(), loss_fn=None, *, v
         report_epoch(dict(epoch=epoch, max_epochs=cfg.max_epochs, metric='Validation MAE',
                           value=vl_mae, best_value=best_val, best_epoch=best_epoch,
                           bad_epochs=cfg.patience-patience_left, patience=cfg.patience), epoch_callback)
-        if patience_left <= 0:
+        if patience_left <= 0 and best_epoch != epoch:
             break
 
     if best_state is not None:

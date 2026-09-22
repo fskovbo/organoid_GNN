@@ -91,6 +91,16 @@ class TrainingProgressTests(unittest.TestCase):
         self.assertEqual(events[-1]['best_epoch'],2)
         self.assertEqual(events[-1]['bad_epochs'],2)
 
+    def test_zero_patience_stops_on_first_nonimproving_epoch(self):
+        model=GINCurvature(n_markers=2,hidden_dim=4,num_layers=0,dropout=0.,norm='none')
+        graph=Data(x=torch.eye(2),y=torch.zeros(2),edge_index=torch.tensor([[0,1],[1,0]]))
+        config=TrainConfig(device='cpu',max_epochs=10,patience=0)
+        passes=[(1.,1.),(1.,.8),(1.,1.),(1.,.5),(1.,1.),(1.,.7)]
+        with patch('src.training.loop.epoch_pass',side_effect=passes):
+            _,metrics,history=train(model,[graph],[graph],config,verbose=False)
+        self.assertEqual(history['val_mae'],[.8,.5,.7])
+        self.assertEqual(metrics['val_mae'],.5)
+
     def test_reporting_preserves_actual_training_results(self):
         base=GINCurvature(n_markers=2,hidden_dim=4,num_layers=1,dropout=.2,norm='none')
         graph=Data(x=torch.eye(2),y=torch.tensor([.1,-.2]),edge_index=torch.tensor([[0,1],[1,0]]))

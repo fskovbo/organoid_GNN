@@ -26,7 +26,7 @@ from src.data.target_transforms import IdentityTransform
 from src.artifacts.runs import AnalysisRun
 
 from notebook_workflows import workflow
-train_masking_experiment = workflow('training/fate_masking_training.ipynb', 'train_masking_experiment')
+from legacy_masking_fixture import train_masking_experiment
 benchmark_masking_experiment = workflow('benchmarks/masking_quality_and_robustness.ipynb', 'benchmark_masking_experiment')
 from src.analysis.interventions.fate_edits import (
     fate_graphs, sample_fate_contexts, build_replacement_reference, replacement_distribution,

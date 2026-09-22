@@ -86,6 +86,12 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
         for row in control.records.to_dict('records'):
             restored = control.select(row['key'])
             original = reference.select(row['reference_key'])
+            if row['name'] == 'ring-size':
+                from src.models.ring_mlp import RingSizeMLP
+                self.assertIs(type(restored['model']), RingSizeMLP)
+                self.assertTrue(restored['model'].use_center_markers)
+                self.assertEqual(restored['model'].encoder[0].in_features,
+                                 len(restored['marker_names']) + row['depth'] + 1)
             if row['reused_reference']:
                 source_record = reference.records.set_index('key').loc[row['reference_key']]
                 for source_file in (self.out/source_record.bundle).iterdir():
@@ -181,7 +187,7 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
                 torch.testing.assert_close(exact['val'][0].y, source['groups']['val'][0].y, rtol=0, atol=0)
                 from notebook_workflows import workflow
                 from src.training.masking import MaskTrainingConfig
-                train_masking = workflow('training/fate_masking_training.ipynb', 'train_masking_experiment')
+                from legacy_masking_fixture import train_masking_experiment as train_masking
                 masking_out = self.out.parent/'masking'
                 train_masking(ROOT, reference, masking_out, folds=[0], seeds=[42], device='cpu', run_tag='fixture',
                     config=MaskTrainingConfig(rates=(0., .02), max_epochs=1, patience=1, batch_size=4))
@@ -194,7 +200,7 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
                 benchmark(ROOT, masking_out, centers_per_identity=1, quality_centers_per_organoid=2,
                           batch_size=8, device='cpu')
                 from src.analysis.metrics.evaluation import organoid_mse_summary
-                region_ns = dict(ROOT=ROOT, MASKING_RUN=masking_out, DEVICE='cpu', REGION_SETTINGS={},
+                region_ns = dict(ROOT=ROOT, RUN_DIR=masking_out, DEVICE='cpu', REGION_SETTINGS={},
                                  AnalysisRun=AnalysisRun, json=json, pd=pd, plt=plt,
                                  organoid_mse_summary=organoid_mse_summary, display=lambda *args: None)
                 exec(notebook_sources('training/fate_masking_training.ipynb')[-1], region_ns)

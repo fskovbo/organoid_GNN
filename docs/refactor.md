@@ -48,18 +48,32 @@ FiLM shares the main GIN bundle format and cohort snapshots. The size-reference 
 exports a selected FiLM depth/width grid under its run's `analysis_inputs/` directory for
 existing replacement/masking consumers. It preserves exact prepared graphs, fitted target
 transforms, weights and baseline offsets; training-only area–N calibration is derived for
-geometric normalization. Masking runs retain their explicit outer/inner memberships and
-copied reference preprocessing. Older runs that predate cohort snapshots still require
-the original dataset files. Historical run folders are not moved.
+geometric normalization. Historical masking runs with copied references remain readable;
+older runs without cohort snapshots still require their original dataset files.
+Historical run folders are not moved.
 
-Masking training uses a configurable depth/width architecture per run, crossed with
-folds, seeds and masking rates. The reference fixes cohort and fitted transformations;
-explicit architecture and optimizer overrides are saved separately as `model_overrides`
-and resolved into `model_settings` for restoration. Models are initialized from scratch.
-Depth 0 supports the missingness flag in the head and has no neighbor interactions.
-Single-neighbor inference retains at least the model's full receptive field, even when
-only hop-1 and hop-2 sources are probed. `RUN_TRAINING` consistently guards fitting in
-all training notebooks; it does not control the independent analysis notebooks.
+Masking training is now standalone: its own settings define the dataset, shared timepoints,
+filters, exclusive fate encoding, outer/inner splits, residualization and optimizer.
+`model_types=['gin']`, `['film']`, or both select the architecture; `depths`, `hidden_dims`,
+`seeds`, folds and masking rates define the grid. No settings or preprocessing are copied
+from another training notebook or run. The default remains FiLM at depth 2, explicitly
+configurable rather than hard-coded.
+
+Each fold always fits/saves a global baseline, even without residualization. Baseline and
+preprocessing fitting use outer-training organoids, including the inner early-stopping
+group; this preserves the earlier masking protocol rather than claiming fully nested
+preprocessing. New masking runs use the same `models.json`, `models/`, `inputs/`, `cohort/`
+and `splits.json` bundle format as other training notebooks, plus `inner_splits.json`.
+Saved analysis inputs carry the observed missingness flag. The model catalog records
+family, depth, width, fold, seed and masking rate. Initialization preserves unmasked
+predictions with zero flag weights; narrow-width residual projections are recorded in
+checkpoint specifications so restoration preserves the actual trained architecture.
+
+The masking quality benchmark explicitly selects one family/depth/width, comparing rates
+and seeds within it. Its reports live under `analysis/masking_quality/<family>_d<depth>_h<width>`.
+Modern masking models also load directly in the general ablation and embedding notebooks.
+Depth 0 has no neighborhood interactions. `RUN_TRAINING` guards fitting, not independent
+analysis notebooks; all new run settings should be reviewed before enabling it.
 
 ## Model-independent restoration
 

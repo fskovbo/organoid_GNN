@@ -95,5 +95,21 @@ class RegionalEvaluationTests(unittest.TestCase):
             self.assertIn("region_output / 'node_regions.csv.gz'",source)
             self.assertNotIn('exclusive_v2_profile_necks',source)
 
+    def test_signal_panels_keep_scores_separate(self):
+        scores = pd.DataFrame([
+            dict(name='gin', signal=signal, region=region, depth=depth,
+                 organoid_str=org, mse=value, baseline_mse=10.)
+            for signal, value in [('intact', 1.), ('permuted', 5.), ('constant', 9.)]
+            for region in ['crypt', 'neck', 'villus']
+            for depth in [1, 2] for org in ['a', 'b']])
+        fig = plot_regional_mse(scores, facet_by='signal')
+        self.assertEqual(len(fig.axes), 9)
+        for ax, expected in zip(fig.axes, [1.]*3 + [5.]*3 + [9.]*3):
+            self.assertEqual(ax.lines[0].get_ydata().tolist(), [expected, expected])
+            self.assertEqual(ax.lines[1].get_ydata().tolist(), [10., 10.])
+            self.assertEqual(ax.lines[0].get_color(), fig.axes[0].lines[0].get_color())
+            self.assertEqual(len(ax.collections), 2)  # Model and baseline SEM bands.
+        plt.close(fig)
+
 
 if __name__=='__main__':unittest.main()

@@ -28,13 +28,24 @@ def model_spec(model):
             if not hasattr(model, name):
                 raise ValueError(f"{cls.__name__} does not record constructor argument {name!r}")
             kwargs[name] = getattr(model, name)
-    return {"module": cls.__module__, "class": cls.__name__, "kwargs": kwargs}
+    spec = {"module": cls.__module__, "class": cls.__name__, "kwargs": kwargs}
+    # Missing-fate initialization can require a learned residual projection even
+    # when augmented input width equals hidden width (normally an identity).
+    projection = getattr(model, 'input_proj', None)
+    if (projection is not None and getattr(model, 'residual', False)
+            and getattr(model, 'n_markers', None) == getattr(model, 'hidden_dim', None)):
+        spec['input_projection'] = dict(in_features=projection.in_features,
+            out_features=projection.out_features, bias=projection.bias is not None)
+    return spec
 
 
 def build_model(spec):
     if not spec["module"].startswith("src.models."):
         raise ValueError("Model specifications must refer to src.models")
-    return getattr(importlib.import_module(spec["module"]), spec["class"])(**spec["kwargs"])
+    model = getattr(importlib.import_module(spec["module"]), spec["class"])(**spec["kwargs"])
+    if 'input_projection' in spec:
+        model.input_proj = torch.nn.Linear(**spec['input_projection'])
+    return model
 
 
 def checkpoint_state(payload):

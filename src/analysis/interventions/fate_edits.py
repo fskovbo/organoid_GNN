@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 from src.data.subgraphs import build_ego_subgraphs_for_graph
 from src.graph.neighborhood import compute_hop_rings
-from src.data.subgraph_sampling import sample_subgraphs_coverage, flag_non_overlapping_source_cases
+from src.data.subgraph_sampling import sample_subgraphs_coverage, flag_non_overlapping_source_cases, sample_balanced_groups
 from src.data.fate_masking import encode_fates, ObservedFateAdapter
 from src.analysis.interventions.perturbation import predict_subgraph_center_distribution
 from src.analysis.interventions.size_sweeps import _size_override, summarize_by_organoid
@@ -42,6 +42,7 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
                          max_subgraphs=2000, min_center_count=50, min_pair_count=25,
                          apply_non_overlap=False,
                          non_overlap_group_columns=('hop', 'center_marker', 'source_marker'),
+                         size_bins=None, cases_per_pair_bin=25, max_cases_per_organoid=2,
                          return_info=False):
     """Sample single-source cases, optionally using the historical coverage design.
 
@@ -54,16 +55,29 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
     per recipient/source/hop bin, before inference and independently of N.
     Targets are best-effort: unavailable pairs, budget and non-overlap can
     prevent reaching them. Returned diagnostics distinguish these stages.
+
+    ``size_stratified`` instead samples at most ``cases_per_pair_bin`` cases
+    per (observed-size bin, recipient identity, source identity, exact hop),
+    spreading them across organoids with a per-organoid cap. Each center has
+    one randomly chosen source per identity/hop, without replacement. Quotas
+    are independent of swept N and the resulting manifest stays fixed across
+    the sweep. Legacy coverage/center-budget parameters are unused in this mode.
     """
     if not isinstance(depth, int) or depth < 1:
         raise ValueError('Neighbor ablation requires model depth >= 1; depth 0 has no neighbor interactions.')
-    if scheme not in ('coverage', 'uniform', 'stratified') or centers < 1:
-        raise ValueError('Choose coverage/uniform/stratified sampling and a positive recipient quota.')
+    if scheme not in ('coverage', 'uniform', 'stratified', 'size_stratified') or centers < 1:
+        raise ValueError('Choose coverage/uniform/stratified/size_stratified sampling and a positive recipient quota.')
     if min_center_count < 0 or min_pair_count < 0:
         raise ValueError('Coverage targets must be nonnegative.')
     if max_subgraphs is not None and max_subgraphs < 1:
         raise ValueError('Coverage budget must be positive or None.')
     graphs = sorted(graphs, key=lambda g: str(g.organoid_str))
+    if scheme == 'size_stratified':
+        edges = np.asarray(size_bins, dtype=float)
+        if edges.ndim != 1 or len(edges) < 2 or np.isnan(edges).any() or not (np.diff(edges) > 0).all():
+            raise ValueError('size_stratified requires increasing size-bin edges.')
+        if any(not edges[0] <= len(g.x) < edges[-1] for g in graphs):
+            raise ValueError('Size bins must cover every validation organoid; use np.inf for the last edge.')
     rng = np.random.default_rng(seed)
     subs, signatures = [], {}
     names = [*markers, 'Unassigned']
@@ -74,7 +88,7 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
         signatures[str(graph.organoid_str)] = hashlib.sha256(x.tobytes() + graph.edge_index.cpu().numpy().tobytes()).hexdigest()
         identities = [np.flatnonzero(x[:, j] > .5) for j in range(len(markers))]
         identities.append(np.flatnonzero(x.sum(1) == 0))
-        if scheme == 'coverage':
+        if scheme in ('coverage', 'size_stratified'):
             chosen = range(len(x))
         elif scheme == 'uniform':
             chosen = rng.choice(len(x), min(centers, len(x)), replace=False)
@@ -120,6 +134,7 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
                     graph_signature=signatures[str(graph.organoid_str)], eligible_sources=len(available)))
     cases = pd.DataFrame(rows)
     pair_columns = ['hop', 'center_marker', 'source_marker_name']
+    size_coverage = None
     if not cases.empty:
         pairs = expand_recipients(cases)
         if apply_non_overlap:
@@ -127,16 +142,46 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
                 group_columns=non_overlap_group_columns, seed=seed, shuffle=True)
         else:
             pairs['passes_non_overlap'] = True
-        retained = pairs[pairs.passes_non_overlap].groupby('case_id').center_marker.agg(list)
+        pairs['selected'] = pairs.passes_non_overlap
+        if scheme == 'size_stratified':
+            pairs['size_bin'] = pd.cut(pairs.observed_n, edges, labels=False, right=False).astype(int)
+            strata = ['size_bin', *pair_columns]
+            identity_key = ['organoid_str','orig_center','source_marker_name','hop','center_marker']
+            if pairs.duplicated(identity_key).any():
+                raise ValueError('Repeated center/source-identity/hop candidates.')
+            chosen = sample_balanced_groups(pairs[pairs.passes_non_overlap], strata,
+                group_size=cases_per_pair_bin, unit_column='organoid_str',
+                max_per_unit=max_cases_per_organoid, seed=seed)
+            pairs['selected'] = pairs.index.isin(chosen.index)
+            grid = pd.MultiIndex.from_product([range(len(edges)-1), range(1,depth+1), names, names], names=strata)
+            available = pairs.groupby(strata).agg(available_cases=('case_id','size'), available_organoids=('organoid_str','nunique'))
+            kept = chosen.groupby(strata).agg(selected_count=('case_id','size'), selected_organoids=('organoid_str','nunique'))
+            size_coverage = available.join(kept).reindex(grid).fillna(0).astype(int).reset_index()
+            size_coverage['target_count'] = cases_per_pair_bin
+            size_coverage['target_met'] = size_coverage.selected_count >= cases_per_pair_bin
+            size_coverage['shortfall'] = (cases_per_pair_bin-size_coverage.selected_count).clip(lower=0)
+            size_coverage['n_lower'] = size_coverage.size_bin.map(dict(enumerate(edges[:-1])))
+            size_coverage['n_upper'] = size_coverage.size_bin.map(dict(enumerate(edges[1:])))
+        retained = pairs[pairs.selected].groupby('case_id').center_marker.agg(list)
         # Coexpressing recipients can pass in one marker bin and fail in another.
         # Keep their graph features intact; restrict only the summary memberships.
         cases = cases[cases.case_id.isin(retained.index)].copy()
         cases['center_marker_names'] = cases.case_id.map(retained)
         before = pairs.groupby(pair_columns).size()
-        after = pairs[pairs.passes_non_overlap].groupby(pair_columns).size()
+        after = pairs[pairs.selected].groupby(pair_columns).size()
     else:
         pairs = pd.DataFrame()
         before = after = pd.Series(dtype=int)
+    if scheme == 'size_stratified':
+        # Infer only the selected centers; build each ego-graph once even if it
+        # contributes different source identities/hops.
+        used = sorted(cases.subgraph_index.unique()) if not cases.empty else []
+        lookup = {old:new for new,old in enumerate(used)}
+        subs = [subs[i] for i in used]
+        if not cases.empty:
+            cases['subgraph_index'] = cases.subgraph_index.map(lookup)
+            pairs['candidate_subgraph_index'] = pairs.subgraph_index
+            pairs['subgraph_index'] = pairs.subgraph_index.map(lookup)
     if not return_info:
         return subs, cases.reset_index(drop=True)
     pair_rows = []
@@ -145,19 +190,26 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
             for mi, source in enumerate(names):
                 key = (hi + 1, center, source)
                 selected, kept = int(before.get(key, 0)), int(after.get(key, 0))
+                target = cases_per_pair_bin*(len(edges)-1) if scheme == 'size_stratified' else min_pair_count
+                non_overlap_excluded = int((~pairs.loc[(pairs.hop == hi+1) & (pairs.center_marker == center) &
+                    (pairs.source_marker_name == source), 'passes_non_overlap']).sum()) if not pairs.empty else 0
                 pair_rows.append(dict(hop=hi+1, center_marker=center, source_marker_name=source,
-                    global_available=int(coverage['pair_freq_global'][hi, ci, mi]) if coverage else np.nan,
-                    target_count=min_pair_count, coverage_selected_count=selected, selected_count=kept,
-                    non_overlap_excluded_count=selected-kept, target_met=kept >= min_pair_count))
+                    global_available=int(coverage['pair_freq_global'][hi, ci, mi]) if coverage else
+                        selected if scheme == 'size_stratified' else np.nan,
+                    target_count=target, coverage_selected_count=selected, selected_count=kept,
+                    non_overlap_excluded_count=non_overlap_excluded,
+                    quota_excluded_count=selected-kept-non_overlap_excluded, target_met=kept >= target))
     center_rows = []
     for ci, name in enumerate(names):
         count = sum(bool(sub.x[int(sub.center_idx), ci] > .5) if ci < len(markers)
                     else bool(sub.x[int(sub.center_idx)].sum() == 0) for sub in subs)
-        center_rows.append(dict(marker=name, target_count=min_center_count, selected_count=count,
+        center_rows.append(dict(marker=name, target_count=None if scheme == 'size_stratified' else min_center_count, selected_count=count,
             global_available=int(coverage['center_freq_global'][ci]) if coverage else np.nan,
-            target_met=count >= min_center_count))
+            target_met=None if scheme == 'size_stratified' else count >= min_center_count))
     info = dict(center_coverage=pd.DataFrame(center_rows), pair_coverage=pd.DataFrame(pair_rows),
                 case_non_overlap=pairs, n_selected=len(subs))
+    if size_coverage is not None:
+        info['size_pair_coverage'] = size_coverage
     return subs, cases.reset_index(drop=True), info
 
 
@@ -308,10 +360,10 @@ def expand_recipients(frame):
     return result.explode('center_marker',ignore_index=True)
 
 
-def supported_effects(frame):
+def supported_effects(frame, *, metric='delta_mu'):
     """Keep a fixed supported source cohort across every supplied N per checkpoint."""
     result = frame.copy()
-    ok = result.supported.astype(bool) & np.isfinite(result.delta_mu)
+    ok = result.supported.astype(bool) & np.isfinite(result.delta_mu) & np.isfinite(result[metric])
     swept = result.analysis.eq('sweep')
     if swept.any():
         keys = ['model_key','case_id']
@@ -320,9 +372,19 @@ def supported_effects(frame):
     return result[ok].copy()
 
 
-def summarize_fate_effects(frame, *, view='total', metric='delta_mu', size_bins=(0,150,250,350,500,800,np.inf), draws=500, seed=42):
-    """Equal-organoid summaries; cases and repeated model seeds average within organoid."""
-    selected = expand_recipients(supported_effects(frame)) if 'center_marker' not in frame else supported_effects(frame)
+def summarize_fate_effects(frame, *, view='total', metric='delta_mu', size_bins=(0,150,250,350,500,800,np.inf),
+                           draws=500, seed=42, sweep_weighting='organoids', sweep_min_organoids_per_bin=1):
+    """Average cases/seeds within organoids; optionally balance sweep size strata.
+
+    ``equal_size_bins`` averages organoids within original-size bins, then bins
+    equally. Bins below the specified organoid minimum are excluded for that
+    pair/hop across the whole sweep. Export their membership in the summary.
+    Observed curves always average organoids within their own size bin.
+    """
+    if sweep_weighting not in ('organoids','equal_size_bins') or sweep_min_organoids_per_bin < 1:
+        raise ValueError('Choose organoids/equal_size_bins and a positive bin support threshold.')
+    supported = supported_effects(frame,metric=metric)
+    selected = expand_recipients(supported) if 'center_marker' not in frame else supported
     if view=='total':
         selected = selected[selected.analysis=='observed']
         groups = ['center_marker','source_marker_name','hop']
@@ -333,7 +395,34 @@ def summarize_fate_effects(frame, *, view='total', metric='delta_mu', size_bins=
         groups = ['analysis','center_marker','source_marker_name','hop','coordinate']
     else:
         raise ValueError('view must be total or size.')
-    summary = summarize_by_organoid(selected,groups,metric,bootstrap_samples=draws,seed=seed)
+    if view == 'size' and sweep_weighting == 'equal_size_bins':
+        selected['_original_size_bin'] = pd.cut(selected.observed_n,size_bins,labels=False,right=False)
+        swept = selected.analysis.eq('sweep')
+        keys = ['center_marker','source_marker_name','hop','_original_size_bin']
+        eligible = selected[swept & np.isfinite(selected[metric])].groupby(keys,observed=True).organoid_str.nunique()
+        eligible = eligible[eligible >= sweep_min_organoids_per_bin].index
+        selected = selected[~swept | pd.MultiIndex.from_frame(selected[keys]).isin(eligible)].copy()
+        parts = []
+        for mode in ('observed','sweep'):
+            part = selected[selected.analysis==mode]
+            table = summarize_by_organoid(part,groups,metric,bootstrap_samples=draws,seed=seed,
+                strata_column='_original_size_bin' if mode=='sweep' else None)
+            if table.empty:
+                table['size_bins_used'] = pd.Series(dtype=str)
+                table['n_size_bins'] = pd.Series(dtype=int)
+                table['weighting'] = pd.Series(dtype=str)
+                parts.append(table)
+                continue
+            membership = part.groupby(groups,observed=True)._original_size_bin.agg(
+                lambda bins: json.dumps(sorted(int(b) for b in bins.dropna().unique()))).rename('size_bins_used').reset_index()
+            table = table.merge(membership,on=groups,validate='one_to_one')
+            table['n_size_bins'] = table.size_bins_used.map(lambda bins:len(json.loads(bins)))
+            table['weighting'] = 'equal_size_bins' if mode=='sweep' else 'organoids'
+            parts.append(table)
+        populated = [part for part in parts if not part.empty]
+        summary = pd.concat(populated,ignore_index=True) if populated else parts[0]
+    else:
+        summary = summarize_by_organoid(selected,groups,metric,bootstrap_samples=draws,seed=seed)
     if not summary.empty:
         finite = selected[np.isfinite(selected[metric])]
         unique = finite.drop_duplicates(groups + ['organoid_str', 'orig_center', 'orig_source_node'])
@@ -354,7 +443,7 @@ def count_fate_cases(frame, *, metric='delta_mu', size_bins=None):
     counts pool the configured size bins, when supplied; these are not counts
     per individual bin. Include pairs below plot thresholds for diagnosis.
     """
-    selected = supported_effects(frame)
+    selected = supported_effects(frame,metric=metric)
     if 'center_marker' not in selected:
         selected = expand_recipients(selected)
     selected = selected[np.isfinite(selected[metric])].copy()

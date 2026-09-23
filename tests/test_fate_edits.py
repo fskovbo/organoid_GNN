@@ -44,6 +44,29 @@ def selection():
 
 
 class FateEditTests(unittest.TestCase):
+    def test_total_heatmaps_keep_method_values_and_exclude_sweep_rows(self):
+        pack=selection()
+        subs,cases=sample_fate_contexts(fate_graphs(pack),['A','B'],2,centers=99)
+        tables={}
+        for method in ['marker_zeroing','masking']:
+            observed=evaluate_fate_edit(pack,subs,cases,method).assign(fold=0,seed=1,model_key=method)
+            sweep=observed.assign(analysis='sweep',evaluated_n=300,delta_mu=999.)
+            tables[method]=pd.concat([observed,sweep],ignore_index=True)
+        aligned=align_method_cases(tables)
+        arrays=[]
+        for method,frame in aligned.items():
+            total=summarize_fate_effects(frame,view='total',draws=5)
+            # A at the center, B as direct neighbor: zeroing=-3, masking=+2.
+            expected=-3. if method=='marker_zeroing' else 2.
+            mean=total.query("hop == 1 and center_marker == 'A' and source_marker_name == 'B'")['mean'].item()
+            self.assertEqual(mean,expected)
+            fig=plot_pair_heatmaps(total,hops=[1],marker_names=['A','B'],limit=5.)
+            values=np.asarray(fig.axes[0].collections[0].get_array()).reshape(2,2)
+            self.assertEqual(values[0,1],expected)
+            arrays.append(values)
+            plt.close(fig)
+        self.assertFalse(np.array_equal(*arrays))
+
     def test_historical_coverage_selection_and_non_overlap(self):
         pack = selection()
         graphs = fate_graphs(pack)

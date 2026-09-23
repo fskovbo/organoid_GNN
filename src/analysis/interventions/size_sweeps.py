@@ -157,11 +157,16 @@ def expand_center_markers(cases):
     return result.explode("center_marker", ignore_index=True)
 
 
-def summarize_by_organoid(frame, group_columns, value, *, bootstrap_samples=1000, seed=0):
+def summarize_by_organoid(frame, group_columns, value, *, bootstrap_samples=1000, seed=0,
+                          strata_column=None):
     """Average cases and repeated model seeds within organoid, then bootstrap.
 
     Every organoid has equal weight. Intervals describe between-organoid
     variation for fitted models; they do not include retraining uncertainty.
+    With ``strata_column``, give each represented stratum equal weight after
+    averaging organoids within it. Bootstrap organoids separately in each
+    stratum, keeping stratum weights fixed. Each organoid must belong to one
+    stratum within each summarized group.
     """
     columns = list(group_columns) + [
         "mean", "ci_low", "ci_high", "n_organoids", "n_rows",
@@ -177,13 +182,22 @@ def summarize_by_organoid(frame, group_columns, value, *, bootstrap_samples=1000
         group = group[np.isfinite(group[value])]
         if group.empty:
             continue
-        values = group.groupby("organoid_str", observed=True)[value].mean().to_numpy()
-        if len(values) > 1:
-            draws = rng.choice(values, size=(bootstrap_samples, len(values)), replace=True).mean(axis=1)
+        if strata_column is None:
+            strata = [group.groupby("organoid_str", observed=True)[value].mean().to_numpy()]
+        else:
+            if group[strata_column].isna().any() or (group.groupby('organoid_str')[strata_column].nunique() != 1).any():
+                raise ValueError('Each organoid must have exactly one nonmissing bootstrap stratum.')
+            strata = [part.groupby('organoid_str', observed=True)[value].mean().to_numpy()
+                      for _,part in group.groupby(strata_column, observed=True, sort=True)]
+        mean = float(np.mean([values.mean() for values in strata]))
+        n_organoids = sum(len(values) for values in strata)
+        if any(len(values) > 1 for values in strata):
+            draws = np.mean([rng.choice(values, size=(bootstrap_samples,len(values)), replace=True).mean(axis=1)
+                             for values in strata],axis=0)
             low, high = np.quantile(draws, [0.025, 0.975])
         else:
             low = high = np.nan
-        rows.append(dict(zip(group_columns, key), mean=float(values.mean()),
+        rows.append(dict(zip(group_columns, key), mean=mean,
                          ci_low=float(low), ci_high=float(high),
-                         n_organoids=len(values), n_rows=len(group)))
+                         n_organoids=n_organoids, n_rows=len(group)))
     return pd.DataFrame(rows, columns=columns)

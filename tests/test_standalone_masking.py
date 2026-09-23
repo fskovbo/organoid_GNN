@@ -72,7 +72,7 @@ class StandaloneMaskingTests(unittest.TestCase):
                         namespace.update(RUN_TRAINING=True,RUN_DIR=out,DEVICE='cpu',SHOW_PROGRESS=False)
                         namespace['SETTINGS'].update(tag='fixture',blacklist=False,interpolate_outliers=False,sphericity_max=None,
                             model_types=['gin','film'],depths=[0,2],hidden_dims=[3],seeds=[42],n_folds=2,
-                            global_features=['log_num_cells','log_surface_area'],norm='layer',dropout=0.,
+                            global_features=['log_num_cells'],norm='layer',dropout=0.,
                             max_epochs=1,patience=1,batch_size=4,num_workers=0,rates=[0.,.1],edge_loss_weight=0.,
                             baseline_max_epochs=1,baseline_patience=1,residualize=True)
             run=AnalysisRun(out)
@@ -109,6 +109,77 @@ class StandaloneMaskingTests(unittest.TestCase):
             subs,cases=sample_fate_contexts(fate_graphs(selected),selected['marker_names'],2,centers=1)
             masked=evaluate_fate_edit(selected,subs,cases,'masking',device='cpu')
             self.assertTrue(np.isfinite(masked.delta_mu).all())
+            # Exercise the comparison notebook on modern saved controls/masked
+            # checkpoints, including common-case matching, plots and cache reuse.
+            from src.analysis.interventions.replacement import MatchConfig
+            comparison=json.loads((ROOT/'experiments/ablation/ablation_comparison.ipynb').read_text())
+            with contextlib.redirect_stdout(io.StringIO()), \
+                 patch('src.artifacts.paths.resolve_training_run',return_value=out), \
+                 patch.object(plt,'show',side_effect=lambda:plt.close('all')):
+                ns={}
+                for cell in comparison['cells']:
+                    if cell['cell_type']!='code':continue
+                    source=''.join(cell['source'])
+                    exec(compile(source,'masking comparison','exec'),ns)
+                    if 'METHODS_TO_COMPARE = {' in source:
+                        ns.update(ANALYSIS_DIRS=None,RUN_INFERENCE=True,
+                            MODEL_NAME='film',HIDDEN_DIM=3,DEVICE='cpu',BATCH_SIZE=32,
+                            CENTER_SAMPLE_SIZE=8,CENTER_MIN_MARKER_COUNT=2,CENTER_MIN_PAIR_COUNT=2,
+                            CENTER_APPLY_NON_OVERLAP=False,SWEEP_COUNTS=[12,24],BOOTSTRAP_SAMPLES=5,
+                            HEATMAP_DISPLAY_MIN_CASES=1,SIZE_BINS=[0,16,30],MATCHING=MatchConfig(
+                                neighbors=64,min_cells=1,min_organoids=1,min_identity_cells=1,
+                                min_identity_organoids=1,max_composition_l1=2))
+                        ns['METHODS_TO_COMPARE']={
+                            'Zeroing control':dict(method='marker_zeroing',rate=0.),
+                            'Masking':dict(method='masking',rate=.1),
+                            'Replacement control':dict(method='replacement',rate=0.)}
+                self.assertEqual(set(ns['total'].label),set(ns['METHODS_TO_COMPARE']))
+                self.assertEqual(set(ns['size'].analysis),{'observed','sweep'})
+                self.assertEqual(ns['count_modes'],['observed'])
+                self.assertTrue(ns['shared_across_sizes'])
+                self.assertNotIn('label',ns['comparison_counts'].columns)
+                for label, frame in ns['aligned'].items():
+                    self.assertEqual(set(frame.fold),{0,1})
+                    self.assertEqual(set(frame.hop),{1,2})
+                    self.assertTrue(np.isfinite(frame.delta_mu).all())
+                    expected_rate=ns['METHODS_TO_COMPARE'][label]['rate']
+                    keys=ns['configs'][label]['model_keys']
+                    self.assertEqual(set(run.records[run.records.key.isin(keys)].rate),{expected_rate})
+                # A completed rerun must reuse the exact checkpoint shards.
+                with patch.dict(ns,{'evaluate_fate_edit':lambda *a,**k:self.fail('Repeated inference')}):
+                    exec(''.join(comparison['cells'][7]['source']),ns)
+                    ns['RUN_INFERENCE']=False
+                    exec(''.join(comparison['cells'][7]['source']),ns)
+                    exec(''.join(comparison['cells'][9]['source']),ns)
+                # The single-method notebooks must also accept modern masking bundles.
+                for name in ['total_analysis','size_dependent_ablation']:
+                    single=json.loads((ROOT/f'experiments/ablation/{name}.ipynb').read_text())
+                    single_ns={}
+                    exec(''.join(single['cells'][1]['source']),single_ns)
+                    exec(''.join(single['cells'][3]['source']),single_ns)
+                    single_ns.update(SAVED_ABLATION_DIR=None,RUN_INFERENCE=True,DEPTH0_HIDDEN_DIM=3,DEPTH0_MASKING_RATE=.1,ABLATION_TYPE='masking',MASKING_RATE=.1,MODEL_NAME='film',HIDDEN_DIM=3)
+                    exec(''.join(single['cells'][5]['source']),single_ns)
+                    self.assertEqual(set(single_ns['records'].rate),{.1})
+                    if name=='size_dependent_ablation':
+                        single_ns.update(DEVICE='cpu',BOOTSTRAP_SAMPLES=5,CENTER_SAMPLE_SIZE=8,
+                            CENTER_MIN_MARKER_COUNT=2,CENTER_MIN_PAIR_COUNT=2,CENTER_APPLY_NON_OVERLAP=False,
+                            SWEEP_COUNTS=[12,24],SIZE_BINS=[0,16,30],MIN_PLOT_CASES=1,
+                            SWEEP_MIN_ORGANOIDS_PER_BIN=1)
+                        single_ns['sampling_kwargs']=dict(size_bins=single_ns['SIZE_BINS'],
+                            cases_per_pair_bin=3,max_cases_per_organoid=1)
+                        for cell in single['cells'][7:]:
+                            if cell['cell_type']=='code':exec(''.join(cell['source']),single_ns)
+                        # Cached normalization must reload the same valid JSON identities.
+                        with patch('src.analysis.normalization.depth_reference.add_depth_reference',
+                                   side_effect=AssertionError('Repeated reference inference')):
+                            for cell in single['cells'][9:]:
+                                if cell['cell_type']=='code':exec(''.join(cell['source']),single_ns)
+                        self.assertEqual(set(single_ns['summary'].metric),{'delta_mu','delta_relative','delta_depth0_relative'})
+                        np.testing.assert_allclose(single_ns['cases'].delta_relative,
+                            single_ns['cases'].delta_mu*single_ns['cases'].normalization_factor)
+                        for hop in [1,2]:
+                            for metric in ['delta_mu','delta_relative','delta_depth0_relative']:
+                                self.assertTrue((single_ns['PLOT_OUTPUT_DIR']/f'hop{hop}_{metric}.png').is_file())
 
 
 if __name__=='__main__':unittest.main()

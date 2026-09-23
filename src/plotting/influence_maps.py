@@ -412,7 +412,8 @@ def plot_pair_count_heatmaps(counts, *, hops, marker_names, title='Retained samp
     return fig
 
 
-def plot_pair_size_curves(summary, *, hop, title='', min_organoids=1, min_cases=None):
+def plot_pair_size_curves(summary, *, hop, title='', min_organoids=1, min_cases=None,
+                          ylabel='Edited − intact prediction'):
     """Pair curves with distinct method/mode colors and an explicit hop title."""
     import matplotlib.pyplot as plt
     part = summary[summary.hop==hop].copy()
@@ -443,7 +444,7 @@ def plot_pair_size_curves(summary, *, hop, title='', min_organoids=1, min_cases=
                 ax.fill_between(curve.N,curve.ci_low,curve.ci_high,color=color,alpha=.13)
             ax.axhline(0,color='grey',lw=.6)
             ax.set_xlim(part.N.min()*.9,part.N.max()*1.1)
-            ax.set(xscale='log',xlabel='Cell count N',ylabel='Edited − intact prediction',title=f'{center} ← {source}')
+            ax.set(xscale='log',xlabel='Cell count N',ylabel=ylabel,title=f'{center} ← {source}')
     handles={}
     for ax in axes.ravel():
         h,l=ax.get_legend_handles_labels();handles.update(zip(l,h))

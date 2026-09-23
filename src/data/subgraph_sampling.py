@@ -6,6 +6,40 @@ import torch
 from src.graph.neighborhood import compute_hop_rings
 
 
+def sample_balanced_groups(frame, group_columns, *, group_size, unit_column,
+                           max_per_unit=None, seed=0):
+    """Sample without replacement within strata, spreading rows across units.
+
+    In each stratum, visit units in random round-robin order and take one random
+    remaining row per unit on each pass. This avoids letting large organoids
+    exhaust a quota before small organoids contribute. Quotas are upper targets:
+    empty/small strata are never filled by duplicating rows or borrowing from
+    another stratum. The caller defines the unique physical observations.
+    """
+    if not isinstance(group_size, (int, np.integer)) or group_size < 1:
+        raise ValueError('group_size must be a positive integer.')
+    if max_per_unit is not None and (not isinstance(max_per_unit, (int, np.integer)) or max_per_unit < 1):
+        raise ValueError('max_per_unit must be a positive integer or None.')
+    if not frame.index.is_unique:
+        raise ValueError('Sampling requires unique row indices.')
+    rng = np.random.default_rng(seed)
+    chosen = []
+    for _, group in frame.groupby(list(group_columns), observed=True, sort=True):
+        pools = []
+        for _, unit in group.groupby(unit_column, observed=True, sort=True):
+            pool = rng.permutation(unit.index.to_numpy()).tolist()
+            pools.append(pool if max_per_unit is None else pool[:max_per_unit])
+        retained = 0
+        while pools and retained < group_size:
+            for index in rng.permutation(len(pools)):
+                chosen.append(pools[index].pop())
+                retained += 1
+                if retained == group_size:
+                    break
+            pools = [pool for pool in pools if pool]
+    return frame.loc[chosen].copy()
+
+
 def _subgraph_marker_coverage(subgraphs, k_hops, threshold=0.5):
     """
     Precompute center-marker and per-hop neighborhood-marker presence.

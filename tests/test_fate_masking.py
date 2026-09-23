@@ -271,8 +271,9 @@ class FateMaskingTests(unittest.TestCase):
                             if cell['cell_type']!='code':continue
                             source = ''.join(cell['source'])
                             exec(compile(source,notebook_name,'exec'),namespace)
-                            if "ABLATION_TYPE = 'marker_zeroing'" in source:
-                                namespace.update(ROOT=root,ABLATION_TYPE=method,MASKING_RATE=.1,MODEL_DEPTH=2,
+                            if 'ABLATION_TYPE = ' in source:
+                                namespace.update(SAVED_ABLATION_DIR=None,RUN_INFERENCE=True,DEPTH0_NORMALIZATION=False,ROOT=root,ABLATION_TYPE=method,MASKING_RATE=.1,MODEL_DEPTH=2,
+                                    MODEL_NAME=None,HIDDEN_DIM=None,GEOMETRIC_NORMALIZATION=False,PLOT_METRICS=['delta_mu'],
                                     CENTERS_PER_ORGANOID=2,DEVICE='cpu',BOOTSTRAP_SAMPLES=5,
                                     MIN_PLOT_ORGANOIDS=1,SWEEP_COUNTS=[12,24],MATCHING=MatchConfig(
                                         neighbors=64,min_cells=1,min_organoids=1,min_identity_cells=1,
@@ -280,6 +281,11 @@ class FateMaskingTests(unittest.TestCase):
                         outputs[(notebook_name,method)] = namespace['OUTPUT_DIR']
                         self.assertEqual(set(namespace['cases'].hop),{1,2})
                         self.assertFalse(namespace['summary'].empty)
+                        if notebook_name=='size_dependent_ablation':
+                            self.assertEqual(set(namespace['summary'].metric),{'delta_mu'})
+                            for hop in [1,2]:
+                                for metric in ['delta_mu']:
+                                    self.assertTrue((namespace['OUTPUT_DIR']/f'hop{hop}_{metric}.png').is_file())
                 comparison = json.loads((notebook_root/'ablation_comparison.ipynb').read_text())
                 for mode in ['total_analysis','size_dependent_ablation']:
                     namespace = {}
@@ -287,7 +293,7 @@ class FateMaskingTests(unittest.TestCase):
                         if cell['cell_type']!='code':continue
                         source=''.join(cell['source'])
                         exec(compile(source,'comparison','exec'),namespace)
-                        if 'ANALYSIS_DIRS = {' in source:
+                        if 'METHODS_TO_COMPARE = {' in source:
                             namespace.update(ANALYSIS_DIRS={method:outputs[(mode,method)] for method in methods},
                                 BOOTSTRAP_SAMPLES=5,MIN_PLOT_ORGANOIDS=1,OUTPUT_DIR=root/f'comparison_{mode}')
                     self.assertEqual(set(namespace['total'].label),set(methods))

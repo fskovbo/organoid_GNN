@@ -51,7 +51,7 @@ hop from 1 through the selected model depth; the recipient center is never edite
 
 | Folder | Notebooks |
 | --- | --- |
-| Ablation | [Total effects](ablation/total_analysis.ipynb); [size-dependent effects](ablation/size_dependent_ablation.ipynb); [method comparison](ablation/ablation_comparison.ipynb); [sampling diagnostics](ablation/sampling_diagnostics.ipynb) |
+| Ablation | [Total effects](ablation/total_analysis.ipynb); [size-dependent effects](ablation/size_dependent_ablation.ipynb); [interactive size viewer](ablation/size_ablation_viewer.ipynb); [method comparison](ablation/ablation_comparison.ipynb); [sampling diagnostics](ablation/sampling_diagnostics.ipynb) |
 | Benchmarks | [Model comparison](benchmarks/model_comparison.ipynb); [graph controls](benchmarks/graph_signal_controls.ipynb); [masking quality and robustness](benchmarks/masking_quality_and_robustness.ipynb) |
 | Marker subsets | [Marker informativeness](marker_subsets/marker_informativeness.ipynb) |
 | Embeddings | [General clustering](embeddings/clustering.ipynb); [patch composition](embeddings/patch_composition.ipynb); [embedding responses and PCA](embeddings/embedding_responses.ipynb) |
@@ -93,13 +93,16 @@ before plotting definitions and data/model loading. Historical report figures re
 readable; pre-restructure ablation notebook contents and outputs are preserved in
 `results_experiments/refactor_20260918/ablation_notebooks_before_restructure.json.gz`.
 
-The ablation folder has four roles:
+The ablation folder has four computation/diagnostic notebooks and a saved-results viewer:
 
 - `total_analysis`: choose zeroing, masking or replacement; plot observed-size effects pooled
   over N as recipient-by-source heatmaps at each hop 1..depth.
 - `size_dependent_ablation`: choose the same interventions; plot observed-size bins and
   fixed-neighborhood N sweeps. Replacement weights can remain anchored at observed N or
   adapt to the supplied N. At observed size these choices are identical by construction.
+- `size_ablation_viewer`: browse saved N-dependent summaries with center/perturbation marker,
+  observed/sweep and normalization controls; overlay selected curves in one panel per hop.
+  Uses saved means, bootstrap intervals and support thresholds without inference.
 - `ablation_comparison`: load completed analysis directories and compare methods using
   common supported source-cell cases. Size-dependent outputs include observed cases, so
   they support both total and size comparisons without rerunning total inference.

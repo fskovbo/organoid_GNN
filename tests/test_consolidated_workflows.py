@@ -233,8 +233,9 @@ class ConsolidatedWorkflowTests(unittest.TestCase):
                         if 'MODEL_DEPTH =' in source and 'MODEL_FOLD =' in source:
                             ns.update(MODEL_DEPTH=2, MODEL_FOLD=0, MODEL_NAME='gin', MODEL_KEY=None,
                                       MODEL_SEED=None, HIDDEN_DIM=None, DEVICE='cpu')
-                        if "ABLATION_TYPE = 'marker_zeroing'" in source:
-                            ns.update(RUN_INFERENCE=True, DEVICE='cpu', SWEEP_COUNTS=[16,32],
+                        if 'ABLATION_TYPE = ' in source:
+                            ns.update(SAVED_ABLATION_DIR=None,DEPTH0_NORMALIZATION=False,PLOT_METRICS=['delta_mu','delta_relative'],RUN_INFERENCE=True, DEVICE='cpu', SWEEP_COUNTS=[16,32],
+                                      ABLATION_TYPE='marker_zeroing', MASKING_RATE=None, HIDDEN_DIM=None,
                                       BOOTSTRAP_SAMPLES=5, MIN_PLOT_ORGANOIDS=1, MODEL_NAME='gin')
                         if 'SAMPLING_SCHEMES =' in source:
                             ns.update(MODEL_NAME='gin',SAMPLING_REPEATS=[1701])

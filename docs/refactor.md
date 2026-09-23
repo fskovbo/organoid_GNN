@@ -169,8 +169,9 @@ masking benchmarks and replacement inference. Production training was not repeat
 
 ## Ablation notebook separation and settings placement
 
-The ablation folder now contains exactly `total_analysis`, `size_dependent_ablation`,
-`ablation_comparison` and `sampling_diagnostics`. Both inference notebooks select any of
+The ablation workflows are `total_analysis`, `size_dependent_ablation`,
+`ablation_comparison` and `sampling_diagnostics`, with `size_ablation_viewer` providing
+an interactive, read-only view of saved size summaries. Both inference notebooks select any of
 marker zeroing, trained masking or exclusive-fate replacement. They restore every saved
 fold at a chosen depth and probe exact hops 1..depth, never the recipient center. Total
 analysis pools observed-size effects; size analysis separates observed-size bins from

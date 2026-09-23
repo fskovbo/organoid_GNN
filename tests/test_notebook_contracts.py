@@ -62,7 +62,7 @@ class NotebookContractTests(unittest.TestCase):
         self.assertEqual(
             {p.name for p in (ROOT/'experiments/ablation').glob('*.ipynb')},
             {'total_analysis.ipynb', 'size_dependent_ablation.ipynb',
-             'ablation_comparison.ipynb', 'sampling_diagnostics.ipynb'},
+             'ablation_comparison.ipynb', 'sampling_diagnostics.ipynb', 'size_ablation_viewer.ipynb'},
         )
         for obsolete in ('analysis', 'archive', 'figures'):
             self.assertFalse((ROOT/'experiments'/obsolete).exists())
@@ -80,7 +80,7 @@ class NotebookContractTests(unittest.TestCase):
                 'CENTER_MIN_PAIR_COUNT','SAMPLING_SEED','CENTER_APPLY_NON_OVERLAP',
                 'CENTER_NON_OVERLAP_GROUP_COLUMNS','CENTERS_PER_ORGANOID','HEATMAP_DISPLAY_MIN_CASES']
         settings = []
-        for name in ['total_analysis','size_dependent_ablation','sampling_diagnostics']:
+        for name in ['total_analysis','sampling_diagnostics','ablation_comparison']:
             notebook = nbformat.read(ROOT/f'experiments/ablation/{name}.ipynb',as_version=4)
             namespace = {}
             exec(notebook.cells[1].source,namespace)
@@ -91,6 +91,14 @@ class NotebookContractTests(unittest.TestCase):
         self.assertEqual(settings[0]['SAMPLING_SCHEME'],'coverage')
         self.assertEqual(settings[0]['CENTER_MIN_PAIR_COUNT'],25)
         self.assertEqual(settings[0]['HEATMAP_DISPLAY_MIN_CASES'],20)
+        notebook = nbformat.read(ROOT/'experiments/ablation/size_dependent_ablation.ipynb',as_version=4)
+        namespace = {}
+        exec(notebook.cells[1].source,namespace)
+        exec(notebook.cells[3].source,namespace)
+        self.assertEqual(namespace['SAMPLING_SCHEME'],'size_stratified')
+        self.assertEqual(namespace['SAMPLING_OPTIONS'],dict(cases_per_pair_bin=25,max_cases_per_organoid=2))
+        self.assertNotIn('CENTER_SAMPLE_SIZE',namespace)
+        self.assertNotIn('CENTERS_PER_ORGANOID',namespace)
 
     def test_total_ablation_has_no_sweep_configuration_or_execution(self):
         notebook = nbformat.read(ROOT/'experiments/ablation/total_analysis.ipynb',as_version=4)

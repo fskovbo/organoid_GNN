@@ -13,6 +13,8 @@ then enable training when ready.
 | [Fate masking training](training/fate_masking_training.ipynb) | Missing-fate indicator training and matched zero-mask controls across rates/seeds. |
 | [Graph controls training](training/graph_controls_training.ipynb) | Controls matched to a completed GIN/FiLM run: copy its cohort, exact folds, preprocessing, baseline and training settings; copy original reference checkpoints byte-for-byte and train ring or altered-signal controls. `max_folds` limits this to original folds without resplitting. |
 | [Lineage removal training](training/lineage_removal_training.ipynb) | Any number of named marker combinations on shared folds and preprocessing, with immediate validation results. |
+| [Exclusive-fate spline training](training/fate_spline_training.ipynb) | Explicit size-dependent center, shared-neighborhood and ordered pair effects; center-only radius 0 and shell radii 1–4. Requires a reference run supplying the cohort, exact outer folds, cleaned targets and fitted baselines. |
+| [Nonlinear fate-fraction benchmark](training/fate_fraction_benchmark.ipynb) | Dedicated radius-2 training and benchmarking: weaker regularization, nonlinear composition responses and selected fraction interactions versus the saved zero-masking FiLM model, using identical folds. |
 
 GIN, control and lineage training use the same artifact schema. Settings, split membership,
 fitted transforms, baseline offsets, raw cohort, exact model inputs, constructor specifications,
@@ -25,7 +27,7 @@ when `residualize=False`. That switch controls target subtraction only. The base
 are saved in `baseline_validation_mse.csv`; `validation_mse.csv` also contains paired baseline
 MSE and the model-minus-baseline difference. Negative differences indicate improvement.
 
-All four notebooks save to `training_results/<notebook_name>/<tag>_<timestamp>/`.
+All training notebooks save to `training_results/<notebook_name>/<tag>_<timestamp>/`.
 Set `SETTINGS['tag']` to an optional purpose label (letters, digits, underscores or hyphens);
 an empty tag omits the prefix. The chosen destination is `RUN_DIR` (`MASKING_RUN` for masking).
 The separate size-conditioned FiLM training notebook has been merged into GIN depth training.
@@ -53,6 +55,7 @@ hop from 1 through the selected model depth; the recipient center is never edite
 | --- | --- |
 | Ablation | [Total effects](ablation/total_analysis.ipynb); [size-dependent effects](ablation/size_dependent_ablation.ipynb); [interactive size viewer](ablation/size_ablation_viewer.ipynb); [method comparison](ablation/ablation_comparison.ipynb); [sampling diagnostics](ablation/sampling_diagnostics.ipynb) |
 | Benchmarks | [Model comparison](benchmarks/model_comparison.ipynb); [graph controls](benchmarks/graph_signal_controls.ipynb); [masking quality and robustness](benchmarks/masking_quality_and_robustness.ipynb) |
+| Interpretable fate models | [Spline/reference MSE comparison](benchmarks/fate_spline_comparison.ipynb); [size-dependent coefficient analysis](neighborhoods/fate_spline_coefficients.ipynb) |
 | Marker subsets | [Marker informativeness](marker_subsets/marker_informativeness.ipynb) |
 | Embeddings | [General clustering](embeddings/clustering.ipynb); [patch composition](embeddings/patch_composition.ipynb); [embedding responses and PCA](embeddings/embedding_responses.ipynb) |
 | Neighborhoods | [observed KI67 neighborhoods](neighborhoods/ki67_observed_neighborhoods.ipynb); [unassigned cells](neighborhoods/unassigned_cells.ipynb) |
@@ -184,3 +187,15 @@ table/export, not the browser. Browsing never reruns predictions or updates the 
 Regional validation MSE versus depth is included in all four training notebooks. Regions are rebuilt from source crypt distances and circumference profiles, with evaluation artifacts saved under each run’s `regional_evaluation/` folder.
 
 All training notebooks provide a persistent model/epoch progress panel (`SHOW_PROGRESS=True`). `PRINT_EPOCHS=False` suppresses the epoch stream. Baseline fits and reused checkpoints are counted separately; completed, failed, or interrupted task records are saved in `training_progress.csv` under the run directory.
+
+The spline model uses exact-hop **fractions**, including Unassigned, and an explicit sum
+of physical-curvature terms. It has no MLP, learned message-passing embedding, nonlinear
+target transform, or saturation term. Cubic splines vary coefficients with log N;
+weighted contrasts distinguish center, shared source, and pair effects. Penalties are
+selected on an inner organoid holdout and refitted using only outer-training organoids.
+Saved models load through `AnalysisRun` and ordinary prediction/region evaluation APIs.
+Coefficient analysis selects one fold explicitly, documents its reference weights,
+shows source-identity contrasts and pair support, and verifies prediction reconstruction.
+Its coefficients are conditional associations, not identified physical interactions.
+Generic FiLM-specific ablation/embedding diagnostics do not apply to this architecture.
+See [model conventions and artifact details](../docs/fate_spline.md).

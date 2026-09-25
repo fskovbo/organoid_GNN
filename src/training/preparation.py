@@ -3,7 +3,7 @@ import copy
 import numpy as np
 import torch
 from torch_geometric.data import Data
-from src.data.target_transforms import AsinhStandardizeTransform, GlobalBaselineResidualTransform, standardize_graph_global_features
+from src.data.target_transforms import AsinhStandardizeTransform, IdentityTransform, GlobalBaselineResidualTransform, standardize_graph_global_features
 
 
 def global_values(graph, names):
@@ -24,7 +24,7 @@ def global_values(graph, names):
 
 def prepare_fold(graphs, split, *, global_features, residualize=False,
                  baseline_features=('log_num_cells', 'log_surface_area', 'log_volume', 'log_volume_over_area'),
-                 baseline_kwargs=None):
+                 baseline_kwargs=None, target_scaling='asinh'):
     """Always fit a global baseline; optionally subtract it before target scaling.
 
     Returns compact model inputs and fitted objects. Raw metadata/geometry stay
@@ -33,7 +33,11 @@ def prepare_fold(graphs, split, *, global_features, residualize=False,
     All fitted preprocessing and baseline optimization use training organoids only.
     Baseline predictions are always retained; reconstruction offsets are zero
     unless residualization was requested.
+    ``target_scaling='identity'`` retains double-precision physical residuals
+    for additive models; the default asinh path is unchanged.
     """
+    if target_scaling not in ('asinh', 'identity'):
+        raise ValueError('target_scaling must be asinh or identity.')
     if not baseline_features:
         raise ValueError('Choose at least one baseline feature; the baseline is always trained.')
     names = list(dict.fromkeys([*global_features, *baseline_features]))
@@ -72,14 +76,20 @@ def prepare_fold(graphs, split, *, global_features, residualize=False,
                 baseline_validation_mse.append(dict(organoid_str=g.organoid_str, n_cells=len(g.x),
                     mse=float(np.mean((truth-prediction)**2))))
             # Offsets describe target residualization, not whether a baseline exists.
-            offsets[g.organoid_str] = ((g.y - b.y).cpu().numpy() if residualize
-                                      else np.zeros(len(g.x)))
-            if residualize:
-                g.y = b.y.clone()
+            if target_scaling == 'identity':
+                offsets[g.organoid_str] = prediction.copy() if residualize else np.zeros(len(g.x))
+                g.y = g.y.to(torch.float64) - torch.as_tensor(
+                    offsets[g.organoid_str], dtype=torch.float64).reshape(g.y.shape)
+            else:
+                offsets[g.organoid_str] = ((g.y - b.y).cpu().numpy() if residualize
+                                          else np.zeros(len(g.x)))
+                if residualize:
+                    g.y = b.y.clone()
             start = stop
     baseline.model.cpu()
     baseline.prediction_cache.clear()
-    transform = AsinhStandardizeTransform(robust=True).fit(groups['train'])
+    transform = (AsinhStandardizeTransform(robust=True) if target_scaling == 'asinh'
+                 else IdentityTransform()).fit(groups['train'])
     cols = [names.index(n) for n in global_features]
     for group in groups.values():
         transform.transform_graphs(group, in_place=True)

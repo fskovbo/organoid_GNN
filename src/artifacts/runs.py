@@ -150,6 +150,38 @@ class AnalysisRun:
                                              depth=r.settings['NUM_LAYERS'], subset='all', signal='intact'))
             self.records = pd.DataFrame(rows)
 
+    def fold_inputs(self, fold):
+        """Restore a fold's intact full-panel data without loading a predictor.
+
+        Depths, widths, seeds and masking rates normally share an input bundle.
+        Deduplicate those catalog references, but reject genuinely different
+        bundles rather than arbitrarily choosing preprocessing. Saved baseline
+        models are part of preprocessing and are restored with the fold data.
+        """
+        import copy
+        from .bundle import load_bundle, graph_membership
+        if not self.modern or 'input_bundle' not in self.records:
+            raise ValueError('Fold-only loading requires a modern run with shared input bundles.')
+        membership = json.loads((self.directory / 'splits.json').read_text())
+        splits = [s for s in membership if s['fold'] == fold]
+        if len(splits) != 1:
+            raise ValueError(f'Expected one saved split for fold {fold}.')
+        rows = self.records[(self.records.fold == fold) & (self.records.subset == 'all')
+                            & (self.records.signal == 'intact')]
+        bundles = rows.input_bundle.dropna().unique().tolist()
+        if len(bundles) != 1:
+            raise ValueError(f'Fold {fold} needs one unambiguous intact full-panel input bundle; found {bundles}.')
+        for name in ('cohort', bundles[0]):
+            if name not in self._data_cache:
+                self._data_cache[name] = load_bundle(self.directory / name, device='cpu')
+        result = {**copy.deepcopy(self._data_cache['cohort']),
+                  **copy.deepcopy(self._data_cache[bundles[0]])}
+        actual = graph_membership(train=result['groups']['train'], validation=result['groups']['val'])
+        if actual != {role:splits[0][role] for role in ('train', 'validation')}:
+            raise ValueError(f'Fold {fold} inputs disagree with the saved split membership.')
+        result['source_input_bundle'] = bundles[0]
+        return result
+
     def select(self, key, *, device='cpu'):
         import copy
         import numpy as np

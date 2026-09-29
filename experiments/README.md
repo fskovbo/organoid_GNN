@@ -2,19 +2,19 @@
 
 Training notebooks create saved runs. Analysis notebooks select a run and checkpoint from
 its catalog; they do not depend on a training kernel or refit target transformations.
-All training switches are initially off. Configure the settings, inspect the cohort/splits,
-then enable training when ready.
+Inspect the settings and execution switches before running. Executed experiment notebooks
+may retain an enabled training switch and an explicit resume directory.
 
 ## Training
 
 | Notebook | Purpose |
 | --- | --- |
 | [GIN/FiLM depth training](training/gin_depth_training.ipynb) | Full-panel GIN, FiLM or both: depths 0–4, folds, width/seed grids, shared timepoints, filters, optional residualization and exclusive markers. No subset, permutation or masking training. |
+| [Mean-curvature energy training](training/mean_curvature_energy_training.ipynb) | Equal-cell preferred-curvature energy, signed half-amplitude second hops, affine log-N pair effects and accommodation; exact saved mean-target folds/baselines and a fresh matched FiLM reference. |
+| [Coupled fate-model fitting](training/coupled_fate_training.ipynb) | Gaussian, mean and joint-curvature comparisons with linear/fixed/learned saturation and optional size dependence and propagation. Reuses saved exclusive folds and baselines; current runs exclude measured-neighbor inputs. |
 | [Fate masking training](training/fate_masking_training.ipynb) | Missing-fate indicator training and matched zero-mask controls across rates/seeds. |
 | [Graph controls training](training/graph_controls_training.ipynb) | Controls matched to a completed GIN/FiLM run: copy its cohort, exact folds, preprocessing, baseline and training settings; copy original reference checkpoints byte-for-byte and train ring or altered-signal controls. `max_folds` limits this to original folds without resplitting. |
 | [Lineage removal training](training/lineage_removal_training.ipynb) | Any number of named marker combinations on shared folds and preprocessing, with immediate validation results. |
-| [Exclusive-fate spline training](training/fate_spline_training.ipynb) | Explicit size-dependent center, shared-neighborhood and ordered pair effects; center-only radius 0 and shell radii 1–4. Requires a reference run supplying the cohort, exact outer folds, cleaned targets and fitted baselines. |
-| [Nonlinear fate-fraction benchmark](training/fate_fraction_benchmark.ipynb) | Dedicated radius-2 training and benchmarking: weaker regularization, nonlinear composition responses and selected fraction interactions versus the saved zero-masking FiLM model, using identical folds. |
 
 GIN, control and lineage training use the same artifact schema. Settings, split membership,
 fitted transforms, baseline offsets, raw cohort, exact model inputs, constructor specifications,
@@ -55,7 +55,7 @@ hop from 1 through the selected model depth; the recipient center is never edite
 | --- | --- |
 | Ablation | [Total effects](ablation/total_analysis.ipynb); [size-dependent effects](ablation/size_dependent_ablation.ipynb); [interactive size viewer](ablation/size_ablation_viewer.ipynb); [method comparison](ablation/ablation_comparison.ipynb); [sampling diagnostics](ablation/sampling_diagnostics.ipynb) |
 | Benchmarks | [Model comparison](benchmarks/model_comparison.ipynb); [graph controls](benchmarks/graph_signal_controls.ipynb); [masking quality and robustness](benchmarks/masking_quality_and_robustness.ipynb) |
-| Interpretable fate models | [Spline/reference MSE comparison](benchmarks/fate_spline_comparison.ipynb); [size-dependent coefficient analysis](neighborhoods/fate_spline_coefficients.ipynb) |
+| Interpretable fate models | [Mean-curvature energy evaluation](benchmarks/mean_curvature_energy_evaluation.ipynb): distance-first regions, matched FiLM MSE, fitted preferences, accommodation, activation and hop signs; [Coupled fate evaluation and coefficients](benchmarks/coupled_fate_evaluation.ipynb): all-region MSE, FiLM accuracy reference, coupling, center and ordered pair coefficients. |
 | Marker subsets | [Marker informativeness](marker_subsets/marker_informativeness.ipynb) |
 | Embeddings | [General clustering](embeddings/clustering.ipynb); [patch composition](embeddings/patch_composition.ipynb); [embedding responses and PCA](embeddings/embedding_responses.ipynb) |
 | Neighborhoods | [observed KI67 neighborhoods](neighborhoods/ki67_observed_neighborhoods.ipynb); [unassigned cells](neighborhoods/unassigned_cells.ipynb) |
@@ -68,9 +68,9 @@ which their introductions state explicitly. Clustering extracts the final local 
 before global-head concatenation and analyzes independent checkpoints separately. Patch
 composition keeps its original non-overlapping patch sampling and accuracy-selection analysis.
 
-Region predictability expects all-marker models and node-aligned anatomical annotations.
-The default is the saved circumference-qualified crypt/neck table. Missing/undetected crypts
-are not relabeled as villus. There is no marker-coherence analysis in that notebook.
+Regional evaluation reads node-aligned crypt distances and circumference profiles from the
+source data. The mean-curvature energy analysis uses the distance-first partition documented
+in `docs/mean_curvature_energy.md`; earlier analyses retain their recorded definitions.
 
 Each notebook opens with its purpose and describes the steps under section headings.
 Configuration entries each have their own line and a brief inline explanation.
@@ -184,18 +184,20 @@ then selects an organoid to show ground truth and prediction side by side. Rank 
 remain fixed after filtering; missing-Q inclusion is explicit. `TOP_N` limits the initial
 table/export, not the browser. Browsing never reruns predictions or updates the blacklist.
 
-Regional validation MSE versus depth is included in all four training notebooks. Regions are rebuilt from source crypt distances and circumference profiles, with evaluation artifacts saved under each run’s `regional_evaluation/` folder.
+Regional validation MSE versus depth is included in the GIN, masking, graph-control and lineage-removal training notebooks. The coupled-fate workflow reports regional MSE in its separate evaluation notebook. Regions are rebuilt from source crypt distances and circumference profiles, with evaluation artifacts saved under each run’s `regional_evaluation/` folder.
 
-All training notebooks provide a persistent model/epoch progress panel (`SHOW_PROGRESS=True`). `PRINT_EPOCHS=False` suppresses the epoch stream. Baseline fits and reused checkpoints are counted separately; completed, failed, or interrupted task records are saved in `training_progress.csv` under the run directory.
+Training notebooks provide a persistent fitting-progress panel (`SHOW_PROGRESS=True`). For epoch-based training, `PRINT_EPOCHS=False` suppresses the epoch stream; coupled-fate fitting instead reports penalty trials and coupling-optimizer progress. Baseline fits and reused checkpoints are counted separately; completed, failed, or interrupted task records are saved in `training_progress.csv` under the run directory.
 
-The spline model uses exact-hop **fractions**, including Unassigned, and an explicit sum
-of physical-curvature terms. It has no MLP, learned message-passing embedding, nonlinear
-target transform, or saturation term. Cubic splines vary coefficients with log N;
-weighted contrasts distinguish center, shared source, and pair effects. Penalties are
-selected on an inner organoid holdout and refitted using only outer-training organoids.
-Saved models load through `AnalysisRun` and ordinary prediction/region evaluation APIs.
-Coefficient analysis selects one fold explicitly, documents its reference weights,
-shows source-identity contrasts and pair support, and verifies prediction reconstruction.
-Its coefficients are conditional associations, not identified physical interactions.
-Generic FiLM-specific ablation/embedding diagnostics do not apply to this architecture.
-See [model conventions and artifact details](../docs/fate_spline.md).
+The active explicit fate model solves predicted curvatures jointly using normalized
+neighbor coupling. The fitting notebook compares center-only and linear-pair variants,
+with and without coupling; selected ordered pairs can later use presence or smooth
+saturating responses. Coupling reaches the whole connected component, so FiLM depth 2
+is an accuracy reference, not a matched-receptive-field control. Measured-neighbor variants are separate conditional reconstruction models; their
+extra target information is explicit. Predicted-neighbor models retain a post-inference
+measured-versus-predicted neighbor diagnostic. The evaluation includes every
+anatomical category rather than showing only profile-qualified crypts and necks.
+
+See [coupled-model conventions](../docs/coupled_fate.md). The earlier additive spline
+and fraction workflows are [archived](../legacy/fate_interactions/README.md), including
+their model code and notebooks. Their saved training results remain in place and
+continue loading through the artifact compatibility mappings.

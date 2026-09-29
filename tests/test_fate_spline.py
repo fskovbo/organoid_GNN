@@ -9,8 +9,8 @@ from src.artifacts.bundle import save_bundle, load_bundle
 from src.data.neighborhood_counts import fate_identities, exact_hop_counts
 from src.data.target_transforms import IdentityTransform
 from src.inference.predict import predict_targets
-from src.models.fate_spline import FateSplineCurvature
-from src.training.spline_fit import graph_samples, fit_spline, normal_equations, solve_spline
+from legacy.fate_interactions.models.fate_spline import FateSplineCurvature
+from legacy.fate_interactions.training.spline_fit import graph_samples, fit_spline, normal_equations, solve_spline
 
 
 def synthetic_graphs():

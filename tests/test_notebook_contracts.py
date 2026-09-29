@@ -57,8 +57,7 @@ class NotebookContractTests(unittest.TestCase):
     def test_consolidated_training_and_no_compatibility_shims(self):
         expected = {'gin_depth_training.ipynb',
                     'fate_masking_training.ipynb', 'graph_controls_training.ipynb',
-                    'lineage_removal_training.ipynb', 'fate_spline_training.ipynb',
-                    'fate_fraction_benchmark.ipynb'}
+                    'lineage_removal_training.ipynb', 'coupled_fate_training.ipynb', 'mean_curvature_energy_training.ipynb'}
         self.assertEqual({p.name for p in (ROOT/'experiments/training').glob('*.ipynb')}, expected)
         self.assertEqual(
             {p.name for p in (ROOT/'experiments/ablation').glob('*.ipynb')},
@@ -69,7 +68,11 @@ class NotebookContractTests(unittest.TestCase):
             self.assertFalse((ROOT/'experiments'/obsolete).exists())
         self.assertEqual(
             {p.relative_to(ROOT/'legacy').as_posix() for p in (ROOT/'legacy').rglob('*.ipynb')},
-            {'plot_experiment_results.ipynb'},
+            {'plot_experiment_results.ipynb',
+             'fate_interactions/notebooks/training/fate_spline_training.ipynb',
+             'fate_interactions/notebooks/training/fate_fraction_benchmark.ipynb',
+             'fate_interactions/notebooks/benchmarks/fate_spline_comparison.ipynb',
+             'fate_interactions/notebooks/neighborhoods/fate_spline_coefficients.ipynb'},
         )
         for path in (ROOT/'src/analysis').glob('*.py'):
             self.assertNotIn('sys.modules[__name__]', path.read_text())

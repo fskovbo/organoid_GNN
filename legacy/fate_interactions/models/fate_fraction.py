@@ -8,7 +8,7 @@ No shell size, graph motif, curvature annotation or geometry is a predictor.
 import numpy as np
 import torch
 from scipy.linalg import pinvh
-from src.models.fate_spline import FateSplineCurvature
+from legacy.fate_interactions.models.fate_spline import FateSplineCurvature
 
 
 class FateFractionSpline(FateSplineCurvature):

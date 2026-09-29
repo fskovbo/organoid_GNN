@@ -705,6 +705,7 @@ def interpolate_target_outliers_from_neighbors(
     fallback="neighbor_mean",
     inplace=False,
     report=True,
+    fitted_statistics=None,
 ):
     """
     Replace extreme target outliers with neighbor-interpolated values.
@@ -737,6 +738,10 @@ def interpolate_target_outliers_from_neighbors(
         If False, returns copied graphs.
     report : bool
         Print outlier counts.
+
+    fitted_statistics : dict or None
+        Saved thresholds and medians from training graphs; apply them unchanged
+        to held-out graphs instead of estimating thresholds from validation.
 
     Returns
     -------
@@ -786,13 +791,18 @@ def interpolate_target_outliers_from_neighbors(
     # -------------------------
     q_lo, q_hi = clip_quantiles
     thresholds = {}
+    medians = {}
 
     for t in target_indices:
         vals = Y[:, t]
         vals = vals[np.isfinite(vals)]
-        lo = np.quantile(vals, q_lo)
-        hi = np.quantile(vals, q_hi)
-        thresholds[t] = (lo, hi)
+        if fitted_statistics is None:
+            lo, hi = np.quantile(vals, [q_lo, q_hi])
+            medians[t] = float(np.median(vals))
+        else:
+            lo, hi = fitted_statistics['thresholds'][t]
+            medians[t] = float(fitted_statistics['medians'][t])
+        thresholds[t] = (float(lo), float(hi))
 
     # -------------------------
     # Replace outliers graphwise
@@ -800,6 +810,7 @@ def interpolate_target_outliers_from_neighbors(
     info = {
         "clip_quantiles": clip_quantiles,
         "thresholds": thresholds,
+        "medians": medians,
         "max_hops": max_hops,
         "interpolation": interpolation,
         "reject_farther_outliers": reject_farther_outliers,
@@ -837,7 +848,7 @@ def interpolate_target_outliers_from_neighbors(
             info["n_outliers"][t] += int(outlier.sum())
 
             non_outlier = finite & (~outlier)
-            global_median = float(np.median(Y[np.isfinite(Y[:, t]), t]))
+            global_median = medians[t]
             current_vals = vals.copy()
             valid_for_fit = non_outlier.copy()
             outlier_nodes = np.where(outlier)[0]

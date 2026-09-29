@@ -1,6 +1,7 @@
 __pycache__/
 training_data/
-legacy/
+legacy/*
+!legacy/fate_interactions/
 training_results/
 results_experiments/
 training_results/

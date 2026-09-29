@@ -91,3 +91,43 @@ def graph_regions(graph, dataset_dir, *, crypt_max=.8, neck_max=1.2, neck_config
     frame.loc[qualified & (closest >= crypt_max) & (closest <= neck_max), 'region'] = 'neck'
     frame.loc[qualified & (closest > neck_max), 'region'] = 'villus'
     return frame
+
+
+def distance_regions(graph,dataset_dir,*,marker_names,crypt_marker='LGR5',crypt_max=.75,neck_max=1.1,neck_config=None):
+    """Distance-first partition; only the boundary's neck label needs a profile.
+
+    Interior membership uses the original nearest crypt, including qualification
+    failures. An interior subtype belongs to the entire assigned crypt, based on
+    any marker-positive cell at s<crypt_max in that territory. Missing profiles
+    do not erase known interior/villus membership. No crypt-size filter is used
+    unless explicitly supplied in neck_config. Old graph_regions is unchanged.
+    """
+    if not 0<crypt_max<neck_max:raise ValueError('Invalid region boundaries')
+    if crypt_marker not in marker_names:raise ValueError(f'Missing marker: {crypt_marker}')
+    config={'minimum_crypt_cells':0,**(neck_config or {})}
+    frame=graph_regions(graph,dataset_dir,crypt_max=crypt_max,neck_max=neck_max,neck_config=config)
+    source=Path(dataset_dir)/f'{graph.organoid_str}.npz'
+    if not source.exists():return frame
+    with np.load(source,allow_pickle=False) as data:
+        if 'd_crypts_graph' not in data:return frame
+        distances=np.asarray(data['d_crypts_graph'],float)
+    if distances.ndim!=2 or distances.shape[1]!=len(graph.x):raise ValueError('Invalid source distances')
+    frame['crypt_contains_marker']=False
+    if not len(distances):return frame
+    valid=np.isfinite(distances).all(0)&(distances>=0).all(0)
+    nearest=np.where(np.isfinite(distances),distances,np.inf).argmin(0)
+    closest=distances[nearest,np.arange(len(graph.x))]
+    x=graph.x.detach().cpu().numpy() if hasattr(graph.x,'detach') else np.asarray(graph.x)
+    positive=x[:,list(marker_names).index(crypt_marker)]>0
+    contains=np.zeros(len(distances),bool)
+    for k in range(len(distances)):contains[k]=np.any(valid&(nearest==k)&(closest<crypt_max)&positive)
+    frame.loc[valid,'crypt_id']=nearest[valid];frame.loc[valid,'crypt_distance']=closest[valid]
+    frame.loc[valid,'crypt_contains_marker']=contains[nearest[valid]]
+    frame.loc[valid,'region']='boundary_without_qualified_neck'
+    interior=valid&(closest<crypt_max)
+    frame.loc[interior&contains[nearest],'region']=f'crypt_with_{crypt_marker}'
+    frame.loc[interior&~contains[nearest],'region']=f'crypt_without_{crypt_marker}'
+    frame.loc[valid&(closest>=neck_max),'region']='villus'
+    qualified=frame.profile_class.isin(['local_minimum','flat_section']).to_numpy()
+    frame.loc[valid&(closest>=crypt_max)&(closest<neck_max)&qualified,'region']='neck'
+    return frame

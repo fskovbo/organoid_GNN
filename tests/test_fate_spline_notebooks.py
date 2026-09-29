@@ -81,7 +81,7 @@ class SplineNotebookTests(unittest.TestCase):
         reader.records = pd.concat([reader.records,pd.DataFrame([conflicting])],ignore_index=True)
         with self.assertRaisesRegex(ValueError,'unambiguous'):
             reader.fold_inputs(0)
-        code = cells('experiments/training/fate_spline_training.ipynb')
+        code = cells('legacy/fate_interactions/notebooks/training/fate_spline_training.ipynb')
         ns = {}
         exec(code[0],ns); exec(code[1],ns)
         ns.update(REFERENCE_RUN=str(source),RUN_TRAINING=True,
@@ -119,7 +119,7 @@ class SplineNotebookTests(unittest.TestCase):
             np.testing.assert_allclose(g.y.numpy()+saved['baseline_offsets'][g.organoid_str],physical,atol=1e-12)
         for k,v in original['baseline'].model.state_dict().items():
             torch.testing.assert_close(saved['baseline'].model.state_dict()[k],v,rtol=0,atol=0)
-        code = cells('experiments/benchmarks/fate_spline_comparison.ipynb')
+        code = cells('legacy/fate_interactions/notebooks/benchmarks/fate_spline_comparison.ipynb')
         compare = {}
         exec(code[0],compare); exec(code[1],compare)
         compare.update(SPLINE_RUN=str(directory/'trained'),REFERENCE_WIDTH=8,REFERENCE_NAME='gin',
@@ -131,7 +131,7 @@ class SplineNotebookTests(unittest.TestCase):
         self.assertEqual(set(compare['score_table'].source), {'Spline','Reference'})
         self.assertEqual(set(compare['score_table'].query("source == 'Reference'").depth), {2})
         self.assertEqual(set(compare['score_table'].query("source == 'Spline'").depth), {0,1,2,3,4})
-        code = cells('experiments/neighborhoods/fate_spline_coefficients.ipynb')
+        code = cells('legacy/fate_interactions/notebooks/neighborhoods/fate_spline_coefficients.ipynb')
         analysis = {}
         exec(code[0],analysis); exec(code[1],analysis)
         analysis.update(TRAINING_RUN=str(directory/'trained'),CENTER_MARKERS=['LGR5','KI67'],
@@ -144,7 +144,7 @@ class SplineNotebookTests(unittest.TestCase):
         plt.close('all')
 
     def test_training_requires_reference_and_has_no_fresh_data_controls(self):
-        code = cells('experiments/training/fate_spline_training.ipynb')
+        code = cells('legacy/fate_interactions/notebooks/training/fate_spline_training.ipynb')
         namespace = {}
         exec(code[0],namespace)
         exec(code[1],namespace)

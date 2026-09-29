@@ -7,6 +7,10 @@ import pickle
 import io
 
 MODULE_MOVES = {
+    'src.models.fate_spline': 'legacy.fate_interactions.models.fate_spline',
+    'src.models.fate_fraction': 'legacy.fate_interactions.models.fate_fraction',
+    'src.training.spline_fit': 'legacy.fate_interactions.training.spline_fit',
+
     'src.analysis.cluster_analysis': 'src.analysis.embeddings.clusters',
     'src.analysis.motif_clustering': 'src.analysis.embeddings.clustering',
     'src.analysis.size_embedding': 'src.analysis.embeddings.size_responses',

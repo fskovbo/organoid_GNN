@@ -116,3 +116,77 @@ def select_marker_inputs(groups, marker_names, selected):
                 if cached in g:
                     del g[cached]
     return result
+
+
+def physical_fate_fold(source):
+    """Restore an exclusive observed fold to physical (possibly residual) targets.
+
+    Reuses the saved membership, target cleanup and baseline without fitting.
+    Removes only all-zero missingness channels. Source inputs are not mutated.
+    A spatially constant saved baseline is required so residual-space coupling
+    is equivalent to physical-curvature coupling plus the same baseline.
+    """
+    from src.data.neighborhood_counts import fate_identities
+    markers=list(source['marker_names'])
+    if source.get('baseline') is None or source.get('baseline_predictions') is None:
+        raise ValueError('A fitted saved baseline and predictions are required.')
+    result=copy.deepcopy(source)
+    for group in result['groups'].values():
+        for g in group:
+            if g.x.shape[1]<len(markers) or torch.any(g.x[:,len(markers):]!=0):
+                raise ValueError('Expected all named fates and no masked source cells.')
+            g.x=g.x[:,:len(markers)].clone()
+            fate_identities(g.x)
+            oid=str(g.organoid_str)
+            old_offset=np.asarray(source['baseline_offsets'][oid]).reshape(-1)
+            physical=np.asarray(source['transform'].inverse(g.y.cpu().numpy()),dtype=float).reshape(-1)+old_offset
+            prediction=np.asarray(source['baseline_predictions'][oid],dtype=float).reshape(-1)
+            if len(old_offset)!=len(g.x) or len(prediction)!=len(g.x):
+                raise ValueError('Saved baseline arrays must match the organoid cells.')
+            if not np.isfinite(physical).all() or not np.isfinite(prediction).all():
+                raise ValueError('Finite restored targets and baseline predictions required.')
+            if not np.allclose(prediction,prediction[0],rtol=1e-6,atol=1e-12):
+                raise ValueError('Coupling requires a constant baseline prediction per organoid.')
+            constant=float(prediction.mean()) if source['residualized'] else 0.
+            # Historical offsets were computed as y - (y - baseline) in float32.
+            # Preserve restored targets while removing only that subtraction noise.
+            tolerance=8*np.finfo(np.float32).eps*max(np.max(np.abs(physical)),abs(constant),1e-12)
+            if not np.allclose(old_offset,constant,rtol=0,atol=tolerance+1e-12):
+                raise ValueError('Saved offsets disagree with the constant baseline beyond rounding error.')
+            offset=np.full(len(g.x),constant,dtype=float)
+            result['baseline_offsets'][oid]=offset
+            g.y=torch.tensor(physical-offset,dtype=torch.float64)
+            g.full_num_cells=float(len(g.x))
+            for name in ('global_feat','x_ring','ring_sizes'):
+                if name in g:del g[name]
+    result['transform']=IdentityTransform().fit(result['groups']['train'])
+    result['source_global_features']=source.get('global_features',[])
+    result['global_features']=[]
+    if 'inner_membership' in result:result['source_inner_membership']=result.pop('inner_membership')
+    result['input_encoding']='exclusive observed fates; Unassigned is the all-zero row'
+    return result
+
+
+def combine_target_folds(folds,target_indices):
+    """Join separately fitted scalar targets on identical ordered graphs.
+
+    Baselines/transforms remain available by target; reconstructed y is always
+    physical residual curvature, with no nonlinear target transform.
+    """
+    target_indices=list(target_indices);selected=[folds[t] for t in target_indices]
+    result=copy.deepcopy(selected[0]);result['target_indices']=target_indices
+    result['baselines_by_target']={t:f['baseline'] for t,f in zip(target_indices,selected)}
+    result['preprocessing_by_target']={t:{k:v for k,v in f.items() if k not in ('groups','baseline')} for t,f in zip(target_indices,selected)}
+    result['baseline_offsets']={};result['baseline_predictions']={}
+    for role in ('train','val'):
+        for index,g in enumerate(result['groups'][role]):
+            oid=str(g.organoid_str);targets=[];offsets=[];pred=[]
+            for f in selected:
+                other=f['groups'][role][index]
+                if str(other.organoid_str)!=oid or not torch.equal(g.x,other.x) or not torch.equal(g.edge_index,other.edge_index):raise ValueError('Targets have different graph membership/order.')
+                targets.append(other.y.reshape(-1));offsets.append(f['baseline_offsets'][oid]);pred.append(f['baseline_predictions'][oid])
+            g.y=torch.stack(targets,dim=1)
+            result['baseline_offsets'][oid]=np.column_stack(offsets)
+            result['baseline_predictions'][oid]=np.column_stack(pred)
+    result['transform']=IdentityTransform().fit(result['groups']['train'])
+    return result

@@ -10,7 +10,7 @@ import torch
 from scipy.linalg import solve
 from threadpoolctl import threadpool_limits
 from src.data.neighborhood_counts import exact_hop_counts, fate_identities
-from src.models.fate_spline import FateSplineCurvature
+from legacy.fate_interactions.models.fate_spline import FateSplineCurvature
 
 
 def graph_samples(graphs, radius):
@@ -138,7 +138,7 @@ def fit_fraction_spline(samples, *, n_markers, radius=2, n_splines=5,
     learned separately on inner training, then refitted on full outer training.
     """
     from scipy.linalg import cho_factor, cho_solve
-    from src.models.fate_fraction import FateFractionSpline
+    from legacy.fate_interactions.models.fate_fraction import FateFractionSpline
     if len(samples) < 4 or not 0 < inner_fraction < 1 or blas_threads < 1:
         raise ValueError('Need >=4 organoids, 0<inner_fraction<1 and positive BLAS threads.')
     if any(not len(grid) or any(not np.isfinite(v) or v < 0 for v in grid)

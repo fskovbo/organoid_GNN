@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import torch
 from src.artifacts.bundle import save_bundle, load_bundle
-from src.models.fate_fraction import FateFractionSpline
-from src.training.spline_fit import graph_samples, fit_fraction_spline
+from legacy.fate_interactions.models.fate_fraction import FateFractionSpline
+from legacy.fate_interactions.training.spline_fit import graph_samples, fit_fraction_spline
 from test_fate_spline import synthetic_graphs
 
 
@@ -49,7 +49,7 @@ class FateFractionTests(unittest.TestCase):
         np.testing.assert_allclose(pair_cross,0,atol=1e-10)
 
     def test_linear_nesting_and_training_only_selection(self):
-        from src.models.fate_spline import FateSplineCurvature
+        from legacy.fate_interactions.models.fate_spline import FateSplineCurvature
         original = FateSplineCurvature(2,2,'pairwise',4).configure(self.samples[:9])
         linear = FateFractionSpline(2,2,4,1).configure(self.samples[:9])
         s = self.samples[0]

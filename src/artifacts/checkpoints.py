@@ -4,8 +4,10 @@ import inspect
 import json
 from pathlib import Path
 from collections.abc import Mapping
-
 import torch
+
+MODEL_MODULE_MOVES = {'src.models.fate_spline': 'legacy.fate_interactions.models.fate_spline', 'src.models.fate_fraction': 'legacy.fate_interactions.models.fate_fraction'}
+MODEL_PREFIXES = ("src.models.", "legacy.fate_interactions.models.")
 
 
 def model_spec(model):
@@ -15,12 +17,12 @@ def model_spec(model):
     FiLM forwards keyword arguments to GIN, so inspect both constructors.
     """
     cls = type(model)
-    if not cls.__module__.startswith("src.models."):
+    if not cls.__module__.startswith(MODEL_PREFIXES):
         raise TypeError(f"Register a model specification for {cls.__module__}.{cls.__name__}")
     kwargs = {}
     classes = [cls]
     if any(p.kind == p.VAR_KEYWORD for p in inspect.signature(cls).parameters.values()):
-        classes = [c for c in reversed(cls.mro()) if c.__module__.startswith("src.models.")]
+        classes = [c for c in reversed(cls.mro()) if c.__module__.startswith(MODEL_PREFIXES)]
     for owner in classes:
         for name, parameter in inspect.signature(owner).parameters.items():
             if parameter.kind in (parameter.VAR_POSITIONAL, parameter.VAR_KEYWORD):
@@ -40,9 +42,10 @@ def model_spec(model):
 
 
 def build_model(spec):
-    if not spec["module"].startswith("src.models."):
+    if not spec["module"].startswith(MODEL_PREFIXES):
         raise ValueError("Model specifications must refer to src.models")
-    model = getattr(importlib.import_module(spec["module"]), spec["class"])(**spec["kwargs"])
+    module = MODEL_MODULE_MOVES.get(spec["module"], spec["module"])
+    model = getattr(importlib.import_module(module), spec["class"])(**spec["kwargs"])
     if 'input_projection' in spec:
         model.input_proj = torch.nn.Linear(**spec['input_projection'])
     return model

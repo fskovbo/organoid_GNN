@@ -65,7 +65,7 @@ fitted on the saved outer-training organoids. The physical targets and baselines
 match the energy model; FiLM retains its internal asinh scaling. It fits its inner
 training subset with early stopping, whereas the profiled energy model refits the
 full outer-training set after penalty selection. Reported MSE is in physical units,
-equally weighted by organoid. Energy fits use CPU sparse solvers; FiLM uses CUDA.
+equally weighted by organoid. Energy fits support CPU direct sparse solvers or the CUDA backend below; FiLM uses CUDA when available.
 
 Outputs are under `training_results/mean_curvature_energy_training/<tag>_<timestamp>/`.
 Bundles contain models, baselines, preprocessing and exact memberships; a catalog
@@ -92,3 +92,39 @@ All cells contribute to total MSE. Regional errors weighted by the cell fraction
 within an organoid must reconstruct its total error exactly. The boundaries are
 operational anatomical proxies, not perfect segmentation, and small undetected
 crypts remain a source of selection uncertainty.
+
+## CUDA backend
+
+The training notebook selects `ENERGY_DEVICE='cuda'` when CUDA is available,
+with one fit at a time on the GPU. Set it to `'cpu'` to use the original direct
+sparse solver. `CUDA_SOLVER_RTOL=1e-11` controls the GPU solve certificate.
+Execution-only settings do not invalidate existing scientific checkpoints; a
+completed run is resumed without refitting already saved models.
+
+`fit_energy(..., device='cuda')` performs response construction, conditional
+reference centering, sparse propagation, profiled linear fitting and analytic
+envelope-gradient accumulation with float64 PyTorch tensors. The small bounded
+SciPy nonlinear search and sequential sign choices remain on CPU. The GPU
+computes the large unconstrained Gram statistics used by that same sign search.
+Graph-shell counting/preparation remains a one-time CPU step.
+
+Accommodation uses Jacobi-preconditioned conjugate gradients on the disjoint
+union of the graph Laplacians. RHS chunking limits memory, and every solve checks
+its true residual against the requested tolerance. Failure raises an error; it
+never silently accepts an unconverged curvature field. There is no float32 or
+mixed-precision change, minibatch approximation, changed penalty, or altered
+hop-sign rule. Floating-point optimizer paths need not be bitwise identical.
+
+Checkpoints keep the same constructor and state format. Existing models support
+`model.predict_samples(samples, device='cuda')` and `model.to('cuda')` followed by
+inference. For repeated inference on unchanged graph/fate features, construct
+`EnergyBatch(samples, model.n_markers, device='cuda')` once and call its
+`predict(model)` method to avoid repeated preparation and transfer. Rebuild that
+batch after changing any graph or fate features. Targets are never needed in an
+inference batch.
+
+Run `scripts/benchmark_energy_cuda.py <saved-run>` for a separate performance
+report with full-fold objective/gradient and prediction parity, timing, GPU memory,
+and complete matched CPU/CUDA fitting on a size-spread training subset. It does
+not modify saved scientific models or their evaluation. Small graphs and cold
+preparation overhead can limit acceleration.

@@ -127,7 +127,19 @@ class MeanCurvatureEnergy(nn.Module):
         if self.pairs:pair=(b@w[t:].reshape(-1,self.n_basis).T@self.array(self.contrast).T).reshape(len(b),t,t)*scale
         return dict(center=a,hop1=pair,hop2=.5*self.array(self.signs)[None]*pair,alpha=self.alpha(),accommodation=self.strength(N))
 
-    def predict_sample(self,sample,N=None):
+    def predict_samples(self,samples,*,device=None,**solver_settings):
+        """Batched inference; CUDA reuses the certified tensor energy solver."""
+        device=self.weights.device if device is None else torch.device(device)
+        if device.type=='cpu':
+            return [self._predict_sample_cpu(sample) for sample in samples]
+        from src.models.energy_ops import predict_energy_samples
+        return predict_energy_samples(self,samples,device=device,**solver_settings)
+
+    def predict_sample(self,sample,N=None,*,device=None,**solver_settings):
+        sample=sample if N is None else dict(sample,N=N)
+        return self.predict_samples([sample],device=device,**solver_settings)[0]
+
+    def _predict_sample_cpu(self,sample,N=None):
         if not bool(self.is_fitted):raise RuntimeError('Model not fitted')
         s=sample if N is None else dict(sample,N=N)
         local=self.design(s)@self.array(self.weights)
@@ -142,10 +154,12 @@ class MeanCurvatureEnergy(nn.Module):
         supplied=getattr(data,'full_num_cells',None)
         sizes=None if supplied is None else np.asarray(self.array(supplied) if torch.is_tensor(supplied) else supplied).reshape(-1)
         if edges.size and np.any(batch[edges[0]]!=batch[edges[1]]):raise ValueError('Cross-graph edges')
-        result=np.zeros(len(x))
+        result=np.zeros(len(x));samples=[];node_groups=[]
         for index in np.unique(batch):
             nodes=np.flatnonzero(batch==index);mapping=np.full(len(x),-1);mapping[nodes]=np.arange(len(nodes))
             edge=mapping[edges[:,batch[edges[0]]==index]]
             s=dict(N=len(nodes) if sizes is None else float(sizes[index]),identity=ids[nodes],counts=exact_hop_counts(x[nodes],edge,2),transition=neighbor_average_matrix(len(nodes),edge))
-            result[nodes]=self.predict_sample(s)
+            samples.append(s);node_groups.append(nodes)
+        for nodes,prediction in zip(node_groups,self.predict_samples(samples,device=x.device)):
+            result[nodes]=prediction
         mu=torch.as_tensor(result,device=x.device);return (mu,self.log_variance.to(x.device).expand_as(mu)),mu[:,None]

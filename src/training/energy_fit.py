@@ -59,21 +59,22 @@ class EnergyObjective:
         self.evaluations+=1
         return float(loss),np.r_[gl,ga[self.active]]
 
-    def select_signs(self,max_passes=20):
-        """Exact linear re-solves for each sign candidate; no validation inputs.
-
-        Cache the unconstrained propagated Gram matrix to avoid repeated graph
-        solves during coordinate search. Returns a coordinate-wise optimum for
-        the current activation/accommodation, not a globally optimal sign table.
-        """
+    def sign_statistics(self):
+        """Unconstrained propagated Gram statistics, independent of hop signs."""
         m=self.model
-        if not m.pairs:return dict(flips=0,passes=0,coordinate_optimum=True)
         gram=None;rhs=None;constant=0.;M=len(self.samples);scale=float(m.target_scale)
         for s,lam in zip(self.samples,m.strength([s['N'] for s in self.samples])):
             raw=m.raw_design(s);x=splu(eye(len(raw),format='csc')+lam*s['laplacian']).solve(raw) if lam else raw
             y=s['y']/scale;weight=1/(M*len(y))
             if gram is None:gram=np.zeros((x.shape[1],x.shape[1]));rhs=np.zeros(x.shape[1])
             gram+=weight*x.T@x;rhs+=weight*x.T@y;constant+=weight*y@y
+        return gram,rhs,constant
+
+    def select_signs(self,max_passes=20):
+        """Same sequential CPU coordinate search for both numerical backends."""
+        m=self.model
+        if not m.pairs:return dict(flips=0,passes=0,coordinate_optimum=True)
+        gram,rhs,constant=self.sign_statistics()
         def score(signs):
             transform=m.mapping(signs);b=transform.T@rhs;g=transform.T@gram@transform+np.diag(self.penalty)
             w=cho_solve(cho_factor(g,check_finite=False),b,check_finite=False)
@@ -90,8 +91,88 @@ class EnergyObjective:
         raise RuntimeError('Distance-sign search failed to reach coordinate optimum')
 
 
-def fit_energy_partition(model,samples,penalty,*,max_iterations=250,tolerance=2e-5,max_sign_rounds=8,callback=None):
-    obj=EnergyObjective(model,samples,**penalty);history=[]
+class TensorEnergyObjective(EnergyObjective):
+    """Device-resident profiled objective with the same analytic envelope gradient.
+
+    SciPy retains the small bounded nonlinear search and sequential sign choices.
+    Graph solves, reference centering, dense statistics, linear profiling and
+    gradient accumulation use double-precision PyTorch on the requested device.
+    """
+    def __init__(self,model,samples,*,device='cuda',solver_rtol=1e-11,**penalties):
+        super().__init__(model,samples,**penalties)
+        from src.models.energy_ops import EnergyBatch
+        self.batch=EnergyBatch(samples,model.n_markers,device=device)
+        self.solver_rtol=solver_rtol
+        self.tensor_penalty=self.batch.tensor(self.penalty)
+        self.tensor_basis=self.batch.tensor(self.basis)
+        self.node_basis=self.tensor_basis[self.batch.graph_id]
+        self.y=self.batch.tensor(np.concatenate([s['y'] for s in samples]))/self.batch.tensor(model.target_scale)
+        self.last_solve={}
+
+    @torch.no_grad()
+    def __call__(self,p):
+        m=self.model;b=self.batch
+        if self.ng:m.lambda_logits.copy_(torch.as_tensor(p[:self.ng],device=m.lambda_logits.device))
+        alpha=m.array(m.log_alpha).copy();alpha[self.active]=p[self.ng:]
+        m.log_alpha.copy_(torch.as_tensor(alpha,device=m.log_alpha.device))
+        response,derivative=b.responses(m)
+        reference=b.reference(response);dref=b.reference(derivative)
+        m.reference.copy_(reference.to(m.reference.device))
+        design=b.design(m,response)
+        solver,strength=b.solver(m,self.tensor_basis,rtol=self.solver_rtol)
+        x=solver(design) if solver is not None else design
+        gram=x.T@(b.weight[:,None]*x)+torch.diag(self.tensor_penalty)
+        rhs=x.T@(b.weight*self.y)
+        theta=torch.cholesky_solve(rhs[:,None],torch.linalg.cholesky(gram))[:,0]
+        m.weights.copy_(theta.to(m.weights.device));m.is_fitted.fill_(True)
+        prediction=x@theta;residual=prediction-self.y
+        loss=(self.tensor_penalty*theta.square()).sum()+(b.weight*residual.square()).sum()
+        adjoint=solver(residual) if solver is not None else residual
+        gradients=[]
+        if self.ng:
+            lap_prediction=torch.sparse.mm(b.laplacian,prediction[:,None])[:,0]
+            sigmoid=torch.sigmoid(self.tensor_basis@b.tensor(m.lambda_logits))
+            gl=self.node_basis.T@(-2*b.weight*adjoint*lap_prediction*sigmoid[b.graph_id])
+            gl+=self.tensor_basis.T@(2*self.lambda_ridge*strength*sigmoid/b.n_graphs)
+            gradients.append(gl)
+        if self.active.any():
+            table=(b.tensor(m.contrast)@theta[b.n_types:].reshape(-1,m.n_basis)).reshape(b.n_types,b.n_types,m.n_basis)
+            coefficient=(table[b.ids]*self.node_basis[:,None,:]).sum(2)
+            dr=derivative-dref[b.ids]
+            local=coefficient*(dr[:,0]+.5*b.tensor(m.signs)[b.ids]*dr[:,1])
+            ga=b.center.T@(2*b.weight[:,None]*adjoint[:,None]*local)
+            mask=b.tensor(self.active,torch.bool)
+            delta=b.tensor(p[self.ng:])-np.log(m.fixed_alpha)
+            gradients.append(ga[mask]+2*self.alpha_ridge*delta/len(delta))
+            loss+=self.alpha_ridge*delta.square().mean()
+        loss+=self.lambda_ridge*strength.square().mean()
+        self.evaluations+=1
+        self.last_solve={} if solver is None else dict(iterations=solver.last_iterations,relative_residual=solver.last_relative_residual)
+        gradient=torch.cat(gradients) if gradients else b.tensor([])
+        return float(loss),gradient.cpu().numpy()
+
+    @torch.no_grad()
+    def sign_statistics(self):
+        b=self.batch;m=self.model
+        design=b.design(m,expanded=True)
+        solver,_=b.solver(m,self.tensor_basis,rtol=self.solver_rtol)
+        x=solver(design) if solver is not None else design
+        gram=x.T@(b.weight[:,None]*x);rhs=x.T@(b.weight*self.y)
+        constant=(b.weight*self.y.square()).sum()
+        return gram.cpu().numpy(),rhs.cpu().numpy(),float(constant)
+
+
+def _energy_device(device):
+    device=torch.device(device)
+    if device.type not in ('cpu','cuda'):raise ValueError('Energy fitting supports CPU or CUDA')
+    if device.type=='cuda' and not torch.cuda.is_available():raise RuntimeError('CUDA requested but unavailable; select device=cpu')
+    return device
+
+
+def fit_energy_partition(model,samples,penalty,*,max_iterations=250,tolerance=2e-5,max_sign_rounds=8,callback=None,device='cpu',solver_rtol=1e-11):
+    device=_energy_device(device)
+    obj=EnergyObjective(model,samples,**penalty) if device.type=='cpu' else TensorEnergyObjective(model,samples,device=device,solver_rtol=solver_rtol,**penalty)
+    history=[]
     def continuous():
         start=obj.pack()
         if not len(start):
@@ -117,16 +198,19 @@ def fit_energy_partition(model,samples,penalty,*,max_iterations=250,tolerance=2e
         sign_info=obj.select_signs();history.append(dict(**info,**sign_info))
         if callback:callback(f'Sign round {round_+1}: {sign_info["flips"]} flips')
         if sign_info['flips']==0:
-            info.update(sign_rounds=history,sign_coordinate_optimum=True,evaluations=obj.evaluations)
+            info.update(sign_rounds=history,sign_coordinate_optimum=True,evaluations=obj.evaluations,device=str(device),solver_rtol=solver_rtol if device.type!='cpu' else None)
             return info
     raise RuntimeError('Alternating sign/continuous fit has not stabilized')
 
 
-def energy_mse(model,samples):return np.asarray([np.mean((model.predict_sample(s)-s['y'])**2) for s in samples])
+def energy_mse(model,samples,*,device='cpu'):
+    predictions=model.predict_samples(samples,device=device)
+    return np.asarray([np.mean((prediction-s['y'])**2) for prediction,s in zip(predictions,samples)])
 
 
 def fit_energy(samples,*,model_settings,penalties,seed=42,inner_fraction=.2,starts=((.15,3.,1),(.8,10.,-1)),
-               max_iterations=250,tolerance=2e-5,blas_threads=4,callback=None):
+               max_iterations=250,tolerance=2e-5,blas_threads=4,callback=None,device='cpu',solver_rtol=1e-11):
+    device=_energy_device(device)
     order=np.random.default_rng(seed).permutation(len(samples));nv=max(1,round(inner_fraction*len(samples)))
     train=[samples[i] for i in order[nv:]];val=[samples[i] for i in order[:nv]];trials=[];best=None
     with threadpool_limits(limits=blas_threads):
@@ -138,10 +222,12 @@ def fit_energy(samples,*,model_settings,penalties,seed=42,inner_fraction=.2,star
                 m.lambda_logits[0]=np.log(np.expm1(strength));m.log_alpha.fill_(np.log(alpha if m.activation=='learned' else m.fixed_alpha))
                 m.log_alpha[~m.active_pairs]=np.log(m.fixed_alpha)
                 m.signs[m.active_pairs]=sign
-                try:info=fit_energy_partition(m,train,penalty,max_iterations=max_iterations,tolerance=tolerance,callback=callback)
+                try:info=fit_energy_partition(m,train,penalty,max_iterations=max_iterations,tolerance=tolerance,callback=callback,device=device,solver_rtol=solver_rtol)
+                except torch.cuda.OutOfMemoryError:
+                    raise
                 except RuntimeError as error:
                     trials.append(dict(penalty_index=pi,path=path,stage='inner',success=False,error=str(error)));continue
-                mse=float(energy_mse(m,val).mean());trials.append(dict(penalty_index=pi,path=path,stage='inner',inner_mse=mse,**info))
+                mse=float(energy_mse(m,val,device=device).mean());trials.append(dict(penalty_index=pi,path=path,stage='inner',inner_mse=mse,**info))
                 fits.append((info['objective'],m,info,mse))
             if fits:
                 _,m,info,mse=min(fits,key=lambda row:row[0])
@@ -156,11 +242,13 @@ def fit_energy(samples,*,model_settings,penalties,seed=42,inner_fraction=.2,star
             if m.size_dependent:m.lambda_logits[0]+=shift*m.lambda_logits[1]
             m.log_alpha.copy_(state['log_alpha']);m.signs.copy_(state['signs']);m.signs[~m.active_pairs]=1
             m.log_alpha[~m.active_pairs]=np.log(m.fixed_alpha)
-            try:info=fit_energy_partition(m,samples,best['penalty'],max_iterations=max_iterations,tolerance=tolerance,callback=callback)
+            try:info=fit_energy_partition(m,samples,best['penalty'],max_iterations=max_iterations,tolerance=tolerance,callback=callback,device=device,solver_rtol=solver_rtol)
+            except torch.cuda.OutOfMemoryError:
+                raise
             except RuntimeError as error:
                 trials.append(dict(path=path,stage='outer',success=False,error=str(error)));continue
             trials.append(dict(path=path,stage='outer',**info));final.append((info['objective'],m,info))
         if not final:raise RuntimeError(f'All outer fits failed: {trials}')
-        _,model,info=min(final,key=lambda row:row[0]);model.log_variance.fill_(np.log(max(float(energy_mse(model,samples).mean()),1e-30)))
-    metadata=dict(best=best,optimizer=info,inner_train=[s['organoid_str'] for s in train],inner_validation=[s['organoid_str'] for s in val],fit_organoids=[s['organoid_str'] for s in samples],sign_selection='Training-only multistart alternating continuous/coordinate optimization; no global-optimum guarantee')
+        _,model,info=min(final,key=lambda row:row[0]);model.log_variance.fill_(np.log(max(float(energy_mse(model,samples,device=device).mean()),1e-30)))
+    metadata=dict(device=str(device),solver_rtol=solver_rtol if torch.device(device).type!='cpu' else None,best=best,optimizer=info,inner_train=[s['organoid_str'] for s in train],inner_validation=[s['organoid_str'] for s in val],fit_organoids=[s['organoid_str'] for s in samples],sign_selection='Training-only multistart alternating continuous/coordinate optimization; no global-optimum guarantee')
     return model,metadata,pd.DataFrame(trials)

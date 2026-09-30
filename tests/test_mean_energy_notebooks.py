@@ -35,7 +35,7 @@ class MeanEnergyNotebookTests(unittest.TestCase):
             save_bundle(ref/rec['bundle'],dict(model=model,record=rec),splits=split);recs.append(rec)
         pd.DataFrame(recs).to_json(ref/'models.json',orient='records');(source/'models.json').write_text('[]')
         cells=[c.source for c in nbformat.read(ROOT/'experiments/training/mean_curvature_energy_training.ipynb',4).cells if c.cell_type=='code'];ns={}
-        exec(cells[0],ns);exec(cells[1],ns);ns.update(SOURCE_RUN=str(source),RESUME_RUN=str(out),SHOW_PROGRESS=False,DEVICE='cpu')
+        exec(cells[0],ns);exec(cells[1],ns);ns.update(SOURCE_RUN=str(source),RESUME_RUN=str(out),SHOW_PROGRESS=False,DEVICE='cpu',ENERGY_DEVICE='cpu',CONCURRENT_FITS=2)
         ns['SETTINGS'].update(variants=['center_local','learned_accommodated'],film_width=8,pair_ridge_grid=[.001],starts=[[.2,3.,1]],min_pair_organoids=1,blas_threads=2,max_iterations=180,tolerance=1e-4)
         with patch('matplotlib.pyplot.show',side_effect=lambda:plt.close('all')):
             for cell in cells[2:]:exec(cell,ns)

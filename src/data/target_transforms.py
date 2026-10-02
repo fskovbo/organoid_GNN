@@ -974,3 +974,56 @@ def standardize_graph_global_features(
         _apply(val_graphs)
 
     return center, scale
+
+
+@dataclass(frozen=True)
+class ObservedGraphMoments:
+    """Scalar per-graph target summaries for an explicitly conditional task.
+
+    Unlike fitted training transforms, these summaries use the observed targets
+    of the graph being reconstructed, INCLUDING held-out graphs. They must never
+    be presented as fate-only prediction or inferred from predictions. Equal
+    cell weighting and population variance (ddof=0) are used; no area weights.
+    """
+    mean: float
+    std: float
+    scale: float
+    n_cells: int
+
+    @classmethod
+    def from_targets(cls, targets, *, std_floor, standardize=True):
+        y=np.asarray(targets,dtype=np.float64).reshape(-1)
+        if not len(y) or not np.isfinite(y).all():
+            raise ValueError('Observed graph targets must be nonempty and finite')
+        if not np.isfinite(std_floor) or std_floor<=0:
+            raise ValueError('std_floor must be positive and finite')
+        std=float(y.std(ddof=0))
+        return cls(float(y.mean()),std,max(std,float(std_floor)) if standardize else 1.,len(y))
+
+    def transform(self, targets):
+        return (np.asarray(targets,dtype=np.float64)-self.mean)/self.scale
+
+    def inverse(self, prediction):
+        return self.mean+self.scale*np.asarray(prediction,dtype=np.float64)
+
+
+def center_graph_values(values: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
+    """Subtract graph means from node vectors/matrices, preserving gradients.
+
+    Graph IDs must be consecutive from zero. Values alone determine the means;
+    targets, graph geometry and measured summary statistics are never read.
+    """
+    if values.ndim not in (1,2) or batch.ndim!=1 or len(values)!=len(batch) or not len(batch):
+        raise ValueError('Expected nonempty node values and matching graph IDs')
+    if batch.dtype!=torch.long or batch.device!=values.device or bool((batch<0).any()):
+        raise ValueError('Graph IDs must be nonnegative long tensors on the values device')
+    count=torch.bincount(batch)
+    if bool((count==0).any()):raise ValueError('Graph IDs must be consecutive')
+    matrix=values[:,None] if values.ndim==1 else values
+    # Accumulate in float64: large float32 batches can otherwise leave a
+    # noticeable mean from summation error even when outputs are well scaled.
+    work=matrix.to(torch.float64) if matrix.dtype in (torch.float16,torch.bfloat16,torch.float32) else matrix
+    totals=work.new_zeros((len(count),work.shape[1]))
+    totals.index_add_(0,batch,work)
+    centered=(work-(totals/count[:,None])[batch]).to(values.dtype)
+    return centered[:,0] if values.ndim==1 else centered

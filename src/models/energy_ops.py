@@ -101,6 +101,12 @@ class EnergyBatch:
         self.center = torch.nn.functional.one_hot(self.ids, self.n_types).to(torch.float64)
         self.type_nodes = [self.tensor(np.flatnonzero(ids==a), torch.long) for a in range(self.n_types)]
         self.fraction, self.share = self.tensor(fraction), self.tensor(share)
+        ring_population=counts.sum(2,keepdims=True)
+        ring_fraction=np.divide(counts,ring_population,out=np.zeros_like(counts),where=ring_population>0)
+        self.pooled_fraction=self.tensor((ring_fraction[:,0]+.5*ring_fraction[:,1])/1.5)
+        self.pooled_count=self.tensor((counts[:,0]+.5*counts[:,1])/1.5)
+        self.first_fraction=self.tensor(ring_fraction[:,0])
+        self.first_count=self.tensor(counts[:,0])
         self.reference_weight = self.tensor(ref_weight)
         self.weight = self.tensor(np.repeat(1/(len(samples)*self.lengths), self.lengths))
         self.N = self.tensor([s['N'] for s in samples])
@@ -122,12 +128,21 @@ class EnergyBatch:
         return torch.stack((torch.ones_like(z),z),dim=1) if model.size_dependent else torch.ones_like(z[:,None])
 
     def responses(self, model):
+        fraction=(self.pooled_count if model.exposure_kind=='counts' else self.pooled_fraction) if model.interaction=='pooled' else self.fraction
+        if model.interaction=='pooled' and getattr(model,'interaction_radius',2)==1:
+            fraction=self.first_count if model.exposure_kind=='counts' else self.first_fraction
         alpha = self.tensor(model.log_alpha).exp()[self.ids] if model.activation!='linear' else torch.zeros_like(self.fraction)
         safe = alpha.clamp_min(1e-6)
-        den, num = safe.tanh(), (safe*self.fraction).tanh()
-        value = torch.where(alpha<1e-5,self.fraction,num/den)
-        gradient = safe*(self.fraction*(1-num*num)/den-num*(1-den*den)/(den*den))
+        den, num = safe.tanh(), (safe*fraction).tanh()
+        value = torch.where(alpha<1e-5,fraction,num/den)
+        gradient = safe*(fraction*(1-num*num)/den-num*(1-den*den)/(den*den))
         gradient = torch.where(alpha<1e-5,0.,gradient)
+        if model.activation in ('presence','mixed'):
+            mask=torch.ones_like(fraction,dtype=torch.bool) if model.activation=='presence' else self.tensor(np.asarray(model.pair_activations)=='presence',torch.bool)[self.ids]
+            value=torch.where(mask,(fraction>0).to(torch.float64),fraction)
+            gradient=torch.zeros_like(value)
+        if model.interaction=='pooled':
+            return torch.stack((value,torch.zeros_like(value)),1),torch.stack((gradient,torch.zeros_like(gradient)),1)
         return value[:,None]*self.share, gradient[:,None]*self.share
 
     def reference(self, response):
@@ -135,6 +150,13 @@ class EnergyBatch:
         return (self.center.T@weighted).reshape(self.n_types,2,self.n_types)
 
     def design(self, model, response=None, *, expanded=False):
+        values=self._design(model,response,expanded=expanded)
+        if getattr(model,'zero_mean_output',False):
+            from src.data.target_transforms import center_graph_values
+            values=center_graph_values(values,self.graph_id)
+        return values
+
+    def _design(self, model, response=None, *, expanded=False):
         if not model.pairs:
             return self.center
         if response is None:
@@ -147,19 +169,24 @@ class EnergyBatch:
                 raw=(self.center[:,:,None]*q[:,hop,None,:]).reshape(len(q),-1)
                 parts.append((raw[:,:,None]*basis[:,None,:]).reshape(len(q),-1))
             return torch.cat(parts,dim=1)
-        combined = q[:,0]+.5*self.tensor(model.signs)[self.ids]*q[:,1]
+        combined = self.combine_response(model,q)
         contrast = self.tensor(model.contrast).reshape(self.n_types,self.n_types,-1)
         projected = torch.empty((len(q),contrast.shape[-1]),dtype=torch.float64,device=self.device)
         for a,nodes in enumerate(self.type_nodes):
             projected.index_copy_(0,nodes,combined.index_select(0,nodes)@contrast[a])
         return torch.cat((self.center,(projected[:,:,None]*basis[:,None,:]).reshape(len(q),-1)),dim=1)
 
+    def combine_response(self,model,response):
+        if model.interaction=='pooled':return response[:,0]
+        return response[:,0]+.5*self.tensor(model.signs)[self.ids]*response[:,1]
+
     def solver(self, model, basis=None, **settings):
         if not model.accommodation:
             return None, torch.zeros_like(self.N)
         basis = self.basis(model) if basis is None else basis
         logits = basis@self.tensor(model.lambda_logits)
-        strength = torch.logaddexp(torch.zeros_like(logits),logits)
+        strength = (torch.full_like(self.N,model.fixed_strength) if getattr(model,'fixed_strength',None) is not None
+                    else torch.logaddexp(torch.zeros_like(logits),logits))
         return AccommodationSolve(self,strength,**settings),strength
 
     @torch.no_grad()

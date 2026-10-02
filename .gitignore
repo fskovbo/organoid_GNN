@@ -2,6 +2,7 @@ __pycache__/
 training_data/
 legacy/*
 !legacy/fate_interactions/
+!legacy/energy_models/
 training_results/
 results_experiments/
 training_results/

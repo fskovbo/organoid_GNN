@@ -11,5 +11,5 @@ there are no import-only shim files in the active model directory. Archived
 notebooks use the archived implementation explicitly. They are historical
 workflows, not the active entry point for new interaction studies.
 
-Use `experiments/training/coupled_fate_training.ipynb` for the replacement and
-`experiments/benchmarks/coupled_fate_evaluation.ipynb` for comparison/readout.
+Use `experiments/training/energy_model_training.ipynb` for the replacement and
+`experiments/benchmarks/energy_model_evaluation.ipynb` for comparison/readout.

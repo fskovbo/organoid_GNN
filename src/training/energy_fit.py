@@ -17,7 +17,7 @@ class EnergyObjective:
         self.model=model;self.samples=samples;self.lambda_ridge=lambda_ridge;self.alpha_ridge=alpha_ridge
         t=model.n_markers+1;self.penalty=np.full(model.hidden_dim,pair_ridge);self.penalty[:t]=ridge
         if model.size_dependent and model.pairs:self.penalty[t+1::2]+=slope_ridge
-        self.ng=model.n_basis if model.accommodation else 0
+        self.ng=model.n_basis if model.accommodation and getattr(model,'fixed_strength',None) is None else 0
         self.active=model.array(model.active_pairs).astype(bool)&(model.activation=='learned')
         self.basis=model.basis([s['N'] for s in samples]);self.evaluations=0
         for s in samples:
@@ -41,7 +41,7 @@ class EnergyObjective:
             gram+=weight*x.T@x;rhs+=weight*x.T@y;cache.append((s,x,solver,y,weight))
         theta=cho_solve(cho_factor(gram,check_finite=False),rhs,check_finite=False);m.weights.copy_(torch.tensor(theta));m.is_fitted.fill_(True)
         loss=float(np.dot(self.penalty*theta,theta));gl=np.zeros(self.ng);ga=np.zeros_like(self.active,dtype=float)
-        co=m.coefficients([s['N'] for s in self.samples])['hop1']/scale
+        co=m.coefficients([s['N'] for s in self.samples])['amplitude' if m.interaction=='pooled' else 'hop1']/scale
         for index,(s,x,solver,y,weight) in enumerate(cache):
             prediction=x@theta;resid=prediction-y;loss+=weight*np.dot(resid,resid)
             adj=solver.solve(resid) if solver else resid
@@ -50,7 +50,7 @@ class EnergyObjective:
                 gl+=derivative*expit(self.basis[index]@m.array(m.lambda_logits))*self.basis[index]
             if self.active.any():
                 ids=s['identity'];_,dr=m.raw_response(s,True);dr-=dref[ids]
-                local=co[index][ids]*(dr[:,0]+.5*m.array(m.signs)[ids]*dr[:,1])
+                local=co[index][ids]*m.combine_response(dr,ids)
                 np.add.at(ga,ids,2*weight*adj[:,None]*local)
         loss+=self.lambda_ridge*np.mean(lam**2)
         if self.active.any():
@@ -73,7 +73,7 @@ class EnergyObjective:
     def select_signs(self,max_passes=20):
         """Same sequential CPU coordinate search for both numerical backends."""
         m=self.model
-        if not m.pairs:return dict(flips=0,passes=0,coordinate_optimum=True)
+        if not m.pairs or m.interaction=='pooled':return dict(flips=0,passes=0,coordinate_optimum=True)
         gram,rhs,constant=self.sign_statistics()
         def score(signs):
             transform=m.mapping(signs);b=transform.T@rhs;g=transform.T@gram@transform+np.diag(self.penalty)
@@ -117,6 +117,7 @@ class TensorEnergyObjective(EnergyObjective):
         m.log_alpha.copy_(torch.as_tensor(alpha,device=m.log_alpha.device))
         response,derivative=b.responses(m)
         reference=b.reference(response);dref=b.reference(derivative)
+        if not m.center_response:reference.zero_();dref.zero_()
         m.reference.copy_(reference.to(m.reference.device))
         design=b.design(m,response)
         solver,strength=b.solver(m,self.tensor_basis,rtol=self.solver_rtol)
@@ -139,7 +140,7 @@ class TensorEnergyObjective(EnergyObjective):
             table=(b.tensor(m.contrast)@theta[b.n_types:].reshape(-1,m.n_basis)).reshape(b.n_types,b.n_types,m.n_basis)
             coefficient=(table[b.ids]*self.node_basis[:,None,:]).sum(2)
             dr=derivative-dref[b.ids]
-            local=coefficient*(dr[:,0]+.5*b.tensor(m.signs)[b.ids]*dr[:,1])
+            local=coefficient*b.combine_response(m,dr)
             ga=b.center.T@(2*b.weight[:,None]*adjoint[:,None]*local)
             mask=b.tensor(self.active,torch.bool)
             delta=b.tensor(p[self.ng:])-np.log(m.fixed_alpha)
@@ -221,7 +222,7 @@ def fit_energy(samples,*,model_settings,penalties,seed=42,inner_fraction=.2,star
                 m=MeanCurvatureEnergy(**model_settings).configure(train)
                 m.lambda_logits[0]=np.log(np.expm1(strength));m.log_alpha.fill_(np.log(alpha if m.activation=='learned' else m.fixed_alpha))
                 m.log_alpha[~m.active_pairs]=np.log(m.fixed_alpha)
-                m.signs[m.active_pairs]=sign
+                if m.interaction=='signed_hops':m.signs[m.active_pairs]=sign
                 try:info=fit_energy_partition(m,train,penalty,max_iterations=max_iterations,tolerance=tolerance,callback=callback,device=device,solver_rtol=solver_rtol)
                 except torch.cuda.OutOfMemoryError:
                     raise
@@ -250,5 +251,42 @@ def fit_energy(samples,*,model_settings,penalties,seed=42,inner_fraction=.2,star
             trials.append(dict(path=path,stage='outer',**info));final.append((info['objective'],m,info))
         if not final:raise RuntimeError(f'All outer fits failed: {trials}')
         _,model,info=min(final,key=lambda row:row[0]);model.log_variance.fill_(np.log(max(float(energy_mse(model,samples,device=device).mean()),1e-30)))
-    metadata=dict(device=str(device),solver_rtol=solver_rtol if torch.device(device).type!='cpu' else None,best=best,optimizer=info,inner_train=[s['organoid_str'] for s in train],inner_validation=[s['organoid_str'] for s in val],fit_organoids=[s['organoid_str'] for s in samples],sign_selection='Training-only multistart alternating continuous/coordinate optimization; no global-optimum guarantee')
+    metadata=dict(device=str(device),solver_rtol=solver_rtol if torch.device(device).type!='cpu' else None,best=best,optimizer=info,inner_train=[s['organoid_str'] for s in train],inner_validation=[s['organoid_str'] for s in val],fit_organoids=[s['organoid_str'] for s in samples],sign_selection=('Not applicable: fixed positive pooled distance weights' if model.interaction=='pooled' else 'Training-only multistart alternating continuous/coordinate optimization; no global-optimum guarantee'))
+    return model,metadata,pd.DataFrame(trials)
+
+
+def fit_energy_fixed(samples, *, model_settings, strength, penalties, seed=42,
+                     inner_fraction=.2, device='cpu', solver_rtol=1e-11,
+                     blas_threads=4):
+    """Fit local preferences at exactly fixed accommodation, including zero.
+
+    Select shrinkage on a training-only organoid holdout, then refit the full
+    supplied training partition. No nonlinear strength/activation search occurs.
+    Validation datasets outside ``samples`` cannot affect either fit. Returns
+    the model, split/penalty metadata and every inner trial for artifact storage.
+    """
+    if len(samples)<4 or not 0<inner_fraction<1 or not penalties:
+        raise ValueError('Need at least four training organoids, penalties and 0<inner_fraction<1')
+    if model_settings.get('activation') not in ('linear','presence','fixed','mixed'):
+        raise ValueError('Fixed-strength linear fitting requires a fixed activation')
+    settings=dict(model_settings,fixed_strength=float(strength),size_dependent=False,accommodation=True)
+    order=np.random.default_rng(seed).permutation(len(samples))
+    nv=max(1,min(len(samples)-2,round(inner_fraction*len(samples))))
+    train=[samples[i] for i in order[nv:]];val=[samples[i] for i in order[:nv]]
+    device=_energy_device(device);trials=[]
+    with threadpool_limits(limits=blas_threads):
+        for index,penalty in enumerate(penalties):
+            if any(not np.isfinite(v) or v<0 for v in penalty.values()):raise ValueError('Invalid penalty')
+            model=MeanCurvatureEnergy(**settings).configure(train)
+            info=fit_energy_partition(model,train,penalty,device=device,solver_rtol=solver_rtol)
+            trials.append(dict(penalty_index=index,inner_mse=float(energy_mse(model,val,device=device).mean()),**info))
+        best=min(trials,key=lambda row:row['inner_mse'])
+        selected=dict(penalties[best['penalty_index']])
+        model=MeanCurvatureEnergy(**settings).configure(samples)
+        info=fit_energy_partition(model,samples,selected,device=device,solver_rtol=solver_rtol)
+        model.log_variance.fill_(np.log(max(float(energy_mse(model,samples,device=device).mean()),1e-30)))
+    metadata=dict(strength=float(strength),best=dict(penalty=selected,penalty_index=best['penalty_index'],inner_mse=best['inner_mse']),
+        optimizer=info,fit_organoids=[s['organoid_str'] for s in samples],inner_train=[s['organoid_str'] for s in train],
+        inner_validation=[s['organoid_str'] for s in val],device=str(device),solver_rtol=solver_rtol,
+        selection='Fixed accommodation; only shrinkage selected on inner training holdout')
     return model,metadata,pd.DataFrame(trials)

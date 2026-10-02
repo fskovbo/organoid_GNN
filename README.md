@@ -2,7 +2,7 @@
 
 Training and analysis are separate workflows. Start with the [notebook guide](experiments/README.md).
 
-- `experiments/training/`: four training workflows: GIN/FiLM depths, graph controls, marker combinations and masking.
+- `experiments/training/`: GIN/FiLM depths, graph controls, marker combinations, masking and interpretable fate models.
 - `experiments/ablation/`: zeroing, replacement, trained masking, sampling and niche diagnostics.
 - `experiments/benchmarks/`: saved-model comparisons and masking benchmarks.
 - `experiments/marker_subsets/`: marker-panel informativeness.
@@ -23,3 +23,5 @@ install is optional: `python -m pip install -e '.[notebooks]'`.
 
 Run checks with `python -m unittest discover -s tests -p 'test_*.py'`.
 The [artifact/refactor guide](docs/refactor.md) explains restoration and historical compatibility.
+
+Before changing the interpretable curvature models, read the [scientific decision record](docs/curvature_model_decisions.md): priorities, past experiments, reference conventions and the current simplified model.

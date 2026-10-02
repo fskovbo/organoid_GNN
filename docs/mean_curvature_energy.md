@@ -1,7 +1,13 @@
 # Mean-curvature preference and accommodation
 
-The new notebooks are `experiments/training/mean_curvature_energy_training.ipynb`
-and `experiments/benchmarks/mean_curvature_energy_evaluation.ipynb`. They reuse
+For current scientific priorities and the simplified-model specification, read
+[curvature_model_decisions.md](curvature_model_decisions.md). The formulations
+below remain available for historical model restoration.
+
+The active fresh-cohort notebooks are `experiments/training/energy_model_training.ipynb`
+and `experiments/benchmarks/energy_model_evaluation.ipynb`. Historical mean-energy
+notebooks are archived under `legacy/energy_models/` (training), while their
+evaluation notebook remains available. The historical notebooks reuse
 saved mean-target preprocessing, global baselines and outer folds from the
 previous coupled-fate experiment. Older models and notebooks are unchanged.
 
@@ -128,3 +134,140 @@ report with full-fold objective/gradient and prediction parity, timing, GPU memo
 and complete matched CPU/CUDA fitting on a size-spread training subset. It does
 not modify saved scientific models or their evaluation. Small graphs and cold
 preparation overhead can limit acceleration.
+
+## Fixed pooled exposure and optional reference centering
+
+`interaction='pooled'` adds a separate, backward-compatible formulation. Its
+exposure is `(p_ring1 + 0.5*p_ring2)/1.5`, where each p is the source identity's
+fraction within that ring. Empty rings have zero fractions. Both distance weights
+are fixed: no per-pair or N-dependent range parameter is fitted. Activation is
+applied after pooling. The local preference is
+
+```
+u_i = a_A + sum_B beta_AB(N) * (F_AB(x_iB) - mu_AB)
+F_AB(x) = tanh(alpha_AB*x)/tanh(alpha_AB)
+```
+
+`center_response=False` sets mu and its optimization derivative to zero;
+otherwise mu is recomputed from the fitting samples at each activation trial,
+conditional on center identity with equal organoid weighting. Neither variant
+uses validation data to compute references. Both keep the existing amplitude
+contrast convention, regularization, baseline, and accommodation solve. The
+pooled coefficient readout returns `amplitude`, not separate `hop1`/`hop2` tables.
+The legacy two-slot response buffer is retained for checkpoint compatibility;
+pooled activation occupies slot zero and slot one is identically zero. Discrete
+sign search is skipped for pooled models. Old checkpoint specifications default
+to `interaction='signed_hops', center_response=True` and reproduce their original
+predictions.
+
+Centering and not centering are not generally just coordinate changes when beta
+is affine in log N and a is constant. Equivalence at fixed beta and alpha would
+require `a_uncentered,A(N) = a_centered,A - sum_B beta_AB(N)*mu_AB`. Regularization
+also changes under that shift. The dedicated experiment therefore compares two
+fitting conventions/families, not an isolated biochemical mechanism.
+
+The dedicated notebooks are `legacy/energy_models/notebooks/training/pooled_interaction_training.ipynb`
+and `legacy/energy_models/notebooks/benchmarks/pooled_interaction_evaluation.ipynb`. They fit only the
+two requested accommodated, learned-saturation variants on the saved five folds.
+Previous signed-hop and FiLM models are reused, not retrained. Results are under
+`training_results/pooled_interaction_training/<tag>_<timestamp>/`.
+
+Fold diagnostics use the same fate-selected contexts for every fitted fold,
+restricted to common marginal exposure/size support. They export the pair term
+relative to zero source exposure, with reference offsets canceled, before
+accommodation. This is not a fate-replacement ablation: other identity fractions
+are held fixed and zero exposure can be outside support. Diagnostic reference
+contexts include training cells for some folds; only the separate outer-fold MSE
+is a held-out performance measure. Overlapping training folds make agreement
+descriptive, not independent replication. Report absolute disagreement and
+response magnitude alongside relative dispersion, and flag near-zero responses.
+
+## Count-exposure reference experiment
+
+For pooled interactions, `exposure_kind='counts'` replaces each ring fraction
+with the number of cells of that identity in the ring. The exposure is
+`(n_ring1 + 0.5*n_ring2)/1.5`, including Unassigned as an identity. It is not
+divided by ring population or clipped. `exposure_kind='fractions'` remains
+the default, preserving earlier checkpoint predictions. Counts are intentionally
+restricted to the pooled interaction formulation.
+
+Activation remains `tanh(alpha*x)/tanh(alpha)`, normalized at one exposure unit.
+With counts, x may exceed one and the activation can exceed one before saturating
+at `1/tanh(alpha)`. Thus amplitudes and saturation parameters have different
+units from fraction-based models. The reference experiment retains the same
+numerical bounds, priors, initialization strengths and penalty grid; these are
+not scale-invariant regularization choices. Absolute identity counts can also
+implicitly reveal neighborhood size.
+
+The pooled training notebook exposes this choice beside the centering variants.
+The evaluation notebook compares both count variants with both saved fraction
+variants on identical outer/inner memberships and with the existing FiLM.
+Fold-consistency diagnostics intersect count and fraction support on identical
+reference neighborhoods. Consequently, their common context cohort differs
+from the earlier fraction-only report. Earlier executed notebooks are preserved
+inside that run's `source_snapshot/executed_notebooks` directory.
+
+## Independent amplitudes for selected sources
+
+`pair_constraints='direct', source_indices=[...]` gives each selected ordered
+center/source pair its own coefficient, without weighted-zero row or column
+constraints. All center identities remain represented. Excluded sources have
+zero explicit pair amplitude, but still contribute to fraction denominators,
+center preferences and mechanical accommodation. An exhaustive linear fraction
+panel can be intercept-confounded. The current all-source notebook uses an
+explicit source reference for linear activation and reports design rank.
+
+With `interaction='pooled', center_response=False, size_dependent=False`, the
+model has constant uncentered preferences, pair coefficients and accommodation.
+The `linear` and `fixed` activations leave only one nonlinear fitted scalar.
+Old defaults and checkpoint tensor shapes are unchanged. Source selection and
+constraint mode are stored in constructor specifications for exact restoration.
+
+## Literal presence, interaction radius and linear source reference
+
+`interaction='pooled', interaction_radius=1` uses first-ring fractions;
+`interaction_radius=2` retains `(p1 + 0.5*p2)/1.5`. Graph preprocessing keeps two
+rings cached for all variants. Only the selected rings enter responses/support;
+mechanical accommodation always uses the full graph Laplacian.
+
+`activation='presence'` returns exactly `1[exposure > 0]`, including zero for an
+empty neighborhood. No alpha or threshold is fitted. Presence is unchanged if a
+source's positive count is multiplied, and it ignores positive distance weights.
+`activation='mixed', pair_activations=choices` accepts a square list of lists,
+indexed by center and source identity, whose entries are `'linear'` or `'presence'`.
+There is one amplitude per pair, not two competing linear/presence coefficients.
+The map is a fixed constructor setting saved in the checkpoint. Automatic
+activation selection is not implemented in this experiment.
+
+For direct all-source linear models, `reference_source=unassigned_index` removes
+that source column while retaining all center coefficients. On populated rings,
+`a_ref = a + beta_ref` and `beta_B_ref = beta_B - beta_ref` preserve predictions.
+The zero reference coefficient does not mean zero biological contribution.
+Empty rings do not obey the exhaustive-composition sum; their frequency must be
+audited before interpreting this as a pure gauge choice. Presence models use
+`reference_source=None` because nonlinear indicator sums are not generally one.
+
+Existing constructor defaults and tensor layouts are unchanged for old models.
+CPU and CUDA paths share these semantics, with checks for gradients, exact
+responses, radius isolation, checkpoint restoration and legacy predictions.
+
+## Restricted recipients and fixed accommodation
+
+`recipient_indices=[...]` selects the rows of direct pair amplitudes that exist.
+Excluded recipients have exactly zero incoming pair terms, not merely a penalty
+or a support mask. Center preferences remain for all identities. Sources and
+recipients need not be disjoint in the reusable model, but the current notebook
+requires them to be disjoint and exhaustive. Historical defaults retain all rows.
+
+`fixed_strength=gamma` specifies exact nonnegative accommodation, including zero,
+with no logit approximation. It requires constant accommodation and bypasses all
+nonlinear strength optimization. Both CPU and CUDA solvers obey it. The helper
+`fit_energy_fixed` selects only coefficient shrinkage within the supplied training
+partition and then refits that entire partition. Spherical validation is never
+passed to this helper. Checkpoints save both options and remain loadable through
+`AnalysisRun.select`/`fold_inputs`.
+
+The fresh training notebook fits baseline/preprocessing on ordinary training only,
+then transforms ordinary and spherical validation with those same fitted objects.
+Curvature cleanup learns quantiles on training graphs only. Regional merging is
+local to this new workflow; historical region definitions are not changed globally.

@@ -247,10 +247,15 @@ class CoupledFateCurvature(nn.Module):
         return (mu,self.log_variance.to(x.device).expand_as(mu)),torch.as_tensor(locals_[:,None],device=x.device)
 
 
-def normalized_tanh(x, alpha, derivative=False):
-    """Activation on fractions; optional derivative with respect to log(alpha)."""
+def normalized_tanh(x, alpha, derivative=False, *, input_max=1.):
+    """Unit-input normalized activation; derivative is with respect to log(alpha).
+
+    By default input is a fraction. Set input_max=None for nonnegative counts;
+    F(1)=1 still holds, but F(x) can exceed one when x>1.
+    """
     x=np.asarray(x,dtype=float);alpha=np.asarray(alpha,dtype=float)
-    if not np.isfinite(x).all() or not np.isfinite(alpha).all() or np.any((x<0)|(x>1+1e-12)) or np.any(alpha<0):raise ValueError('Invalid fraction or saturation.')
+    if not np.isfinite(x).all() or not np.isfinite(alpha).all() or np.any(x<0) or np.any(alpha<0):raise ValueError('Invalid exposure or saturation.')
+    if input_max is not None and np.any(x>input_max+1e-12):raise ValueError('Exposure exceeds its allowed range.')
     safe=np.maximum(alpha,1e-6);den=np.tanh(safe);num=np.tanh(safe*x)
     value=np.where(alpha<1e-5,x,num/den)
     if not derivative:return value

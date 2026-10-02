@@ -34,7 +34,7 @@ class MeanEnergyNotebookTests(unittest.TestCase):
             rec=dict(key=f'film_f{f}',name='film',depth=2,hidden_dim=8,fold=f,seed=42,rate=0.,bundle=f'models/film_f{f}',input_bundle=f'inputs/fold_{f}_all_observed')
             save_bundle(ref/rec['bundle'],dict(model=model,record=rec),splits=split);recs.append(rec)
         pd.DataFrame(recs).to_json(ref/'models.json',orient='records');(source/'models.json').write_text('[]')
-        cells=[c.source for c in nbformat.read(ROOT/'experiments/training/mean_curvature_energy_training.ipynb',4).cells if c.cell_type=='code'];ns={}
+        cells=[c.source for c in nbformat.read(ROOT/'legacy/energy_models/notebooks/training/mean_curvature_energy_training.ipynb',4).cells if c.cell_type=='code'];ns={}
         exec(cells[0],ns);exec(cells[1],ns);ns.update(SOURCE_RUN=str(source),RESUME_RUN=str(out),SHOW_PROGRESS=False,DEVICE='cpu',ENERGY_DEVICE='cpu',CONCURRENT_FITS=2)
         ns['SETTINGS'].update(variants=['center_local','learned_accommodated'],film_width=8,pair_ridge_grid=[.001],starts=[[.2,3.,1]],min_pair_organoids=1,blas_threads=2,max_iterations=180,tolerance=1e-4)
         with patch('matplotlib.pyplot.show',side_effect=lambda:plt.close('all')):

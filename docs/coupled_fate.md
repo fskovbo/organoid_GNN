@@ -2,7 +2,7 @@
 
 The active notebooks use **`CoupledFateResponse`**:
 
-- `experiments/training/coupled_fate_training.ipynb` fits and saves the planned model grid.
+- `legacy/energy_models/notebooks/training/coupled_fate_training.ipynb` fits and saves the planned model grid.
 - `experiments/benchmarks/coupled_fate_evaluation.ipynb` restores checkpoints, evaluates them and plots coefficients.
 
 For each target, the model predicts physical residual curvature by solving

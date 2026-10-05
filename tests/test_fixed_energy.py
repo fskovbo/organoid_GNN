@@ -37,6 +37,23 @@ class FixedEnergyTests(unittest.TestCase):
                 obj=TensorEnergyObjective(copy.deepcopy(m),samples,device=device);actual,g=obj(obj.pack())
                 self.assertAlmostEqual(value,actual,places=10);self.assertEqual(len(g),0)
 
+    def test_explicit_pair_design_cpu_and_tensor(self):
+        samples=graph_samples(graphs(),2)
+        settings=self.settings();settings.update(source_indices=None,recipient_indices=None,
+            pair_indices=[(0,2),(2,1)],zero_mean_output=True)
+        m=MeanCurvatureEnergy(**settings,fixed_strength=.5).configure(samples)
+        self.assertEqual(m.hidden_dim,5)
+        value,_=EnergyObjective(m,samples)(np.array([]))
+        table=m.coefficients([1])['amplitude'][0]
+        mask=np.ones((3,3),bool);mask[0,2]=False;mask[2,1]=False
+        np.testing.assert_array_equal(table[mask],0.)
+        for device in ['cpu']+(['cuda'] if torch.cuda.is_available() else []):
+            obj=TensorEnergyObjective(copy.deepcopy(m),samples,device=device)
+            actual,_=obj(np.array([]));self.assertAlmostEqual(value,actual,places=10)
+        for invalid in [[],[(0,2),(0,2)],[(3,0)]]:
+            settings['pair_indices']=invalid
+            with self.assertRaises(ValueError):MeanCurvatureEnergy(**settings,fixed_strength=.5)
+
     def test_fixed_fit_save_and_membership(self):
         samples=graph_samples(graphs(),2)
         for gamma in [0.,.2]:

@@ -38,7 +38,7 @@ class MeanCurvatureEnergy(nn.Module):
                  interaction='signed_hops',center_response=True,exposure_kind='fractions',
                  pair_constraints='weighted_contrasts',source_indices=None,
                  interaction_radius=2,reference_source=None,pair_activations=None,
-                 recipient_indices=None,fixed_strength=None,zero_mean_output=False):
+                 recipient_indices=None,fixed_strength=None,zero_mean_output=False,pair_indices=None):
         super().__init__()
         if activation not in ('linear','fixed','learned','presence','mixed'):raise ValueError('Invalid activation')
         if interaction_radius not in (1,2):raise ValueError('Interaction radius must be 1 or 2')
@@ -68,6 +68,16 @@ class MeanCurvatureEnergy(nn.Module):
         recipients=list(range(n_markers+1)) if recipient_indices is None else list(recipient_indices)
         if not recipients or len(set(recipients))!=len(recipients) or any(not isinstance(a,(int,np.integer)) or a<0 or a>n_markers for a in recipients):
             raise ValueError('Expected distinct recipient identity indices within marker panel')
+        self.pair_indices=None
+        if pair_indices is not None:
+            if pair_constraints!='direct' or reference_source is not None:
+                raise ValueError('Explicit pairs require direct amplitudes without a reference source')
+            selected=[tuple(pair) for pair in pair_indices]
+            if (not selected or len(set(selected))!=len(selected) or
+                    any(len(pair)!=2 or any(not isinstance(i,(int,np.integer)) for i in pair)
+                        or pair[0] not in recipients or pair[1] not in sources for pair in selected)):
+                raise ValueError('Expected distinct (recipient, source) pairs within the selected panels')
+            self.pair_indices=[list(map(int,pair)) for pair in selected]
         if fixed_strength is not None and (not np.isfinite(fixed_strength) or fixed_strength<0 or not accommodation or size_dependent):
             raise ValueError('Fixed accommodation requires a finite nonnegative scalar, accommodation=True and size_dependent=False')
         if zero_mean_output and (fixed_strength is None or interaction!='pooled' or activation not in ('linear','presence','fixed','mixed')):
@@ -87,6 +97,7 @@ class MeanCurvatureEnergy(nn.Module):
         self.radius=interaction_radius if pairs else 0;self.num_layers=self.radius
         t=n_markers+1;k=2 if size_dependent else 1
         n_pair=(t-1)**2 if pair_constraints=='weighted_contrasts' else len(recipients)*(len(sources)-int(reference_source is not None))
+        if self.pair_indices is not None:n_pair=len(self.pair_indices)
         self.n_basis=k;self.hidden_dim=t+n_pair*k*int(pairs)
         values=dict(weights=np.zeros(self.hidden_dim),lambda_logits=np.zeros(k),log_alpha=np.full((t,t),np.log(fixed_alpha)),
             signs=np.ones((t,t)),reference=np.zeros((t,2,t)),contrast=np.zeros((t*t,n_pair)),
@@ -172,8 +183,9 @@ class MeanCurvatureEnergy(nn.Module):
             sources=list(range(t)) if self.source_indices is None else self.source_indices
             recipients=list(range(t)) if getattr(self,'recipient_indices',None) is None else self.recipient_indices
             columns=[a*t+b for a in recipients for b in sources if b!=getattr(self,'reference_source',None)]
+            if getattr(self,'pair_indices',None) is not None:columns=[a*t+b for a,b in self.pair_indices]
             q=np.eye(t*t)[:,columns]
-            included[:]=False;included[np.ix_(recipients,sources)]=True
+            included[:]=False;included.ravel()[columns]=True
             if getattr(self,'reference_source',None) is not None:included[:,self.reference_source]=False
         self.contrast.copy_(torch.tensor(q));self.pair_support.copy_(torch.tensor(support))
         self.active_pairs.copy_(torch.tensor((support>=self.min_pair_organoids)&self.pairs&included))

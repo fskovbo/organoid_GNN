@@ -10,8 +10,8 @@ may retain an enabled training switch and an explicit resume directory.
 | Notebook | Purpose |
 | --- | --- |
 | [GIN/FiLM depth training](training/gin_depth_training.ipynb) | Full-panel GIN, FiLM or both: depths 0–4, folds, width/seed grids, shared timepoints, filters, optional residualization and exclusive markers. No subset, permutation or masking training. |
-| [Energy model training](training/energy_model_training.ipynb) | Fresh day4+ cohort, explicit settings, one-hop presence or linear-fraction interactions, fixed accommodation sweep, configurable source/recipient panels (including all-to-all), optional byte-identical prepared-input reuse for matched references, optional plain depth-1 GIN, and a separate spherical validation cohort. |
-| [Shape-conditioned energy training](training/shape_conditioned_energy_training.ipynb) | Conditional curvature allocation given measured organoid mean/SD; exact saved folds, presence-energy sweep, center control and plain GIN. |
+| [Accommodation scan training](training/energy_model_training.ipynb) | Explicit fresh-data settings; mean or mean+SD targets; configurable presence pairs and an accommodation grid on identical folds. |
+| [Fixed-accommodation training](training/shape_conditioned_energy_training.ipynb) | Default γ=0.5; center-only, selectable interaction ranges/pairs and plain GIN; either or both target normalizations. |
 | [Fate masking training](training/fate_masking_training.ipynb) | Missing-fate indicator training and matched zero-mask controls across rates/seeds. |
 | [Graph controls training](training/graph_controls_training.ipynb) | Controls matched to a completed GIN/FiLM run: copy its cohort, exact folds, preprocessing, baseline and training settings; copy original reference checkpoints byte-for-byte and train ring or altered-signal controls. `max_folds` limits this to original folds without resplitting. |
 | [Lineage removal training](training/lineage_removal_training.ipynb) | Any number of named marker combinations on shared folds and preprocessing, with immediate validation results. |
@@ -55,7 +55,7 @@ hop from 1 through the selected model depth; the recipient center is never edite
 | --- | --- |
 | Ablation | [Total effects](ablation/total_analysis.ipynb); [size-dependent effects](ablation/size_dependent_ablation.ipynb); [interactive size viewer](ablation/size_ablation_viewer.ipynb); [method comparison](ablation/ablation_comparison.ipynb); [sampling diagnostics](ablation/sampling_diagnostics.ipynb) |
 | Benchmarks | [Model comparison](benchmarks/model_comparison.ipynb); [graph controls](benchmarks/graph_signal_controls.ipynb); [masking quality and robustness](benchmarks/masking_quality_and_robustness.ipynb) |
-| Interpretable fate models | [Simplified model stability](../legacy/energy_models/notebooks/benchmarks/simple_fate_energy_evaluation.ipynb): supported replacement contrasts, fold stability, spatial prediction errors, accommodation compensation and collinearity; [Pooled interaction comparison](../legacy/energy_models/notebooks/benchmarks/pooled_interaction_evaluation.ipynb): historical count/fraction and centering tests; [Mean-curvature energy evaluation](benchmarks/mean_curvature_energy_evaluation.ipynb): distance-first regions, matched FiLM MSE, fitted preferences, accommodation, activation and hop signs; [Coupled fate evaluation and coefficients](benchmarks/coupled_fate_evaluation.ipynb): all-region MSE, FiLM accuracy reference, coupling, center and ordered pair coefficients. |
+| Interpretable fate models | [Simplified model stability](../legacy/energy_models/notebooks/benchmarks/simple_fate_energy_evaluation.ipynb): supported replacement contrasts, fold stability, spatial prediction errors, accommodation compensation and collinearity; [Pooled interaction comparison](../legacy/energy_models/notebooks/benchmarks/pooled_interaction_evaluation.ipynb): historical count/fraction and centering tests; [Historical mean-curvature energy evaluation](../legacy/energy_models/pre_standardization_streamline/mean_curvature_energy_evaluation.ipynb): distance-first regions, matched FiLM MSE, fitted preferences, accommodation, activation and hop signs; [Coupled fate evaluation and coefficients](benchmarks/coupled_fate_evaluation.ipynb): all-region MSE, FiLM accuracy reference, coupling, center and ordered pair coefficients. |
 | Marker subsets | [Marker informativeness](marker_subsets/marker_informativeness.ipynb) |
 | Embeddings | [General clustering](embeddings/clustering.ipynb); [patch composition](embeddings/patch_composition.ipynb); [embedding responses and PCA](embeddings/embedding_responses.ipynb) |
 | Neighborhoods | [observed KI67 neighborhoods](neighborhoods/ki67_observed_neighborhoods.ipynb); [unassigned cells](neighborhoods/unassigned_cells.ipynb) |
@@ -206,9 +206,16 @@ The [curvature-model decision record](../docs/curvature_model_decisions.md) reco
 
 ## Curvature-energy workflow
 
-Use [energy model training](training/energy_model_training.ipynb) and
-[energy model evaluation](benchmarks/energy_model_evaluation.ipynb) for new runs.
-The four previous energy training notebooks and the pooled/simple-fate benchmarks are in
-[the archive](../legacy/energy_models/README.md). Their displayed outputs and saved training results remain available for historical comparisons.
+The active workflow uses measured-organoid-mean subtraction, optionally followed by division by measured SD. Select `target_modes=['mean_only']`, `['standardized']`, or both in either training notebook. These are conditional reconstruction tasks, not fate-only shape prediction.
 
-The [shape-conditioned evaluation](benchmarks/shape_conditioned_energy_evaluation.ipynb) restores the conditional models, compares measured-mean and mean/SD reconstruction, and reports regional and homogeneous-neighborhood errors. Observed summaries are explicitly supplied at validation; these are not fate-only prediction scores.
+| Purpose | Training | Analysis |
+| --- | --- | --- |
+| Scan accommodation | [Accommodation scan](training/energy_model_training.ipynb) | [MSE and coefficient profiles](benchmarks/energy_model_evaluation.ipynb) |
+| Fixed accommodation (default γ=0.5) | [Fixed-accommodation training](training/shape_conditioned_energy_training.ipynb) | [Model/normalization comparison](benchmarks/shape_conditioned_energy_evaluation.ipynb) |
+| Inspect one fitted configuration | Load the fixed run | [Coefficients and artificial neighborhoods](benchmarks/energy_model_inspection.ipynb) |
+
+Both training notebooks expose data, folds, cleanup and optimization settings. They save the raw cohort, physical targets, observed moments, models, predictions and memberships together. Fixed-accommodation configurations support radius 0 (no pairs), 1 or 2, source/recipient panels, explicit ordered pair lists, and GIN depth selection. Radius 0 retains accommodation. Presence within two hops counts an identity once across the complete neighborhood.
+
+The artificial-neighborhood notebook inserts secretory identities into periodic six-neighbor KI67/LGR5/Unassigned tissue. It separates local preference, accommodation and uniform output centering, verifies the uniform-tissue control, and checks finite-size effects. Synthetic fields remain in fitted target units because no measured organoid SD is available.
+
+Previous versions of these notebooks are in [the pre-standardization archive](../legacy/energy_models/pre_standardization_streamline/). Historical fitted models and reports remain available; active analyses no longer append those legacy comparisons.

@@ -13,6 +13,28 @@ proxies, stability across folds, and resistance to parameter compensation take
 priority over small improvements in prediction MSE. Prefer a simpler model with
 some accuracy loss to an expressive model with ambiguous parameters.
 
+## Current workflow: conditional mean-curvature allocation (2026-10-02)
+
+The active model predicts mean-subtracted curvature, with optional division by each organoid's measured population SD. Mean+SD is the preferred analysis; mean-only remains an explicit matched control. This intentionally conditions validation on measured global moments, without feeding local targets or moments into the predictor.
+
+`h = (I + gamma L)^(-1) [u - mean(u)]`, with `u = a_center + sum_AB beta_AB presence(B within the configured radius)`.
+
+- Constant coefficients and fixed gamma; no learned activation, N-dependence or training-reference interaction centering.
+- Default fixed gamma is 0.5. Scan models use a separately exposed gamma grid. Pair shrinkage is selected on a training-only inner holdout; all models then refit the outer training set.
+- All-to-all presence is the main current variant. Also expose center-only (radius 0, accommodation retained), radius 1/2, restricted source/recipient panels, arbitrary ordered pairs, and plain GIN. Radius 2 means presence anywhere in the two-hop neighborhood, counted once.
+- Fresh-data settings are fully exposed: exclusive fates, day4/day4p5/day4p5-more, q<0.93 ordinary cohort, five matched folds. Spherical-like organoids are external validation only. Target cleanup is training-fitted; the SD floor uses only the inner-training subset.
+- The measured organoid mean is the reference for current MSE; older fitted global baselines are not part of this conditional target. Both normalization variants reconstruct physical predictions for fair error comparisons.
+- Overall MSE covers ordinary validation; spherical-like and ordinary no-detected-crypt share a regional panel. No separate spherical plot or unqualified-boundary panel. Fold traces/points and mean/SEM are shown.
+- Center coefficients have an arbitrary common offset after output projection; pair amplitudes are conditional local preferences, not identified causal interactions. Measured SD rescales their physical effect between organoids.
+
+Active notebooks: `energy_model_training` / `energy_model_evaluation` for accommodation scans; `shape_conditioned_energy_training` / `shape_conditioned_energy_evaluation` for fixed-gamma model/normalization comparisons; `energy_model_inspection` for one configuration's coefficients and artificial tissue.
+
+Artificial tissue is a periodic triangular lattice (six neighbors per node), with one Agr2/Serotonin/Lysozyme/Chroma in KI67/LGR5/Unassigned. Keep adjacency fixed between insertion and uniform control. Display actual mean-centered predictions, unprojected local and accommodated fields versus the inserted type's coefficient, and an exact decomposition into center preference, changed pair contributions and uniform projection offset. A larger lattice verifies local finite-size convergence. Do not call the uniform centering offset mechanical propagation. There is no synthetic measured SD or physical shape ground truth.
+
+Older notebook versions were archived under `legacy/energy_models/pre_standardization_streamline/`. Saved historical runs are preserved. The historical development and evidence below explain why these choices were made; they do not override this current contract.
+
+## Historical specification before observed-moment standardization
+
 The primary simplified specification is a fresh-cohort, uncentered joint model with
 constant center preferences and pair amplitudes, **one-hop literal presence**,
 and accommodation fixed at each point of an explicit grid. Sources are Agr2,
@@ -729,3 +751,11 @@ states despite access to mean/SD. At common gamma=0.8, 56/64 pair amplitudes
 have unanimous signs above a 0.01-standardized-unit tolerance; this is descriptive
 stability, not mechanistic identification. The planned artificial-neighborhood
 tests remain a next step, not something already performed in this run.
+
+## Streamlined conditional workflow: completed execution
+
+Accommodation scan: `training_results/energy_model_training/conditional_scan_20261002_162217` (110 fits). Fixed accommodation: `training_results/shape_conditioned_energy_training/fixed_gamma05_20261002_162517` (40 energy fits and 10 GIN fits). All five active training/analysis notebooks were executed; 21 focused tests passed. Exact physical targets, graph inputs, inner/outer memberships and normalization floors agree between the scan and fixed runs; matching gamma=0.5 one-hop coefficients also agree numerically.
+
+Across the tested grid, both normalization modes attain their lowest mean ordinary-validation physical MSE at gamma=0.5. At fixed gamma, mean-only one-hop presence MSE is 0.004108; mean+SD is 0.003941; the matched depth-1 mean+SD GIN is 0.004027. Two-hop mean+SD presence reaches 0.003819, with the different direct interaction range explicitly recorded. These are descriptive outer-validation comparisons, not new inner-selection claims.
+
+Single-model diagnostics default to one-hop mean+SD presence at gamma=0.5. Periodic 41×41 and 61×61 triangular lattices verify exactly six neighbors and convergence of the local unprojected response. Uniform tissue projects to zero. The insertion curves are exported alongside their exact center/pair/projection decomposition, so the small distant output-centering offset is distinguishable from accommodation. Coefficients retain the identifiability cautions above.

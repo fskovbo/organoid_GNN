@@ -4,12 +4,9 @@ For current scientific priorities and the simplified-model specification, read
 [curvature_model_decisions.md](curvature_model_decisions.md). The formulations
 below remain available for historical model restoration.
 
-The active fresh-cohort notebooks are `experiments/training/energy_model_training.ipynb`
-and `experiments/benchmarks/energy_model_evaluation.ipynb`. Historical mean-energy
-notebooks are archived under `legacy/energy_models/` (training), while their
-evaluation notebook remains available. The historical notebooks reuse
-saved mean-target preprocessing, global baselines and outer folds from the
-previous coupled-fate experiment. Older models and notebooks are unchanged.
+The current workflow uses measured mean subtraction or mean+SD standardization. Use `energy_model_training.ipynb` / `energy_model_evaluation.ipynb` for accommodation scans, `shape_conditioned_energy_training.ipynb` / `shape_conditioned_energy_evaluation.ipynb` for fixed-gamma comparisons, and `energy_model_inspection.ipynb` for single-model coefficients and synthetic tissues. Training notebooks are under `experiments/training`; analysis notebooks are under `experiments/benchmarks`.
+
+Current predictions center the local preference before accommodation: `(I + gamma L) h = u - mean(u)`. Physical reconstruction adds the measured organoid mean and, for standardized models, multiplies by its measured SD. Earlier fitted-baseline workflows are archived under `legacy/energy_models/`; the equations below document historical model options as well as the underlying accommodation formulation.
 
 ## Model
 

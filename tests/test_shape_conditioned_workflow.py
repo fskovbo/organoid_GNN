@@ -13,10 +13,10 @@ class ConditionalWorkflowTests(unittest.TestCase):
         torch.set_num_threads(2)
         specs=[dict(name='center_only',family='energy',radius=0),
                dict(name='presence_r1',family='energy',radius=1,pairs=[('LGR5','Lysozyme'),('KI67','Agr2')]),
-               dict(name='presence_r2',family='energy',radius=2),dict(name='gin_d1',family='gin',depth=1)]
+               dict(name='presence_r2',family='energy',radius=2,exclude_same_identity=True),dict(name='gin_d1',family='gin',depth=1)]
         with tempfile.TemporaryDirectory() as d:
             run=Path(d)/'fixed'
-            ns=run_training('shape_conditioned_energy_training.ipynb',run,models=specs,gamma=.5,
+            ns=run_training('shape_conditioned_energy_training.ipynb',run,models=specs,gamma=.5,target_modes=['mean_only','standardized'],
                 gin_hidden_dim=8,gin_batch_size=4,gin_max_epochs=2,gin_patience=1)
             self.assertEqual(len(ns['records']),8)
             for rec in ns['records']:
@@ -28,9 +28,21 @@ class ConditionalWorkflowTests(unittest.TestCase):
                     table=model.coefficients([1])['amplitude'][0]
                     mask=np.ones((8,8),bool);mask[4,5]=False;mask[3,0]=False
                     np.testing.assert_array_equal(table[mask],0)
-            ev=run_evaluation('shape_conditioned_energy_evaluation.ipynb',run)
+                if rec['variant']=='presence_r2':
+                    self.assertEqual(model.hidden_dim,64)
+                    self.assertEqual(len(model.pair_indices),56)
+                    np.testing.assert_array_equal(np.diag(model.coefficients([1])['amplitude'][0]),0)
+            ev=run_evaluation('shape_conditioned_energy_evaluation.ipynb',run,COMPARISON_RUNS=[],TARGET_MODES=['mean_only','standardized'])
             self.assertLess(max(row['max_difference'] for row in ev['verification']),2e-6)
-            view=run_evaluation('energy_model_inspection.ipynb',run,LATTICE_SIDE=15,CHECK_LATTICE_SIDE=21,MAX_DISTANCE=3)
+            cross=run_evaluation('shape_conditioned_energy_evaluation.ipynb',run,
+                TARGET_MODES=['standardized'],VARIANTS=['presence_r1','presence_r2','center_only'],
+                COMPARISON_RUNS=[dict(run=str(run),variants=['gin_d1'])])
+            self.assertEqual(len(cross['selected']),4)
+            self.assertEqual(len(cross['data_checks']),1)
+            center=run_evaluation('shape_conditioned_energy_evaluation.ipynb',run,
+                TARGET_MODES=['standardized'],VARIANTS=['center_only'],COMPARISON_RUNS=[])
+            self.assertTrue(center['pairs'].empty)
+            view=run_evaluation('energy_model_inspection.ipynb',run,VARIANTS=['presence_r1'],LATTICE_SIDE=15,CHECK_LATTICE_SIDE=21,MAX_DISTANCE=3)
             self.assertLess(view['size_checks'].max_raw_response_difference.max(),1e-5)
             self.assertTrue((view['OUTPUT_DIR']/'artificial_radial_fields.csv').exists())
 

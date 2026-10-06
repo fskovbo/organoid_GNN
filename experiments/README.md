@@ -5,6 +5,10 @@ its catalog; they do not depend on a training kernel or refit target transformat
 Inspect the settings and execution switches before running. Executed experiment notebooks
 may retain an enabled training switch and an explicit resume directory.
 
+## Missing-marker prediction
+
+The dedicated [marker prediction](marker_prediction/) folder contains [training](marker_prediction/marker_prediction_training.ipynb) and [evaluation](marker_prediction/marker_prediction_evaluation.ipynb) notebooks for Mucin 2/Glucagon prediction from shared, non-exclusive fates at radii 0–4, with optional center curvature. Organoid-disjoint calibration and testing quantify sparse high-precision recovery; no missing identities are automatically restored. Reusable feature, classifier and evaluation helpers live in `src/marker_prediction/`.
+
 ## Training
 
 | Notebook | Purpose |
@@ -12,6 +16,7 @@ may retain an enabled training switch and an explicit resume directory.
 | [GIN/FiLM depth training](training/gin_depth_training.ipynb) | Full-panel GIN, FiLM or both: depths 0–4, folds, width/seed grids, shared timepoints, filters, optional residualization and exclusive markers. No subset, permutation or masking training. |
 | [Accommodation scan training](training/energy_model_training.ipynb) | Explicit fresh-data settings; mean or mean+SD targets; configurable presence pairs and an accommodation grid on identical folds. |
 | [Fixed-accommodation training](training/shape_conditioned_energy_training.ipynb) | Default γ=0.5; center-only, selectable interaction ranges/pairs and plain GIN; either or both target normalizations. |
+| [Restored-fate energy comparison](training/restored_fate_energy_comparison.ipynb) | Restore Mucin 2/Glucagon into a separate exclusive dataset; fit no-self one-hop presence at γ=0.5 on exact reference folds and compare MSE and coefficients. |
 | [Fate masking training](training/fate_masking_training.ipynb) | Missing-fate indicator training and matched zero-mask controls across rates/seeds. |
 | [Graph controls training](training/graph_controls_training.ipynb) | Controls matched to a completed GIN/FiLM run: copy its cohort, exact folds, preprocessing, baseline and training settings; copy original reference checkpoints byte-for-byte and train ring or altered-signal controls. `max_folds` limits this to original folds without resplitting. |
 | [Lineage removal training](training/lineage_removal_training.ipynb) | Any number of named marker combinations on shared folds and preprocessing, with immediate validation results. |
@@ -54,7 +59,7 @@ hop from 1 through the selected model depth; the recipient center is never edite
 | Folder | Notebooks |
 | --- | --- |
 | Ablation | [Total effects](ablation/total_analysis.ipynb); [size-dependent effects](ablation/size_dependent_ablation.ipynb); [interactive size viewer](ablation/size_ablation_viewer.ipynb); [method comparison](ablation/ablation_comparison.ipynb); [sampling diagnostics](ablation/sampling_diagnostics.ipynb) |
-| Benchmarks | [Model comparison](benchmarks/model_comparison.ipynb); [graph controls](benchmarks/graph_signal_controls.ipynb); [masking quality and robustness](benchmarks/masking_quality_and_robustness.ipynb) |
+| Benchmarks | [Full, exclusive and restored GIN fates](benchmarks/gin_fate_encoding.ipynb); [Model comparison](benchmarks/model_comparison.ipynb); [graph controls](benchmarks/graph_signal_controls.ipynb); [masking quality and robustness](benchmarks/masking_quality_and_robustness.ipynb) |
 | Interpretable fate models | [Simplified model stability](../legacy/energy_models/notebooks/benchmarks/simple_fate_energy_evaluation.ipynb): supported replacement contrasts, fold stability, spatial prediction errors, accommodation compensation and collinearity; [Pooled interaction comparison](../legacy/energy_models/notebooks/benchmarks/pooled_interaction_evaluation.ipynb): historical count/fraction and centering tests; [Historical mean-curvature energy evaluation](../legacy/energy_models/pre_standardization_streamline/mean_curvature_energy_evaluation.ipynb): distance-first regions, matched FiLM MSE, fitted preferences, accommodation, activation and hop signs; [Coupled fate evaluation and coefficients](benchmarks/coupled_fate_evaluation.ipynb): all-region MSE, FiLM accuracy reference, coupling, center and ordered pair coefficients. |
 | Marker subsets | [Marker informativeness](marker_subsets/marker_informativeness.ipynb) |
 | Embeddings | [General clustering](embeddings/clustering.ipynb); [patch composition](embeddings/patch_composition.ipynb); [embedding responses and PCA](embeddings/embedding_responses.ipynb) |

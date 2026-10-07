@@ -150,6 +150,21 @@ class AnalysisRun:
                                              depth=r.settings['NUM_LAYERS'], subset='all', signal='intact'))
             self.records = pd.DataFrame(rows)
 
+    def _cached_input(self, name):
+        """Keep the cohort and at most one prepared fold/panel in memory.
+
+        Returned selections own their deep copies; evicting an old input does
+        not change a previously returned model or its data.
+        """
+        from .bundle import load_bundle
+        if name != 'cohort':
+            for old in list(self._data_cache):
+                if old not in ('cohort', name):
+                    del self._data_cache[old]
+        if name not in self._data_cache:
+            self._data_cache[name] = load_bundle(self.directory / name, device='cpu')
+        return self._data_cache[name]
+
     def fold_inputs(self, fold):
         """Restore a fold's intact full-panel data without loading a predictor.
 
@@ -172,8 +187,7 @@ class AnalysisRun:
         if len(bundles) != 1:
             raise ValueError(f'Fold {fold} needs one unambiguous intact full-panel input bundle; found {bundles}.')
         for name in ('cohort', bundles[0]):
-            if name not in self._data_cache:
-                self._data_cache[name] = load_bundle(self.directory / name, device='cpu')
+            self._cached_input(name)
         result = {**copy.deepcopy(self._data_cache['cohort']),
                   **copy.deepcopy(self._data_cache[bundles[0]])}
         actual = graph_membership(train=result['groups']['train'], validation=result['groups']['val'])
@@ -195,8 +209,7 @@ class AnalysisRun:
             selected = load_bundle(self.directory / row.bundle, device=device)
             if 'input_bundle' in row and pd.notna(row.input_bundle):
                 for name in ('cohort', row.input_bundle):
-                    if name not in self._data_cache:
-                        self._data_cache[name] = load_bundle(self.directory / name, device='cpu')
+                    self._cached_input(name)
                 selected = {**copy.deepcopy(self._data_cache['cohort']),
                             **copy.deepcopy(self._data_cache[row.input_bundle]), **selected}
             return selected

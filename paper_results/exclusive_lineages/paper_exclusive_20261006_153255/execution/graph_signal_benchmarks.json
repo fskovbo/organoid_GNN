@@ -1,0 +1,7 @@
+{
+  "notebook": "experiments/paper/graph_signal_benchmarks.ipynb",
+  "exit_code": 0,
+  "elapsed_seconds": 1412.8240542411804,
+  "peak_host_rss_gib": 2.9676170349121094,
+  "log": "/home/fmoller/Projects/LearningOrganoids/GraphNN/paper_results/exclusive_lineages/paper_exclusive_20261006_153255/execution/graph_signal_benchmarks.log"
+}

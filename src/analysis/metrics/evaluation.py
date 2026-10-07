@@ -24,7 +24,11 @@ def compare_baseline_mse(scores, baseline_scores):
     """Pair physical-curvature MSEs by fold/organoid, preserving model weighting."""
     baseline = pd.DataFrame(baseline_scores)[['fold', 'organoid_str', 'mse']].rename(
         columns={'mse': 'baseline_mse'})
-    result = pd.DataFrame(scores).merge(baseline, on=['fold', 'organoid_str'],
+    # Resumed runs may reload the previously paired table. Recompute derived
+    # columns instead of creating baseline_mse_x / baseline_mse_y on a merge.
+    model_scores = pd.DataFrame(scores).drop(
+        columns=['baseline_mse', 'mse_minus_baseline'], errors='ignore')
+    result = model_scores.merge(baseline, on=['fold', 'organoid_str'],
                                        how='left', validate='many_to_one')
     if result['baseline_mse'].isna().any():
         raise ValueError('Missing baseline MSE for one or more validation organoids')
@@ -58,6 +62,8 @@ def prediction_table(selection, *, role='val', device='cpu', batch_size=64):
         if baseline_predictions is not None:
             frame['baseline_prediction'] = np.asarray(baseline_predictions[g.organoid_str]).reshape(-1)
             frame['baseline_squared_error'] = (frame.y_true-frame.baseline_prediction)**2
+            frame['baseline_absolute_error'] = np.abs(frame.y_true-frame.baseline_prediction)
+        frame['absolute_error'] = np.abs(frame.error)
         rows.append(frame)
         start = stop
     return pd.concat(rows, ignore_index=True)

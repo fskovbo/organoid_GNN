@@ -1,0 +1,7 @@
+{
+  "notebook": "experiments/paper/masking_ablation.ipynb",
+  "exit_code": 0,
+  "elapsed_seconds": 106.21867275238037,
+  "peak_host_rss_gib": 2.4208106994628906,
+  "log": "/home/fmoller/Projects/LearningOrganoids/GraphNN/paper_results/exclusive_lineages/paper_exclusive_20261006_153255/execution/masking_ablation.log"
+}

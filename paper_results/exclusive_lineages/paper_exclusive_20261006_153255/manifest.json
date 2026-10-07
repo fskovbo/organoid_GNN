@@ -1,0 +1,91 @@
+{
+  "study_tag": "paper_exclusive_20261006_153255",
+  "study_dir": "/home/fmoller/Projects/LearningOrganoids/GraphNN/paper_results/exclusive_lineages/paper_exclusive_20261006_153255",
+  "status": "complete",
+  "curvature_scale": 0.0001,
+  "metric_units": {
+    "curvature": "um^-2",
+    "mae": "um^-2",
+    "mse": "um^-4"
+  },
+  "runs": {
+    "main": "/home/fmoller/Projects/LearningOrganoids/GraphNN/training_results/gin_depth_training/paper_exclusive_20261006_153255_20261006_153321",
+    "subsets": "/home/fmoller/Projects/LearningOrganoids/GraphNN/training_results/lineage_removal_training/paper_exclusive_20261006_153255_20261007_113617",
+    "masking": "/home/fmoller/Projects/LearningOrganoids/GraphNN/training_results/fate_masking_training/paper_exclusive_20261006_153255_20261007_101435",
+    "controls": "/home/fmoller/Projects/LearningOrganoids/GraphNN/training_results/graph_controls_training/paper_exclusive_20261006_153255_20261007_101553"
+  },
+  "cohort": {
+    "dataset": "after_cleanup",
+    "measurement_datasets": [
+      "20250929",
+      "20251201"
+    ],
+    "timepoints": [
+      "day4",
+      "day4p5",
+      "day4p5-more"
+    ],
+    "sphericity_max": 0.94,
+    "exclusive_markers": true,
+    "blacklist": true
+  },
+  "exemplar": "organoid_day4p5_B03_144",
+  "evaluation_scopes": [
+    "all_cells",
+    "retained_lineages"
+  ],
+  "ablation_sampling": "random centers first, then targeted top-up; origin retained; combined and random-only summaries",
+  "regional_definition": {
+    "crypt_max": 0.75,
+    "neck_max": 1.1,
+    "budded": "organoid-region mean signed neck shape < 0; legacy definition",
+    "signed_neck_shape": "C(s=1)/max(C(s<0.75))-1"
+  },
+  "completed_training": {
+    "masking": {
+      "models": 10,
+      "copied_checkpoints_verified": 0,
+      "validation_rows": 1816,
+      "exact_reference_splits": true,
+      "artifact_hashes_verified": true,
+      "units": {
+        "mse": "um^-4",
+        "mae": "um^-2"
+      }
+    },
+    "controls": {
+      "models": 150,
+      "copied_checkpoints_verified": 25,
+      "validation_rows": 27240,
+      "exact_reference_splits": true,
+      "artifact_hashes_verified": true,
+      "units": {
+        "mse": "um^-4",
+        "mae": "um^-2"
+      }
+    },
+    "subsets": {
+      "models": 80,
+      "folds": 5,
+      "validation_rows": 14528,
+      "exact_reference_splits": true,
+      "all_artifact_hashes_verified": true,
+      "all_cell_and_retained_metrics": true,
+      "one_model_per_process": true,
+      "peak_host_rss_gib": 2.6094818115234375
+    }
+  },
+  "analysis_notebooks": [
+    "experiments/paper/depth_and_lineage_evaluation.ipynb",
+    "experiments/paper/graph_signal_benchmarks.ipynb",
+    "experiments/paper/masking_ablation.ipynb"
+  ],
+  "completed_analysis": {
+    "complete_control_records": 150,
+    "intact_gin_permutation_records": 25,
+    "source_hop_quotas_met": true,
+    "pair_hop_combinations": 128,
+    "mesh_exports": 6,
+    "matched_intact_scores": true
+  }
+}

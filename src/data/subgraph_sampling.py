@@ -485,15 +485,17 @@ def _prepare_coverage_sampling(
     min_center_count,
     min_pair_count,
     threshold,
+    presence=None,
 ):
     """Precompute features, frequencies, targets, and empty coverage state."""
     n_markers = len(marker_names)
     n_hops = int(k_hops)
-    center_pos, ring_pos = _subgraph_marker_coverage(
-        subgraphs,
-        k_hops,
-        threshold=threshold,
-    )
+    if presence is None:
+        center_pos, ring_pos = _subgraph_marker_coverage(subgraphs, k_hops, threshold=threshold)
+    else:
+        center_pos, ring_pos = (np.asarray(values, dtype=bool) for values in presence)
+        if center_pos.shape != (len(subgraphs), n_markers) or ring_pos.shape != (len(subgraphs), n_hops, n_markers):
+            raise ValueError('Precomputed presence has inconsistent candidate/hop/marker dimensions.')
     center_feats, pair_feats = _feature_lists_for_subgraphs(center_pos, ring_pos)
     center_freq, pair_freq = _global_feature_frequencies(
         center_feats,
@@ -977,6 +979,7 @@ def sample_subgraphs_coverage(
     seed=0,
     threshold=0.5,
     return_info=True,
+    precomputed_presence=None,
 ):
     """
     Coverage-aware subsampling for perturbation analysis.
@@ -1024,7 +1027,7 @@ def sample_subgraphs_coverage(
     if max_subgraphs is None or max_subgraphs >= len(subgraphs):
         if return_info:
             state = _prepare_coverage_sampling(
-                subgraphs, marker_names, k_hops, min_center_count, min_pair_count, threshold,
+                subgraphs, marker_names, k_hops, min_center_count, min_pair_count, threshold, presence=precomputed_presence,
             )
             selected = np.arange(len(subgraphs), dtype=np.int64)
             for idx in selected:
@@ -1045,7 +1048,15 @@ def sample_subgraphs_coverage(
         min_center_count,
         min_pair_count,
         threshold,
+        presence=precomputed_presence,
     )
+    feature_matrix = None
+    if precomputed_presence is not None:
+        center_pos, ring_pos = (np.asarray(v, dtype=bool) for v in precomputed_presence)
+        pairs = center_pos[:, None, :, None] & ring_pos[:, :, None, :]
+        feature_matrix = np.concatenate([center_pos, pairs.reshape(len(subgraphs), -1)], axis=1)
+        gain_weights = np.r_[np.full(state['n_markers'], center_weight),
+                             np.full(state['n_hops']*state['n_markers']**2, pair_weight)]
     selected = []
     remaining = set(range(state["n_subgraphs"]))
 
@@ -1059,13 +1070,19 @@ def sample_subgraphs_coverage(
     # ---------------------------
     while len(selected) < max_subgraphs and len(remaining) > 0:
         remaining_list = list(remaining)
-        scores = np.array(
-            [
-                _coverage_gain(i, state, center_weight, pair_weight)
-                for i in remaining_list
-            ],
-            dtype=float,
-        )
+        if feature_matrix is None:
+            scores = np.array(
+                [
+                    _coverage_gain(i, state, center_weight, pair_weight)
+                    for i in remaining_list
+                ],
+                dtype=float,
+            )
+
+        else:
+            unmet = np.r_[state['covered_center'] < state['target_center'],
+                          (state['covered_pair'] < state['target_pair']).ravel()]
+            scores = (feature_matrix[np.asarray(remaining_list)][:, unmet] * gain_weights[unmet]).sum(axis=1)
 
         best = scores.max()
         if best <= 0:
@@ -1674,3 +1691,17 @@ def print_sampling_summary(sample_info, marker_names):
     print()
     print(f"Unsatisfied center markers: {sample_info['unsatisfied_center_markers']}")
     print(f"Unsatisfied pair features: {len(sample_info['unsatisfied_pair_features'])}")
+
+
+def sample_coverage_indices(center_presence, ring_presence, marker_names, max_samples, *,
+                            min_center_count=50, min_pair_count=25, seed=0):
+    """Legacy center/pair coverage selection using compact presence arrays.
+
+    Returns candidate indices and the same diagnostics as the ego-graph sampler.
+    Build actual subgraphs only after selection to avoid materializing the full
+    candidate population. Ring presence excludes the center (shape N × hops × M).
+    """
+    return sample_subgraphs_coverage(range(len(center_presence)), marker_names,
+        np.asarray(ring_presence).shape[1], max_samples,
+        min_center_count=min_center_count, min_pair_count=min_pair_count, seed=seed,
+        precomputed_presence=(center_presence, ring_presence))

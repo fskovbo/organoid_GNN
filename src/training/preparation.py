@@ -74,7 +74,8 @@ def prepare_fold(graphs, split, *, global_features, residualize=False,
             if role == 'val':
                 truth = g.y.detach().cpu().numpy().reshape(-1)
                 baseline_validation_mse.append(dict(organoid_str=g.organoid_str, n_cells=len(g.x),
-                    mse=float(np.mean((truth-prediction)**2))))
+                    mse=float(np.mean((truth-prediction)**2)),
+                    mae=float(np.mean(np.abs(truth-prediction)))))
             # Offsets describe target residualization, not whether a baseline exists.
             if target_scaling == 'identity':
                 offsets[g.organoid_str] = prediction.copy() if residualize else np.zeros(len(g.x))
@@ -190,3 +191,40 @@ def combine_target_folds(folds,target_indices):
             result['baseline_predictions'][oid]=np.column_stack(pred)
     result['transform']=IdentityTransform().fit(result['groups']['train'])
     return result
+
+
+def load_matching_fold(reference_run, settings, graphs, membership, fold):
+    """Reuse fitted fold preprocessing only after checking cohort/settings equality.
+
+    A variant may change its marker panel, architecture or optimizer, but cannot
+    silently change the cohort, target cleanup, globals or baseline definition.
+    Returned groups still contain the complete observed fate panel.
+    """
+    import json
+    from pathlib import Path
+    from src.artifacts.runs import AnalysisRun
+    run = AnalysisRun(Path(reference_run))
+    keys = ('dataset', 'target_indices', 'timepoints', 'blacklist', 'sphericity_max',
+            'complexity_min', 'interpolate_outliers', 'outlier_quantiles',
+            'exclusive_markers', 'global_features', 'residualize', 'baseline_features',
+            'baseline_hidden_dim', 'baseline_max_epochs', 'baseline_patience',
+            'split_seed', 'n_folds', 'val_fraction')
+    differences = {k: (settings.get(k), run.settings.get(k)) for k in keys
+                   if settings.get(k) != run.settings.get(k)}
+    if differences:
+        raise ValueError(f'Reference preprocessing settings differ: {differences}')
+    if json.loads((run.directory/'splits.json').read_text()) != membership:
+        raise ValueError('Reference train/validation membership differs.')
+    result = run.fold_inputs(fold)
+    raw = result['raw_graphs']
+    if set(raw) != {str(g.organoid_str) for g in graphs}:
+        raise ValueError('Reference cohort differs.')
+    for g in graphs:
+        other = raw[str(g.organoid_str)]
+        if any(not torch.equal(getattr(g, key), getattr(other, key)) for key in ('x', 'y', 'edge_index')):
+            raise ValueError(f'Reference fate/target/edge mismatch: {g.organoid_str}')
+    # Return the same schema as prepare_fold, without the raw cohort or model metadata.
+    keep = ('groups', 'transform', 'baseline', 'baseline_offsets', 'baseline_predictions',
+            'baseline_validation_mse', 'baseline_features', 'residualized',
+            'global_features', 'all_global_features', 'global_center', 'global_scale')
+    return {key: result[key] for key in keep}

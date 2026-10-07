@@ -1,0 +1,10 @@
+{
+  "run": "/home/fmoller/Projects/LearningOrganoids/GraphNN/training_results/fate_masking_training/paper_exclusive_20261006_153255_20261007_101435",
+  "cohort": "exclusive aligned fates; day4+; sphericity <= 0.94",
+  "aggregation": "mean and SEM of per-organoid errors",
+  "units": {
+    "curvature": "um^-2",
+    "mse": "um^-4",
+    "mae": "um^-2"
+  }
+}

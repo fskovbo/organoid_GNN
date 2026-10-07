@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 from src.data.subgraphs import build_ego_subgraphs_for_graph
 from src.graph.neighborhood import compute_hop_rings
-from src.data.subgraph_sampling import sample_subgraphs_coverage, flag_non_overlapping_source_cases, sample_balanced_groups
+from src.data.subgraph_sampling import sample_subgraphs_coverage, sample_coverage_indices, flag_non_overlapping_source_cases, sample_balanced_groups
 from src.data.fate_masking import encode_fates, ObservedFateAdapter
 from src.analysis.interventions.perturbation import predict_subgraph_center_distribution
 from src.analysis.interventions.size_sweeps import _size_override, summarize_by_organoid
@@ -80,6 +80,7 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
             raise ValueError('Size bins must cover every validation organoid; use np.inf for the last edge.')
     rng = np.random.default_rng(seed)
     subs, signatures = [], {}
+    candidates, center_presence, ring_presence = [], [], []
     names = [*markers, 'Unassigned']
     for gi, graph in enumerate(graphs):
         x = graph.x.detach().cpu().numpy()
@@ -94,20 +95,28 @@ def sample_fate_contexts(graphs, markers, depth, *, scheme='uniform', centers=5,
             chosen = rng.choice(len(x), min(centers, len(x)), replace=False)
         else:
             chosen = sorted({int(i) for ids in identities for i in rng.choice(ids, min(centers, len(ids)), replace=False)})
-        subs.extend(build_ego_subgraphs_for_graph(graph, num_hops=depth, centers=sorted(chosen), graph_idx=gi))
-    if not subs:
+        if scheme == 'coverage':
+            # Store only fate presence and candidate IDs, not every possible ego graph.
+            from src.data.ring_features import build_adj_list, compute_hop_rings_from_adj
+            augmented = np.c_[x > .5, x.sum(1) == 0]
+            adjacency = build_adj_list(graph.edge_index, len(x))
+            for center in chosen:
+                rings = compute_hop_rings_from_adj(adjacency, center, depth)
+                candidates.append((gi, center))
+                center_presence.append(augmented[center])
+                ring_presence.append(np.asarray([augmented[nodes].any(axis=0) for nodes in rings[1:]]))
+        else:
+            subs.extend(build_ego_subgraphs_for_graph(graph, num_hops=depth, centers=sorted(chosen), graph_idx=gi))
+    if not subs and not candidates:
         raise ValueError('No validation recipients available for sampling.')
     coverage = None
     if scheme == 'coverage':
-        proxies = []
-        for sub in subs:
-            proxy = copy.copy(sub)
-            proxy.x = torch.cat([sub.x, (sub.x.sum(1) == 0).to(sub.x.dtype)[:, None]], dim=1)
-            proxies.append(proxy)
-        _, coverage = sample_subgraphs_coverage(proxies, names, depth, max_subgraphs,
-            min_center_count=min_center_count, min_pair_count=min_pair_count, seed=seed)
-        subs = [subs[int(i)] for i in coverage['selected_indices']]
-        del proxies
+        selected_indices, coverage = sample_coverage_indices(np.asarray(center_presence), np.asarray(ring_presence),
+            names, max_subgraphs, min_center_count=min_center_count, min_pair_count=min_pair_count, seed=seed)
+        for index in selected_indices:
+            gi, center = candidates[index]
+            subs.extend(build_ego_subgraphs_for_graph(graphs[gi], num_hops=depth, centers=[center], graph_idx=gi))
+        del center_presence, ring_presence, candidates
     rows = []
     for si, sub in enumerate(subs):
         graph = graphs[int(sub.graph_idx)]
@@ -246,7 +255,7 @@ def replacement_distribution(cases, contexts, matcher, markers, *, count=None):
 
 
 def evaluate_fate_edit(selection, subgraphs, cases, method, *, count=None, weights=None,
-                       device='cpu', batch_size=128):
+                       device='cpu', batch_size=128, allow_center=False):
     """One method on a fixed manifest; graph and recipient identity stay intact.
 
     Invert each discrete prediction before averaging replacement alternatives.
@@ -307,7 +316,7 @@ def evaluate_fate_edit(selection, subgraphs, cases, method, *, count=None, weigh
         if not supported[row]:
             continue
         original = graphs[case.subgraph_index]
-        if case.source_node == int(original.center_idx):
+        if case.source_node == int(original.center_idx) and not allow_center:
             raise ValueError('Do not ablate the recipient center.')
         alternatives = [(i,float(p)) for i,p in enumerate(weights[row]) if p>0] if method=='replacement' else [(None,1.)]
         for identity, probability in alternatives:
@@ -329,6 +338,22 @@ def evaluate_fate_edit(selection, subgraphs, cases, method, *, count=None, weigh
     result['supported'] = supported
     result['delta_mu'] = np.where(supported, totals_mu-base_mu, np.nan)
     result['delta_z'] = np.where(supported, totals_z-base_z, np.nan)
+    if count is None:
+        truth_z = np.array([float(graphs[c.subgraph_index].y[int(graphs[c.subgraph_index].center_idx)].reshape(-1)[0])
+                            for c in cases.itertuples()])
+        offsets = np.array([float(np.asarray(selection['baseline_offsets'][c.organoid_str]).reshape(-1)[c.orig_center])
+                            for c in cases.itertuples()])
+        result['truth_mu'] = np.asarray(transform.inverse(truth_z)).reshape(-1) + offsets
+        result['intact_physical_mu'] = base_mu + offsets
+        result['edited_physical_mu'] = np.where(supported, totals_mu + offsets, np.nan)
+        before = result.intact_physical_mu - result.truth_mu
+        after = result.edited_physical_mu - result.truth_mu
+        result['intact_mse'] = before**2
+        result['edited_mse'] = after**2
+        result['delta_mse'] = after**2 - before**2
+        result['intact_mae'] = np.abs(before)
+        result['edited_mae'] = np.abs(after)
+        result['delta_mae'] = np.abs(after) - np.abs(before)
     if method=='replacement':
         for j in range(len(markers)+1):
             result[f'p_{j}'] = weights[:,j]
@@ -497,3 +522,88 @@ def load_ablation_result(directory):
     if frame.duplicated(['model_key','case_id','analysis','evaluated_n']).any():
         raise ValueError('Duplicate source cases in saved ablation results.')
     return frame,config
+
+
+def sample_random_topup_contexts(graphs, markers, depth, *, random_centers=2000,
+                                 minimum_count=50, hops=None, seed=0):
+    """Uniform cell centers, followed by unique targeted centers for source/hop coverage.
+
+    Count each source identity once per exact-hop neighborhood, including an
+    optional center intervention (hop zero). Build ego graphs only for selected
+    centers, choose one random source cell per identity/ring, and retain sampling
+    origin. Top-ups change the population distribution; origin lets callers
+    report the requested combined estimate alongside the random-only estimate.
+    Quotas with insufficient available centers produce explicit shortfalls.
+    """
+    if depth < 1 or random_centers < 1 or minimum_count < 1:
+        raise ValueError('Positive depth, initial sample size and coverage target required.')
+    hops = tuple(range(depth+1)) if hops is None else tuple(hops)
+    if not hops or len(set(hops)) != len(hops) or min(hops) < 0 or max(hops) > depth:
+        raise ValueError('Hops must be distinct values between zero and depth.')
+    graphs = sorted(graphs, key=lambda g:str(g.organoid_str))
+    names = list(markers)+['Unassigned']
+    rng = np.random.default_rng(seed)
+    centers, features, identities = [], [], []
+    for gi, graph in enumerate(graphs):
+        x = graph.x.cpu().numpy()
+        if x.shape[1] != len(markers) or not np.isin(x,[0,1]).all() or np.any(x.sum(1)>1):
+            raise ValueError('Sampling requires exclusive observed fate inputs.')
+        identity = np.where(x.sum(1)>0,x.argmax(1),len(markers))
+        identities.append(identity)
+        adj = [set() for _ in x]
+        for a,b in graph.edge_index.cpu().numpy().T:
+            adj[a].add(int(b));adj[b].add(int(a))
+        for center in range(len(x)):
+            presence = np.zeros((len(hops),len(names)),bool)
+            visited,frontier = {center},{center}
+            for hop in range(depth+1):
+                if hop in hops and frontier:
+                    presence[hops.index(hop),np.unique(identity[list(frontier)])] = True
+                nxt = {v for u in frontier for v in adj[u]}-visited
+                visited |= nxt;frontier = nxt
+            centers.append((gi,center));features.append(presence.reshape(-1))
+    features = np.asarray(features,bool)
+    if not len(features):
+        raise ValueError('No candidate centers.')
+    available = features.sum(0)
+    target = np.minimum(available,minimum_count)
+    chosen = np.zeros(len(centers),bool)
+    initial = rng.choice(len(centers),min(random_centers,len(centers)),replace=False)
+    chosen[initial] = True
+    counts = features[chosen].sum(0)
+    while np.any(counts < target):
+        deficit = target-counts
+        stratum = int(np.argmax(np.where(deficit>0,deficit/np.maximum(available,1),-1)))
+        candidates = np.flatnonzero(features[:,stratum]&~chosen)
+        if not len(candidates):
+            raise RuntimeError('Coverage bookkeeping exhausted an available stratum.')
+        index = int(rng.choice(candidates))
+        chosen[index] = True;counts += features[index]
+    random_set = set(initial.tolist())
+    subs, rows = [], []
+    for index in np.flatnonzero(chosen):
+        gi,center = centers[index];graph = graphs[gi]
+        sub = build_ego_subgraphs_for_graph(graph,num_hops=depth,centers=[center],graph_idx=gi)[0]
+        si = len(subs);subs.append(sub)
+        rings = compute_hop_rings(sub.edge_index,int(sub.center_idx),depth)
+        source_ids = identities[gi][sub.orig_nodes.cpu().numpy()]
+        for hop in hops:
+            nodes = np.asarray(rings[hop],int)
+            for identity in np.unique(source_ids[nodes]):
+                eligible = nodes[source_ids[nodes]==identity]
+                source = int(rng.choice(eligible))
+                original = int(sub.orig_nodes[source])
+                rows.append(dict(case_id=f'{gi}:{center}:{hop}:{identity}',subgraph_index=si,graph_idx=gi,
+                    organoid_str=str(graph.organoid_str),orig_center=center,orig_source_node=original,
+                    source_node=source,source_marker=int(identity),source_marker_name=names[identity],
+                    center_marker_names=[names[identities[gi][center]]],hop=hop,observed_n=len(graph.x),
+                    eligible_sources=len(eligible),sample_origin='random' if index in random_set else 'topup'))
+    support=[]
+    initial_counts=features[initial].sum(0)
+    for hi,hop in enumerate(hops):
+        for j,name in enumerate(names):
+            k=hi*len(names)+j
+            support.append(dict(hop=hop,source_marker_name=name,available=int(available[k]),
+                random_count=int(initial_counts[k]),selected_count=int(counts[k]),target_count=minimum_count,
+                shortfall=int(max(0,minimum_count-counts[k]))))
+    return subs,pd.DataFrame(rows),pd.DataFrame(support)

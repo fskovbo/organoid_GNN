@@ -1,0 +1,9 @@
+input_subset,panel,label,depth,checkpoint,vtp_file,point_field,color_min,color_max,colorscale,curvature_unit,camera_azim,camera_elev
+all,1,Ground truth,,,all_depth0_organoid_day4p5_B03_144.vtp,true_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+all,2,Depth 0,0.0,gin_all_intact_d0_h128_f2_s42,all_depth0_organoid_day4p5_B03_144.vtp,predicted_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+all,3,Depth 2,2.0,gin_all_intact_d2_h128_f2_s42,all_depth2_organoid_day4p5_B03_144.vtp,predicted_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+all,4,Depth 4,4.0,gin_all_intact_d4_h128_f2_s42,all_depth4_organoid_day4p5_B03_144.vtp,predicted_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+LGR5,1,Ground truth,,,LGR5_depth0_organoid_day4p5_B03_144.vtp,true_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+LGR5,2,Depth 0,0.0,gin_LGR5_intact_d0_h128_f2_s42,LGR5_depth0_organoid_day4p5_B03_144.vtp,predicted_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+LGR5,3,Depth 2,2.0,gin_LGR5_intact_d2_h128_f2_s42,LGR5_depth2_organoid_day4p5_B03_144.vtp,predicted_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50
+LGR5,4,Depth 4,4.0,gin_LGR5_intact_d4_h128_f2_s42,LGR5_depth4_organoid_day4p5_B03_144.vtp,predicted_curvature_um_minus2,-2.2483107e-05,2.2483107e-05,RdBu_r,um^-2,-135,50

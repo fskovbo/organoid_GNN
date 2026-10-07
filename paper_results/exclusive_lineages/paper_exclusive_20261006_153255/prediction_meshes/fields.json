@@ -1,0 +1,23 @@
+{
+  "organoid": "organoid_day4p5_B03_144",
+  "lineage_ids": {
+    "0": "Agr2",
+    "1": "AldoB",
+    "2": "Chroma",
+    "3": "KI67",
+    "4": "LGR5",
+    "5": "Lysozyme",
+    "6": "Serotonin",
+    "7": "Unassigned"
+  },
+  "curvature_unit": "um^-2",
+  "coordinate_note": "Display-normalized mesh coordinates; unchanged topology.",
+  "checkpoints": [
+    "gin_all_intact_d0_h128_f2_s42",
+    "gin_all_intact_d2_h128_f2_s42",
+    "gin_all_intact_d4_h128_f2_s42",
+    "gin_LGR5_intact_d0_h128_f2_s42",
+    "gin_LGR5_intact_d2_h128_f2_s42",
+    "gin_LGR5_intact_d4_h128_f2_s42"
+  ]
+}

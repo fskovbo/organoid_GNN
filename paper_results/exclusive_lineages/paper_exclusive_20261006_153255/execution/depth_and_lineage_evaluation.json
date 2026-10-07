@@ -1,7 +1,7 @@
 {
   "notebook": "experiments/paper/depth_and_lineage_evaluation.ipynb",
   "exit_code": 0,
-  "elapsed_seconds": 48.1003839969635,
-  "peak_host_rss_gib": 2.8249740600585938,
+  "elapsed_seconds": 244.51904225349426,
+  "peak_host_rss_gib": 2.91912841796875,
   "log": "/home/fmoller/Projects/LearningOrganoids/GraphNN/paper_results/exclusive_lineages/paper_exclusive_20261006_153255/execution/depth_and_lineage_evaluation.log"
 }

@@ -1,469 +1,937 @@
-scope,region,subset,subset_label,subset_order,metric,model,mean,sem,n_organoids,units
-all_cells,budded_crypt,AldoB,AldoB,0,mse,subset,7.752905690076143e-11,4.380316127262155e-12,190,um^-4
-all_cells,budded_crypt,AldoB,AldoB,0,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,AldoB,AldoB,0,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,AldoB,AldoB,0,mae,subset,7.063845208261462e-06,2.295520003512114e-07,190,um^-2
-all_cells,budded_crypt,AldoB,AldoB,0,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,AldoB,AldoB,0,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,5.97864750749207e-11,3.883261244093678e-12,190,um^-4
-all_cells,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,6.109062005381942e-06,2.1115428626633913e-07,190,um^-2
-all_cells,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,AldoB_KI67,AldoB + KI67,6,mse,subset,7.499866440314876e-11,4.449570363494479e-12,190,um^-4
-all_cells,budded_crypt,AldoB_KI67,AldoB + KI67,6,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,AldoB_KI67,AldoB + KI67,6,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,AldoB_KI67,AldoB + KI67,6,mae,subset,6.8959848059535376e-06,2.3543005413213663e-07,190,um^-2
-all_cells,budded_crypt,AldoB_KI67,AldoB + KI67,6,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,AldoB_KI67,AldoB + KI67,6,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,5.878198361403515e-11,3.887147734580661e-12,190,um^-4
-all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,6.021988272914094e-06,2.1339583907783543e-07,190,um^-2
-all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,ENDO,Chroma + Serotonin,4,mse,subset,8.226665194921099e-11,4.4980283242032124e-12,190,um^-4
-all_cells,budded_crypt,ENDO,Chroma + Serotonin,4,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,ENDO,Chroma + Serotonin,4,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,ENDO,Chroma + Serotonin,4,mae,subset,7.4028507293605686e-06,2.3103525852035218e-07,190,um^-2
-all_cells,budded_crypt,ENDO,Chroma + Serotonin,4,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,ENDO,Chroma + Serotonin,4,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,EXO,Agr2 + Lysozyme,3,mse,subset,7.563280150046119e-11,4.428899304327764e-12,190,um^-4
-all_cells,budded_crypt,EXO,Agr2 + Lysozyme,3,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,EXO,Agr2 + Lysozyme,3,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,EXO,Agr2 + Lysozyme,3,mae,subset,6.985742237785404e-06,2.2543495203857056e-07,190,um^-2
-all_cells,budded_crypt,EXO,Agr2 + Lysozyme,3,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,EXO,Agr2 + Lysozyme,3,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,KI67,KI67,2,mse,subset,9.204317466006541e-11,4.793135407277899e-12,190,um^-4
-all_cells,budded_crypt,KI67,KI67,2,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,KI67,KI67,2,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,KI67,KI67,2,mae,subset,7.8332437722144e-06,2.4114606089925106e-07,190,um^-2
-all_cells,budded_crypt,KI67,KI67,2,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,KI67,KI67,2,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,LGR5,LGR5,1,mse,subset,7.261712710035225e-11,4.753734774860618e-12,190,um^-4
-all_cells,budded_crypt,LGR5,LGR5,1,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,LGR5,LGR5,1,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,LGR5,LGR5,1,mae,subset,6.75100993574608e-06,2.479951852517853e-07,190,um^-2
-all_cells,budded_crypt,LGR5,LGR5,1,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,LGR5,LGR5,1,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mse,subset,6.753919123433232e-11,4.542494103983696e-12,190,um^-4
-all_cells,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mae,subset,6.437388658080432e-06,2.442994004057357e-07,190,um^-2
-all_cells,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,subset,6.94259943413355e-11,4.579302935037508e-12,190,um^-4
-all_cells,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,subset,6.6100311822511724e-06,2.4155945747905117e-07,190,um^-2
-all_cells,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,subset,6.504184957323524e-11,4.377861782555158e-12,190,um^-4
-all_cells,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,subset,6.364765755015879e-06,2.3291024266737023e-07,190,um^-2
-all_cells,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,6.12017917055559e-11,4.151636607382022e-12,190,um^-4
-all_cells,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,6.191773575423836e-06,2.2413633253562497e-07,190,um^-2
-all_cells,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,all,All lineages,12,mse,subset,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,all,All lineages,12,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-all_cells,budded_crypt,all,All lineages,12,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-all_cells,budded_crypt,all,All lineages,12,mae,subset,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_crypt,all,All lineages,12,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-all_cells,budded_crypt,all,All lineages,12,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-all_cells,budded_neck,AldoB,AldoB,0,mse,subset,9.635531562421552e-11,4.068299202171923e-12,186,um^-4
-all_cells,budded_neck,AldoB,AldoB,0,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,AldoB,AldoB,0,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,AldoB,AldoB,0,mae,subset,7.600833867095914e-06,1.9475043841457887e-07,186,um^-2
-all_cells,budded_neck,AldoB,AldoB,0,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,AldoB,AldoB,0,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,8.95794736714855e-11,3.878595209688763e-12,186,um^-4
-all_cells,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,7.324225576203719e-06,1.9048591217799664e-07,186,um^-2
-all_cells,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,AldoB_KI67,AldoB + KI67,6,mse,subset,8.997326238109869e-11,3.7522683510660524e-12,186,um^-4
-all_cells,budded_neck,AldoB_KI67,AldoB + KI67,6,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,AldoB_KI67,AldoB + KI67,6,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,AldoB_KI67,AldoB + KI67,6,mae,subset,7.333653106601282e-06,1.8731030021152989e-07,186,um^-2
-all_cells,budded_neck,AldoB_KI67,AldoB + KI67,6,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,AldoB_KI67,AldoB + KI67,6,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,8.455705875412118e-11,3.638993983773797e-12,186,um^-4
-all_cells,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,7.0959805532032045e-06,1.8440553951018844e-07,186,um^-2
-all_cells,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,ENDO,Chroma + Serotonin,4,mse,subset,1.0723361995764611e-10,4.572550305620919e-12,186,um^-4
-all_cells,budded_neck,ENDO,Chroma + Serotonin,4,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,ENDO,Chroma + Serotonin,4,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,ENDO,Chroma + Serotonin,4,mae,subset,8.012099171310919e-06,2.0802800183575223e-07,186,um^-2
-all_cells,budded_neck,ENDO,Chroma + Serotonin,4,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,ENDO,Chroma + Serotonin,4,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,EXO,Agr2 + Lysozyme,3,mse,subset,1.0621146030386635e-10,4.717883681244805e-12,186,um^-4
-all_cells,budded_neck,EXO,Agr2 + Lysozyme,3,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,EXO,Agr2 + Lysozyme,3,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,EXO,Agr2 + Lysozyme,3,mae,subset,7.983673306827625e-06,2.1121138217548244e-07,186,um^-2
-all_cells,budded_neck,EXO,Agr2 + Lysozyme,3,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,EXO,Agr2 + Lysozyme,3,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,KI67,KI67,2,mse,subset,1.0297980790776302e-10,4.338012232387441e-12,186,um^-4
-all_cells,budded_neck,KI67,KI67,2,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,KI67,KI67,2,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,KI67,KI67,2,mae,subset,7.827280787786092e-06,2.0234264261241554e-07,186,um^-2
-all_cells,budded_neck,KI67,KI67,2,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,KI67,KI67,2,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,LGR5,LGR5,1,mse,subset,1.0294703273075468e-10,4.397017391093183e-12,186,um^-4
-all_cells,budded_neck,LGR5,LGR5,1,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,LGR5,LGR5,1,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,LGR5,LGR5,1,mae,subset,7.874832720360939e-06,2.0321033813140947e-07,186,um^-2
-all_cells,budded_neck,LGR5,LGR5,1,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,LGR5,LGR5,1,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mse,subset,9.050731295773464e-11,3.876767982024801e-12,186,um^-4
-all_cells,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mae,subset,7.350602985665424e-06,1.899838506830283e-07,186,um^-2
-all_cells,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,subset,1.0252569617516564e-10,4.4125861741538525e-12,186,um^-4
-all_cells,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,subset,7.860093377296144e-06,2.0424940070239774e-07,186,um^-2
-all_cells,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,subset,1.0203276756344693e-10,4.470810666678469e-12,186,um^-4
-all_cells,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,subset,7.84056799591683e-06,2.047249213978032e-07,186,um^-2
-all_cells,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,1.0169512857326973e-10,4.502792177745592e-12,186,um^-4
-all_cells,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
-all_cells,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,7.824355685972242e-06,2.0623260970396575e-07,186,um^-2
-all_cells,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,all,All lineages,12,mse,subset,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
-all_cells,budded_neck,all,All lineages,12,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-all_cells,budded_neck,all,All lineages,12,mse,all_marker,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
-all_cells,budded_neck,all,All lineages,12,mae,subset,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,budded_neck,all,All lineages,12,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-all_cells,budded_neck,all,All lineages,12,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-all_cells,full,AldoB,AldoB,0,mse,subset,2.2863308718747867e-11,6.364275982845153e-13,908,um^-4
-all_cells,full,AldoB,AldoB,0,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,AldoB,AldoB,0,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,AldoB,AldoB,0,mae,subset,3.242541232455071e-06,4.494802983462378e-08,908,um^-2
-all_cells,full,AldoB,AldoB,0,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,AldoB,AldoB,0,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,2.037323814583886e-11,5.572698831536212e-13,908,um^-4
-all_cells,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,3.0842860877716376e-06,4.14465210659245e-08,908,um^-2
-all_cells,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,AldoB_KI67,AldoB + KI67,6,mse,subset,2.1839462532761828e-11,6.061294984287823e-13,908,um^-4
-all_cells,full,AldoB_KI67,AldoB + KI67,6,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,AldoB_KI67,AldoB + KI67,6,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,AldoB_KI67,AldoB + KI67,6,mae,subset,3.160152451684686e-06,4.371375698954645e-08,908,um^-2
-all_cells,full,AldoB_KI67,AldoB + KI67,6,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,AldoB_KI67,AldoB + KI67,6,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,1.9637583232090572e-11,5.347147471543622e-13,908,um^-4
-all_cells,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,3.0169431363705956e-06,4.022536561906059e-08,908,um^-2
-all_cells,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,ENDO,Chroma + Serotonin,4,mse,subset,2.404417631060818e-11,6.895506985852549e-13,908,um^-4
-all_cells,full,ENDO,Chroma + Serotonin,4,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,ENDO,Chroma + Serotonin,4,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,ENDO,Chroma + Serotonin,4,mae,subset,3.3297820694416522e-06,4.731486108186751e-08,908,um^-2
-all_cells,full,ENDO,Chroma + Serotonin,4,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,ENDO,Chroma + Serotonin,4,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,EXO,Agr2 + Lysozyme,3,mse,subset,2.3392856763181167e-11,6.587915080867615e-13,908,um^-4
-all_cells,full,EXO,Agr2 + Lysozyme,3,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,EXO,Agr2 + Lysozyme,3,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,EXO,Agr2 + Lysozyme,3,mae,subset,3.285990548825506e-06,4.6233634370797075e-08,908,um^-2
-all_cells,full,EXO,Agr2 + Lysozyme,3,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,EXO,Agr2 + Lysozyme,3,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,KI67,KI67,2,mse,subset,2.436217583460956e-11,6.95725818115064e-13,908,um^-4
-all_cells,full,KI67,KI67,2,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,KI67,KI67,2,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,KI67,KI67,2,mae,subset,3.316780191259412e-06,4.718236366628242e-08,908,um^-2
-all_cells,full,KI67,KI67,2,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,KI67,KI67,2,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,LGR5,LGR5,1,mse,subset,2.2728471235444736e-11,6.414382017302605e-13,908,um^-4
-all_cells,full,LGR5,LGR5,1,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,LGR5,LGR5,1,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,LGR5,LGR5,1,mae,subset,3.241076469289035e-06,4.5882522032454585e-08,908,um^-2
-all_cells,full,LGR5,LGR5,1,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,LGR5,LGR5,1,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,LGR5_AldoB,LGR5 + AldoB,5,mse,subset,2.1174677513871653e-11,5.823707324634761e-13,908,um^-4
-all_cells,full,LGR5_AldoB,LGR5 + AldoB,5,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,LGR5_AldoB,LGR5 + AldoB,5,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,LGR5_AldoB,LGR5 + AldoB,5,mae,subset,3.1238020106034957e-06,4.258591535540178e-08,908,um^-2
-all_cells,full,LGR5_AldoB,LGR5 + AldoB,5,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,LGR5_AldoB,LGR5 + AldoB,5,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,subset,2.229525334895668e-11,6.307417488274643e-13,908,um^-4
-all_cells,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,subset,3.219092935021381e-06,4.535915671717326e-08,908,um^-2
-all_cells,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,subset,2.1959717301486886e-11,6.174826012778024e-13,908,um^-4
-all_cells,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,subset,3.1934220058327667e-06,4.4995177354239006e-08,908,um^-2
-all_cells,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,2.14655500357571e-11,6.106898517033571e-13,908,um^-4
-all_cells,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,3.1641697806725003e-06,4.452639693265806e-08,908,um^-2
-all_cells,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,all,All lineages,12,mse,subset,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,all,All lineages,12,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-all_cells,full,all,All lineages,12,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-all_cells,full,all,All lineages,12,mae,subset,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-all_cells,full,all,All lineages,12,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-all_cells,full,all,All lineages,12,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-retained_lineages,budded_crypt,AldoB,AldoB,0,mse,subset,4.148200694292616e-11,6.348898624117382e-12,97,um^-4
-retained_lineages,budded_crypt,AldoB,AldoB,0,mse,baseline,3.245608902147131e-11,4.986935435984669e-12,97,um^-4
-retained_lineages,budded_crypt,AldoB,AldoB,0,mse,all_marker,3.549057058183645e-11,5.4377128113421655e-12,97,um^-4
-retained_lineages,budded_crypt,AldoB,AldoB,0,mae,subset,4.995283140052092e-06,3.665037815454115e-07,97,um^-2
-retained_lineages,budded_crypt,AldoB,AldoB,0,mae,baseline,4.421333385474213e-06,3.130070873425853e-07,97,um^-2
-retained_lineages,budded_crypt,AldoB,AldoB,0,mae,all_marker,4.59504287876529e-06,3.3803838186460637e-07,97,um^-2
-retained_lineages,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,5.066469595514994e-11,3.620160399490217e-12,187,um^-4
-retained_lineages,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.0273475103456073e-10,5.83196225493428e-12,187,um^-4
-retained_lineages,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,4.66176062357761e-11,3.5015347402945528e-12,187,um^-4
-retained_lineages,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,5.589765217388146e-06,2.2151931931588477e-07,187,um^-2
-retained_lineages,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,8.378887741015576e-06,2.912153180825544e-07,187,um^-2
-retained_lineages,budded_crypt,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,5.305142252196981e-06,2.1946827993779117e-07,187,um^-2
-retained_lineages,budded_crypt,AldoB_KI67,AldoB + KI67,6,mse,subset,6.329467435769326e-11,4.819390031543726e-12,187,um^-4
-retained_lineages,budded_crypt,AldoB_KI67,AldoB + KI67,6,mse,baseline,7.186183397100547e-11,4.957742106301378e-12,187,um^-4
-retained_lineages,budded_crypt,AldoB_KI67,AldoB + KI67,6,mse,all_marker,5.161127468829465e-11,4.212041281179901e-12,187,um^-4
-retained_lineages,budded_crypt,AldoB_KI67,AldoB + KI67,6,mae,subset,6.159885837202235e-06,2.6051021396064196e-07,187,um^-2
-retained_lineages,budded_crypt,AldoB_KI67,AldoB + KI67,6,mae,baseline,6.761594856967177e-06,2.5812891745338877e-07,187,um^-2
-retained_lineages,budded_crypt,AldoB_KI67,AldoB + KI67,6,mae,all_marker,5.545664749802706e-06,2.3728136846339918e-07,187,um^-2
-retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,5.3323587410676685e-11,3.806088757156609e-12,189,um^-4
-retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,8.573634039191448e-11,4.871257763089413e-12,189,um^-4
-retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,5.0721645872705415e-11,3.780893070906051e-12,189,um^-4
-retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,5.677797749312525e-06,2.1690197803735634e-07,189,um^-2
-retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.505195914002394e-06,2.478807677933547e-07,189,um^-2
-retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,5.506183422806214e-06,2.1815509396472122e-07,189,um^-2
-retained_lineages,budded_crypt,ENDO,Chroma + Serotonin,4,mse,subset,8.300094453380994e-11,6.481631330278907e-12,145,um^-4
-retained_lineages,budded_crypt,ENDO,Chroma + Serotonin,4,mse,baseline,1.696632889180826e-10,1.0217001408683365e-11,145,um^-4
-retained_lineages,budded_crypt,ENDO,Chroma + Serotonin,4,mse,all_marker,4.654987431984367e-11,4.6875658818822526e-12,145,um^-4
-retained_lineages,budded_crypt,ENDO,Chroma + Serotonin,4,mae,subset,7.574638965305989e-06,3.723862457767245e-07,145,um^-2
-retained_lineages,budded_crypt,ENDO,Chroma + Serotonin,4,mae,baseline,1.1699252400404462e-05,4.217819865341151e-07,145,um^-2
-retained_lineages,budded_crypt,ENDO,Chroma + Serotonin,4,mae,all_marker,5.4552218373652256e-06,3.0289236427762805e-07,145,um^-2
-retained_lineages,budded_crypt,EXO,Agr2 + Lysozyme,3,mse,subset,6.621008835065729e-11,4.269911989568041e-12,183,um^-4
-retained_lineages,budded_crypt,EXO,Agr2 + Lysozyme,3,mse,baseline,1.0837455591807562e-10,5.7826986898317075e-12,183,um^-4
-retained_lineages,budded_crypt,EXO,Agr2 + Lysozyme,3,mse,all_marker,5.31843146292506e-11,4.288582752945041e-12,183,um^-4
-retained_lineages,budded_crypt,EXO,Agr2 + Lysozyme,3,mae,subset,6.5409670307170835e-06,2.491269885139681e-07,183,um^-2
-retained_lineages,budded_crypt,EXO,Agr2 + Lysozyme,3,mae,baseline,8.906854551414825e-06,2.7427342609977727e-07,183,um^-2
-retained_lineages,budded_crypt,EXO,Agr2 + Lysozyme,3,mae,all_marker,5.631902435345399e-06,2.488428986967861e-07,183,um^-2
-retained_lineages,budded_crypt,KI67,KI67,2,mse,subset,7.673749449042722e-11,5.1086438084046386e-12,181,um^-4
-retained_lineages,budded_crypt,KI67,KI67,2,mse,baseline,7.929743926159257e-11,5.180888171654277e-12,181,um^-4
-retained_lineages,budded_crypt,KI67,KI67,2,mse,all_marker,5.548373348854513e-11,4.3286449605108056e-12,181,um^-4
-retained_lineages,budded_crypt,KI67,KI67,2,mae,subset,7.024357219731342e-06,2.6670465943089893e-07,181,um^-2
-retained_lineages,budded_crypt,KI67,KI67,2,mae,baseline,7.199119392040847e-06,2.678526942996261e-07,181,um^-2
-retained_lineages,budded_crypt,KI67,KI67,2,mae,all_marker,5.812523720664147e-06,2.4565674627265016e-07,181,um^-2
-retained_lineages,budded_crypt,LGR5,LGR5,1,mse,subset,6.441975099162953e-11,5.37839409910962e-12,168,um^-4
-retained_lineages,budded_crypt,LGR5,LGR5,1,mse,baseline,1.217833334104269e-10,6.923052500595529e-12,168,um^-4
-retained_lineages,budded_crypt,LGR5,LGR5,1,mse,all_marker,4.916879483540227e-11,4.171192092850736e-12,168,um^-4
-retained_lineages,budded_crypt,LGR5,LGR5,1,mae,subset,6.325480350267343e-06,2.9449204915722716e-07,168,um^-2
-retained_lineages,budded_crypt,LGR5,LGR5,1,mae,baseline,9.584193492413115e-06,3.027444037173451e-07,168,um^-2
-retained_lineages,budded_crypt,LGR5,LGR5,1,mae,all_marker,5.497706274791106e-06,2.514249071626809e-07,168,um^-2
-retained_lineages,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mse,subset,5.361832723133777e-11,4.5900317118702374e-12,173,um^-4
-retained_lineages,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mse,baseline,1.01581512050039e-10,6.4310966312020835e-12,173,um^-4
-retained_lineages,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mse,all_marker,4.390055644096432e-11,3.83345399002578e-12,173,um^-4
-retained_lineages,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mae,subset,5.667912102233385e-06,2.6467160481739357e-07,173,um^-2
-retained_lineages,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mae,baseline,8.379669033000999e-06,3.092203921774434e-07,173,um^-2
-retained_lineages,budded_crypt,LGR5_AldoB,LGR5 + AldoB,5,mae,all_marker,5.113730419648237e-06,2.35031389262539e-07,173,um^-2
-retained_lineages,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,subset,6.283919842056086e-11,5.019254599515627e-12,176,um^-4
-retained_lineages,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,baseline,1.2651118693951726e-10,6.978088383186229e-12,176,um^-4
-retained_lineages,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,all_marker,4.9950079389320956e-11,4.1926280168448956e-12,176,um^-4
-retained_lineages,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,subset,6.2911548888107976e-06,2.806714630446866e-07,176,um^-2
-retained_lineages,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,baseline,9.774845788230226e-06,3.031973348482979e-07,176,um^-2
-retained_lineages,budded_crypt,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,all_marker,5.536754665743037e-06,2.4876544367560694e-07,176,um^-2
-retained_lineages,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,subset,6.360744214244319e-11,4.650117378455878e-12,187,um^-4
-retained_lineages,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,baseline,1.1828594288122235e-10,5.821736060373666e-12,187,um^-4
-retained_lineages,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,all_marker,5.394397286315312e-11,4.056887327133842e-12,187,um^-4
-retained_lineages,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,subset,6.260963875658026e-06,2.603306531407042e-07,187,um^-2
-retained_lineages,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,baseline,9.39468154760572e-06,2.6265069601616506e-07,187,um^-2
-retained_lineages,budded_crypt,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,all_marker,5.740032763471217e-06,2.371938078884093e-07,187,um^-2
-retained_lineages,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,6.036543002151911e-11,4.357107175307467e-12,188,um^-4
-retained_lineages,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,1.2212848431082022e-10,5.850270557106675e-12,188,um^-4
-retained_lineages,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,5.3932026200232723e-11,3.976212075387916e-12,188,um^-4
-retained_lineages,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,6.1272006057860855e-06,2.4870344990661585e-07,188,um^-2
-retained_lineages,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,9.567250893081318e-06,2.6195588827666644e-07,188,um^-2
-retained_lineages,budded_crypt,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,5.755696912181861e-06,2.3409354069804158e-07,188,um^-2
-retained_lineages,budded_crypt,all,All lineages,12,mse,subset,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-retained_lineages,budded_crypt,all,All lineages,12,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
-retained_lineages,budded_crypt,all,All lineages,12,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
-retained_lineages,budded_crypt,all,All lineages,12,mae,subset,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-retained_lineages,budded_crypt,all,All lineages,12,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
-retained_lineages,budded_crypt,all,All lineages,12,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
-retained_lineages,budded_neck,AldoB,AldoB,0,mse,subset,1.1210043659317972e-10,7.455076802031401e-12,162,um^-4
-retained_lineages,budded_neck,AldoB,AldoB,0,mse,baseline,1.4869724064824958e-10,9.505163370897095e-12,162,um^-4
-retained_lineages,budded_neck,AldoB,AldoB,0,mse,all_marker,9.217658048488384e-11,6.4131781648480435e-12,162,um^-4
-retained_lineages,budded_neck,AldoB,AldoB,0,mae,subset,8.39246722536018e-06,3.677131534272985e-07,162,um^-2
-retained_lineages,budded_neck,AldoB,AldoB,0,mae,baseline,9.898465500483174e-06,4.150994853290092e-07,162,um^-2
-retained_lineages,budded_neck,AldoB,AldoB,0,mae,all_marker,7.533657550691123e-06,3.3420085760367366e-07,162,um^-2
-retained_lineages,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,9.875621379779226e-11,6.292844809288693e-12,177,um^-4
-retained_lineages,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.2424214105612952e-10,7.992784514559336e-12,177,um^-4
-retained_lineages,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,8.844739353041252e-11,5.836248797254828e-12,177,um^-4
-retained_lineages,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,7.701235384323518e-06,3.0501684552760386e-07,177,um^-2
-retained_lineages,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,8.658225679646165e-06,3.534029916943324e-07,177,um^-2
-retained_lineages,budded_neck,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,7.224227916400453e-06,2.909247194519777e-07,177,um^-2
-retained_lineages,budded_neck,AldoB_KI67,AldoB + KI67,6,mse,subset,8.527393910497363e-11,4.412828827872847e-12,185,um^-4
-retained_lineages,budded_neck,AldoB_KI67,AldoB + KI67,6,mse,baseline,1.0632816444454644e-10,5.746120101710802e-12,185,um^-4
-retained_lineages,budded_neck,AldoB_KI67,AldoB + KI67,6,mse,all_marker,8.089391475445276e-11,4.283249538971369e-12,185,um^-4
-retained_lineages,budded_neck,AldoB_KI67,AldoB + KI67,6,mae,subset,7.067695124964219e-06,2.248229744315218e-07,185,um^-2
-retained_lineages,budded_neck,AldoB_KI67,AldoB + KI67,6,mae,baseline,7.911920980916482e-06,2.596308323364773e-07,185,um^-2
-retained_lineages,budded_neck,AldoB_KI67,AldoB + KI67,6,mae,all_marker,6.882600259685499e-06,2.211266254501932e-07,185,um^-2
-retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,8.115009001338567e-11,4.131297175070944e-12,186,um^-4
-retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,1.0328196562861029e-10,5.544787129328474e-12,186,um^-4
-retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,7.983065024433059e-11,4.0658758663853066e-12,186,um^-4
-retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,6.884057690346053e-06,2.1225060028385055e-07,186,um^-2
-retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.765317922056351e-06,2.502698107675549e-07,186,um^-2
-retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,6.82721610689064e-06,2.101318301758746e-07,186,um^-2
-retained_lineages,budded_neck,ENDO,Chroma + Serotonin,4,mse,subset,9.256706813597905e-11,2.3543398105664798e-11,36,um^-4
-retained_lineages,budded_neck,ENDO,Chroma + Serotonin,4,mse,baseline,6.779181986595374e-11,1.592933443342873e-11,36,um^-4
-retained_lineages,budded_neck,ENDO,Chroma + Serotonin,4,mse,all_marker,9.75880551509694e-11,2.1457627526132713e-11,36,um^-4
-retained_lineages,budded_neck,ENDO,Chroma + Serotonin,4,mae,subset,7.162510424726342e-06,1.014752782788303e-06,36,um^-2
-retained_lineages,budded_neck,ENDO,Chroma + Serotonin,4,mae,baseline,6.164008036691771e-06,8.750088334684473e-07,36,um^-2
-retained_lineages,budded_neck,ENDO,Chroma + Serotonin,4,mae,all_marker,7.4372607063880075e-06,9.937522706569257e-07,36,um^-2
-retained_lineages,budded_neck,EXO,Agr2 + Lysozyme,3,mse,subset,8.794070982051666e-11,7.353956466625707e-12,152,um^-4
-retained_lineages,budded_neck,EXO,Agr2 + Lysozyme,3,mse,baseline,7.486139188392057e-11,6.637340226467264e-12,152,um^-4
-retained_lineages,budded_neck,EXO,Agr2 + Lysozyme,3,mse,all_marker,7.524406520106715e-11,6.16222092149439e-12,152,um^-4
-retained_lineages,budded_neck,EXO,Agr2 + Lysozyme,3,mae,subset,7.046031301746199e-06,3.463628972598767e-07,152,um^-2
-retained_lineages,budded_neck,EXO,Agr2 + Lysozyme,3,mae,baseline,6.382430827855364e-06,3.2876030648832104e-07,152,um^-2
-retained_lineages,budded_neck,EXO,Agr2 + Lysozyme,3,mae,all_marker,6.557727593559438e-06,3.07381656241735e-07,152,um^-2
-retained_lineages,budded_neck,KI67,KI67,2,mse,subset,7.958243647782885e-11,4.728488611748856e-12,180,um^-4
-retained_lineages,budded_neck,KI67,KI67,2,mse,baseline,8.076983113540944e-11,4.854616598734506e-12,180,um^-4
-retained_lineages,budded_neck,KI67,KI67,2,mse,all_marker,6.973010809362528e-11,4.242648319946294e-12,180,um^-4
-retained_lineages,budded_neck,KI67,KI67,2,mae,subset,6.701199873643329e-06,2.3471632968630688e-07,180,um^-2
-retained_lineages,budded_neck,KI67,KI67,2,mae,baseline,6.759436363854368e-06,2.365415256348881e-07,180,um^-2
-retained_lineages,budded_neck,KI67,KI67,2,mae,all_marker,6.334938997386959e-06,2.208382376178461e-07,180,um^-2
-retained_lineages,budded_neck,LGR5,LGR5,1,mse,subset,7.277846506076482e-11,6.180322373588847e-12,124,um^-4
-retained_lineages,budded_neck,LGR5,LGR5,1,mse,baseline,5.0274841748625235e-11,4.225146815411757e-12,124,um^-4
-retained_lineages,budded_neck,LGR5,LGR5,1,mse,all_marker,6.517603192100662e-11,5.8604676813909394e-12,124,um^-4
-retained_lineages,budded_neck,LGR5,LGR5,1,mae,subset,6.538432250060456e-06,3.162672847702696e-07,124,um^-2
-retained_lineages,budded_neck,LGR5,LGR5,1,mae,baseline,5.357557923125239e-06,2.4411479000650605e-07,124,um^-2
-retained_lineages,budded_neck,LGR5,LGR5,1,mae,all_marker,6.1027832678223815e-06,3.1444190193052733e-07,124,um^-2
-retained_lineages,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mse,subset,9.423785740528103e-11,5.931100772072811e-12,177,um^-4
-retained_lineages,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mse,baseline,1.1372521401867149e-10,7.700329183140672e-12,177,um^-4
-retained_lineages,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mse,all_marker,8.364893393059605e-11,5.372588495708518e-12,177,um^-4
-retained_lineages,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mae,subset,7.512615119738182e-06,2.9126194446644213e-07,177,um^-2
-retained_lineages,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mae,baseline,8.218526439471519e-06,3.362757295150451e-07,177,um^-2
-retained_lineages,budded_neck,LGR5_AldoB,LGR5 + AldoB,5,mae,all_marker,7.021915833191906e-06,2.7326602295837234e-07,177,um^-2
-retained_lineages,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,subset,7.405125543508767e-11,6.395522113157945e-12,129,um^-4
-retained_lineages,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,baseline,5.387361159202954e-11,4.737049549242143e-12,129,um^-4
-retained_lineages,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,all_marker,6.779271901938631e-11,5.995816385204123e-12,129,um^-4
-retained_lineages,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,subset,6.584365571228635e-06,3.1840931575135497e-07,129,um^-2
-retained_lineages,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,baseline,5.511404727732225e-06,2.660478327921631e-07,129,um^-2
-retained_lineages,budded_neck,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,all_marker,6.220927944871437e-06,3.203062959571953e-07,129,um^-2
-retained_lineages,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,subset,8.191865112950994e-11,5.9496061216503046e-12,165,um^-4
-retained_lineages,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,baseline,6.694328942235683e-11,5.372193143549441e-12,165,um^-4
-retained_lineages,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,all_marker,7.196650649703272e-11,5.099837451767017e-12,165,um^-4
-retained_lineages,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,subset,6.896793420135938e-06,2.8061778744594707e-07,165,um^-2
-retained_lineages,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,baseline,6.082112508524011e-06,2.6414644102949104e-07,165,um^-2
-retained_lineages,budded_neck,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,all_marker,6.483365322151904e-06,2.5828305310236146e-07,165,um^-2
-retained_lineages,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,8.286514048583752e-11,6.120703774973225e-12,165,um^-4
-retained_lineages,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,6.79223916850424e-11,5.390708546539882e-12,165,um^-4
-retained_lineages,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,7.329540860900873e-11,5.141132766458452e-12,165,um^-4
-retained_lineages,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,6.913348667973258e-06,2.856846952789025e-07,165,um^-2
-retained_lineages,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,6.121425664616174e-06,2.6302095224822337e-07,165,um^-2
-retained_lineages,budded_neck,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,6.543488094711292e-06,2.579166705394983e-07,165,um^-2
-retained_lineages,budded_neck,all,All lineages,12,mse,subset,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
-retained_lineages,budded_neck,all,All lineages,12,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
-retained_lineages,budded_neck,all,All lineages,12,mse,all_marker,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
-retained_lineages,budded_neck,all,All lineages,12,mae,subset,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-retained_lineages,budded_neck,all,All lineages,12,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
-retained_lineages,budded_neck,all,All lineages,12,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
-retained_lineages,full,AldoB,AldoB,0,mse,subset,1.5202229331569378e-11,5.257122143832623e-13,832,um^-4
-retained_lineages,full,AldoB,AldoB,0,mse,baseline,1.709555891057087e-11,5.901490847770887e-13,832,um^-4
-retained_lineages,full,AldoB,AldoB,0,mse,all_marker,1.350798692951528e-11,4.660571458793526e-13,832,um^-4
-retained_lineages,full,AldoB,AldoB,0,mae,subset,2.6993125364394054e-06,4.1144025239371245e-08,832,um^-2
-retained_lineages,full,AldoB,AldoB,0,mae,baseline,2.8495056935703753e-06,4.312880313309268e-08,832,um^-2
-retained_lineages,full,AldoB,AldoB,0,mae,all_marker,2.553640507264203e-06,3.911160827506519e-08,832,um^-2
-retained_lineages,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,1.74087029440248e-11,5.824961513643492e-13,907,um^-4
-retained_lineages,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,2.2125029772344013e-11,7.514201197345019e-13,907,um^-4
-retained_lineages,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,1.6075066833886578e-11,5.421156950966229e-13,907,um^-4
-retained_lineages,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,2.8954744360767773e-06,4.3148471657228876e-08,907,um^-2
-retained_lineages,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,3.205118684013184e-06,4.944637092101423e-08,907,um^-2
-retained_lineages,full,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,2.765381780503066e-06,4.161650656238687e-08,907,um^-2
-retained_lineages,full,AldoB_KI67,AldoB + KI67,6,mse,subset,1.7210166916644442e-11,5.166343074080433e-13,908,um^-4
-retained_lineages,full,AldoB_KI67,AldoB + KI67,6,mse,baseline,1.97633566393508e-11,5.878296113779509e-13,908,um^-4
-retained_lineages,full,AldoB_KI67,AldoB + KI67,6,mse,all_marker,1.617732382005488e-11,5.042412618379761e-13,908,um^-4
-retained_lineages,full,AldoB_KI67,AldoB + KI67,6,mae,subset,2.821610217550351e-06,3.859213848582819e-08,908,um^-2
-retained_lineages,full,AldoB_KI67,AldoB + KI67,6,mae,baseline,3.0233557069182593e-06,4.137852717393916e-08,908,um^-2
-retained_lineages,full,AldoB_KI67,AldoB + KI67,6,mae,all_marker,2.742172546789437e-06,3.8263318708363065e-08,908,um^-2
-retained_lineages,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,1.7422980665911727e-11,4.928486279300696e-13,908,um^-4
-retained_lineages,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,2.1865714810447513e-11,6.32999579799945e-13,908,um^-4
-retained_lineages,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,1.7076624889459135e-11,5.074697025005852e-13,908,um^-4
-retained_lineages,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,2.8542063994515123e-06,3.7865342772067387e-08,908,um^-2
-retained_lineages,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,3.1710275098995786e-06,4.355230621477292e-08,908,um^-2
-retained_lineages,full,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,2.8185734972343803e-06,3.84142263019432e-08,908,um^-2
-retained_lineages,full,ENDO,Chroma + Serotonin,4,mse,subset,4.925429895638627e-11,2.2992631797281267e-12,707,um^-4
-retained_lineages,full,ENDO,Chroma + Serotonin,4,mse,baseline,8.55286654098448e-11,3.6202754723270703e-12,707,um^-4
-retained_lineages,full,ENDO,Chroma + Serotonin,4,mse,all_marker,3.7296651697158634e-11,2.0027468389762435e-12,707,um^-4
-retained_lineages,full,ENDO,Chroma + Serotonin,4,mae,subset,5.3936060934921205e-06,1.4568423558513248e-07,707,um^-2
-retained_lineages,full,ENDO,Chroma + Serotonin,4,mae,baseline,7.3307490631025475e-06,1.8591735737891985e-07,707,um^-2
-retained_lineages,full,ENDO,Chroma + Serotonin,4,mae,all_marker,4.62332109195296e-06,1.2776738089621942e-07,707,um^-2
-retained_lineages,full,EXO,Agr2 + Lysozyme,3,mse,subset,3.2142096470877934e-11,1.2482150798130892e-12,891,um^-4
-retained_lineages,full,EXO,Agr2 + Lysozyme,3,mse,baseline,4.011265264128784e-11,1.5564135901103444e-12,891,um^-4
-retained_lineages,full,EXO,Agr2 + Lysozyme,3,mse,all_marker,2.7654764200712173e-11,1.1007114528200614e-12,891,um^-4
-retained_lineages,full,EXO,Agr2 + Lysozyme,3,mae,subset,3.95981372430731e-06,8.306490168457647e-08,891,um^-2
-retained_lineages,full,EXO,Agr2 + Lysozyme,3,mae,baseline,4.468869146212523e-06,9.573443756609025e-08,891,um^-2
-retained_lineages,full,EXO,Agr2 + Lysozyme,3,mae,all_marker,3.6643731083228304e-06,7.60095912335849e-08,891,um^-2
-retained_lineages,full,KI67,KI67,2,mse,subset,3.532695342776019e-11,1.447502474379187e-12,882,um^-4
-retained_lineages,full,KI67,KI67,2,mse,baseline,3.647226388862905e-11,1.4791096343150088e-12,882,um^-4
-retained_lineages,full,KI67,KI67,2,mse,all_marker,3.000421627787321e-11,1.2336027855387256e-12,882,um^-4
-retained_lineages,full,KI67,KI67,2,mae,subset,4.097822693182586e-06,9.065833193279297e-08,882,um^-2
-retained_lineages,full,KI67,KI67,2,mae,baseline,4.180261798835908e-06,9.180563529303983e-08,882,um^-2
-retained_lineages,full,KI67,KI67,2,mae,all_marker,3.7926218353099844e-06,8.21372904995256e-08,882,um^-2
-retained_lineages,full,LGR5,LGR5,1,mse,subset,3.842785940108398e-11,1.7460616987715406e-12,782,um^-4
-retained_lineages,full,LGR5,LGR5,1,mse,baseline,5.575728490454943e-11,2.403405746328513e-12,782,um^-4
-retained_lineages,full,LGR5,LGR5,1,mse,all_marker,3.2439010578817634e-11,1.4512758359637577e-12,782,um^-4
-retained_lineages,full,LGR5,LGR5,1,mae,subset,4.454259075400726e-06,1.1231262575526013e-07,782,um^-2
-retained_lineages,full,LGR5,LGR5,1,mae,baseline,5.496928855416044e-06,1.363131051448553e-07,782,um^-2
-retained_lineages,full,LGR5,LGR5,1,mae,all_marker,4.090620405375851e-06,9.941705700062501e-08,782,um^-2
-retained_lineages,full,LGR5_AldoB,LGR5 + AldoB,5,mse,subset,1.8057510783546852e-11,5.79935324157107e-13,906,um^-4
-retained_lineages,full,LGR5_AldoB,LGR5 + AldoB,5,mse,baseline,2.3303632652852488e-11,7.788763284159064e-13,906,um^-4
-retained_lineages,full,LGR5_AldoB,LGR5 + AldoB,5,mse,all_marker,1.6614959778967497e-11,5.62291215209434e-13,906,um^-4
-retained_lineages,full,LGR5_AldoB,LGR5 + AldoB,5,mae,subset,2.9183693611426382e-06,4.381059290054232e-08,906,um^-2
-retained_lineages,full,LGR5_AldoB,LGR5 + AldoB,5,mae,baseline,3.2834323724383598e-06,5.216413925553506e-08,906,um^-2
-retained_lineages,full,LGR5_AldoB,LGR5 + AldoB,5,mae,all_marker,2.7948807033049184e-06,4.224029213875681e-08,906,um^-2
-retained_lineages,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,subset,3.890272543533439e-11,1.6416069363275185e-12,848,um^-4
-retained_lineages,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,baseline,5.993465812130531e-11,2.3760874434048554e-12,848,um^-4
-retained_lineages,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,all_marker,3.349918924406368e-11,1.4134633199539798e-12,848,um^-4
-retained_lineages,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,subset,4.524812227358716e-06,1.0714038237819243e-07,848,um^-2
-retained_lineages,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,baseline,5.759448577752911e-06,1.334403547265994e-07,848,um^-2
-retained_lineages,full,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,all_marker,4.2011717730544605e-06,9.57723801791962e-08,848,um^-2
-retained_lineages,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,subset,3.408763707768378e-11,1.2906117021643272e-12,892,um^-4
-retained_lineages,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,baseline,4.7977096485087316e-11,1.7604655513496846e-12,892,um^-4
-retained_lineages,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,all_marker,3.034201017250437e-11,1.1518378273860316e-12,892,um^-4
-retained_lineages,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,subset,4.115166118559321e-06,8.534264552086926e-08,892,um^-2
-retained_lineages,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,baseline,4.971383254476811e-06,1.0427714795627813e-07,892,um^-2
-retained_lineages,full,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,all_marker,3.8862680653670194e-06,7.894018104817876e-08,892,um^-2
-retained_lineages,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,3.330867361069265e-11,1.2445275497942238e-12,898,um^-4
-retained_lineages,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,5.013186213426416e-11,1.7734459604170863e-12,898,um^-4
-retained_lineages,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,3.0690805079216624e-11,1.127601168526349e-12,898,um^-4
-retained_lineages,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,4.084593890982348e-06,8.200606290708356e-08,898,um^-2
-retained_lineages,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,5.110864862543722e-06,1.0414763876367941e-07,898,um^-2
-retained_lineages,full,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,3.928755406858489e-06,7.716373533882653e-08,898,um^-2
-retained_lineages,full,all,All lineages,12,mse,subset,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-retained_lineages,full,all,All lineages,12,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
-retained_lineages,full,all,All lineages,12,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
-retained_lineages,full,all,All lineages,12,mae,subset,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
-retained_lineages,full,all,All lineages,12,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
-retained_lineages,full,all,All lineages,12,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+scope,region,subset,depth,subset_label,subset_order,metric,model,mean,sem,n_organoids,units
+all_cells,budded_crypt,AldoB,0,AldoB,0,mse,subset,8.783138986733067e-11,4.674523017508134e-12,190,um^-4
+all_cells,budded_crypt,AldoB,0,AldoB,0,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB,0,AldoB,0,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB,0,AldoB,0,mae,subset,7.65619207984915e-06,2.3360058079211412e-07,190,um^-2
+all_cells,budded_crypt,AldoB,0,AldoB,0,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB,0,AldoB,0,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB,2,AldoB,0,mse,subset,7.752905690076143e-11,4.380316127262155e-12,190,um^-4
+all_cells,budded_crypt,AldoB,2,AldoB,0,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB,2,AldoB,0,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB,2,AldoB,0,mae,subset,7.063845208261462e-06,2.295520003512114e-07,190,um^-2
+all_cells,budded_crypt,AldoB,2,AldoB,0,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB,2,AldoB,0,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,8.544536666681708e-11,4.630323818394243e-12,190,um^-4
+all_cells,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,7.536629740540588e-06,2.3254319081771382e-07,190,um^-2
+all_cells,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,5.97864750749207e-11,3.883261244093678e-12,190,um^-4
+all_cells,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,6.109062005381942e-06,2.1115428626633913e-07,190,um^-2
+all_cells,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mse,subset,8.744926662332513e-11,4.657455531247725e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mae,subset,7.638435802667634e-06,2.3310349679906713e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mse,subset,7.499866440314876e-11,4.449570363494479e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mae,subset,6.8959848059535376e-06,2.3543005413213663e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,8.503261254665121e-11,4.647230797892008e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,7.50963296971854e-06,2.3284531410674785e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,5.878198361403515e-11,3.887147734580661e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,6.021988272914094e-06,2.1339583907783543e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,ENDO,0,Chroma + Serotonin,4,mse,subset,9.129205761878694e-11,4.851655509117966e-12,190,um^-4
+all_cells,budded_crypt,ENDO,0,Chroma + Serotonin,4,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,ENDO,0,Chroma + Serotonin,4,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,ENDO,0,Chroma + Serotonin,4,mae,subset,7.823363412108474e-06,2.402351279756779e-07,190,um^-2
+all_cells,budded_crypt,ENDO,0,Chroma + Serotonin,4,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,ENDO,0,Chroma + Serotonin,4,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,ENDO,2,Chroma + Serotonin,4,mse,subset,8.226665194921099e-11,4.4980283242032124e-12,190,um^-4
+all_cells,budded_crypt,ENDO,2,Chroma + Serotonin,4,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,ENDO,2,Chroma + Serotonin,4,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,ENDO,2,Chroma + Serotonin,4,mae,subset,7.4028507293605686e-06,2.3103525852035218e-07,190,um^-2
+all_cells,budded_crypt,ENDO,2,Chroma + Serotonin,4,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,ENDO,2,Chroma + Serotonin,4,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mse,subset,9.07430681901149e-11,4.7998465030266514e-12,190,um^-4
+all_cells,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mae,subset,7.795228587492699e-06,2.3801268376888764e-07,190,um^-2
+all_cells,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mse,subset,7.563280150046119e-11,4.428899304327764e-12,190,um^-4
+all_cells,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mae,subset,6.985742237785404e-06,2.2543495203857056e-07,190,um^-2
+all_cells,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,KI67,0,KI67,2,mse,subset,9.16247018778973e-11,4.822268566641125e-12,190,um^-4
+all_cells,budded_crypt,KI67,0,KI67,2,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,KI67,0,KI67,2,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,KI67,0,KI67,2,mae,subset,7.834060588123723e-06,2.39155254277605e-07,190,um^-2
+all_cells,budded_crypt,KI67,0,KI67,2,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,KI67,0,KI67,2,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,KI67,2,KI67,2,mse,subset,9.204317466006541e-11,4.793135407277899e-12,190,um^-4
+all_cells,budded_crypt,KI67,2,KI67,2,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,KI67,2,KI67,2,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,KI67,2,KI67,2,mae,subset,7.8332437722144e-06,2.4114606089925106e-07,190,um^-2
+all_cells,budded_crypt,KI67,2,KI67,2,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,KI67,2,KI67,2,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5,0,LGR5,1,mse,subset,8.251171998249614e-11,4.815865011947187e-12,190,um^-4
+all_cells,budded_crypt,LGR5,0,LGR5,1,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5,0,LGR5,1,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5,0,LGR5,1,mae,subset,7.312430150916573e-06,2.426011408894372e-07,190,um^-2
+all_cells,budded_crypt,LGR5,0,LGR5,1,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5,0,LGR5,1,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5,2,LGR5,1,mse,subset,7.261712710035225e-11,4.753734774860618e-12,190,um^-4
+all_cells,budded_crypt,LGR5,2,LGR5,1,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5,2,LGR5,1,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5,2,LGR5,1,mae,subset,6.75100993574608e-06,2.479951852517853e-07,190,um^-2
+all_cells,budded_crypt,LGR5,2,LGR5,1,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5,2,LGR5,1,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mse,subset,8.074678159721353e-11,4.720745607893258e-12,190,um^-4
+all_cells,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mae,subset,7.2285458501901915e-06,2.393702359646477e-07,190,um^-2
+all_cells,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mse,subset,6.753919123433232e-11,4.542494103983696e-12,190,um^-4
+all_cells,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mae,subset,6.437388658080432e-06,2.442994004057357e-07,190,um^-2
+all_cells,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,subset,8.084283618075068e-11,4.787673920009307e-12,190,um^-4
+all_cells,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,subset,7.234342686827789e-06,2.425840174147945e-07,190,um^-2
+all_cells,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,subset,6.94259943413355e-11,4.579302935037508e-12,190,um^-4
+all_cells,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,subset,6.6100311822511724e-06,2.4155945747905117e-07,190,um^-2
+all_cells,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,subset,7.98300827752552e-11,4.761276606968832e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,subset,7.168815511183302e-06,2.4113014865713515e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,subset,6.504184957323524e-11,4.377861782555158e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,subset,6.364765755015879e-06,2.3291024266737023e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,7.821583555554654e-11,4.708177183439592e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,7.101210207000699e-06,2.4028090832995463e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,6.12017917055559e-11,4.151636607382022e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,6.191773575423836e-06,2.2413633253562497e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,all,0,All lineages,12,mse,subset,7.581991375623205e-11,4.6646853092250244e-12,190,um^-4
+all_cells,budded_crypt,all,0,All lineages,12,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,all,0,All lineages,12,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,all,0,All lineages,12,mae,subset,6.96011060843624e-06,2.3839005041227434e-07,190,um^-2
+all_cells,budded_crypt,all,0,All lineages,12,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,all,0,All lineages,12,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,all,2,All lineages,12,mse,subset,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,all,2,All lineages,12,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+all_cells,budded_crypt,all,2,All lineages,12,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+all_cells,budded_crypt,all,2,All lineages,12,mae,subset,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_crypt,all,2,All lineages,12,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+all_cells,budded_crypt,all,2,All lineages,12,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+all_cells,budded_neck,AldoB,0,AldoB,0,mse,subset,1.0908409641240835e-10,4.6506529615552126e-12,186,um^-4
+all_cells,budded_neck,AldoB,0,AldoB,0,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB,0,AldoB,0,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB,0,AldoB,0,mae,subset,8.106195281928462e-06,2.0948633933579474e-07,186,um^-2
+all_cells,budded_neck,AldoB,0,AldoB,0,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB,0,AldoB,0,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB,2,AldoB,0,mse,subset,9.635531562421552e-11,4.068299202171923e-12,186,um^-4
+all_cells,budded_neck,AldoB,2,AldoB,0,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB,2,AldoB,0,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB,2,AldoB,0,mae,subset,7.600833867095914e-06,1.9475043841457887e-07,186,um^-2
+all_cells,budded_neck,AldoB,2,AldoB,0,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB,2,AldoB,0,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,1.0863862680609632e-10,4.5882234195662756e-12,186,um^-4
+all_cells,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,8.090279651652713e-06,2.0817001215792676e-07,186,um^-2
+all_cells,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,8.95794736714855e-11,3.878595209688763e-12,186,um^-4
+all_cells,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,7.324225576203719e-06,1.9048591217799664e-07,186,um^-2
+all_cells,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mse,subset,1.0908600397006794e-10,4.638273487041202e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mae,subset,8.108348205278822e-06,2.0976339592040318e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mse,subset,8.997326238109869e-11,3.7522683510660524e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mae,subset,7.333653106601282e-06,1.8731030021152989e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,1.0872527732056127e-10,4.590569328213814e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,8.095913108262353e-06,2.0832194325706313e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,8.455705875412118e-11,3.638993983773797e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,7.0959805532032045e-06,1.8440553951018844e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,ENDO,0,Chroma + Serotonin,4,mse,subset,1.0745386380803881e-10,4.55879116785387e-12,186,um^-4
+all_cells,budded_neck,ENDO,0,Chroma + Serotonin,4,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,ENDO,0,Chroma + Serotonin,4,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,ENDO,0,Chroma + Serotonin,4,mae,subset,8.016236609550838e-06,2.0675322243583975e-07,186,um^-2
+all_cells,budded_neck,ENDO,0,Chroma + Serotonin,4,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,ENDO,0,Chroma + Serotonin,4,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,ENDO,2,Chroma + Serotonin,4,mse,subset,1.0723361995764611e-10,4.572550305620919e-12,186,um^-4
+all_cells,budded_neck,ENDO,2,Chroma + Serotonin,4,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,ENDO,2,Chroma + Serotonin,4,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,ENDO,2,Chroma + Serotonin,4,mae,subset,8.012099171310919e-06,2.0802800183575223e-07,186,um^-2
+all_cells,budded_neck,ENDO,2,Chroma + Serotonin,4,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,ENDO,2,Chroma + Serotonin,4,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,EXO,0,Agr2 + Lysozyme,3,mse,subset,1.0762484576734527e-10,4.596442459670839e-12,186,um^-4
+all_cells,budded_neck,EXO,0,Agr2 + Lysozyme,3,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,EXO,0,Agr2 + Lysozyme,3,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,EXO,0,Agr2 + Lysozyme,3,mae,subset,8.019894616459731e-06,2.0783130059150797e-07,186,um^-2
+all_cells,budded_neck,EXO,0,Agr2 + Lysozyme,3,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,EXO,0,Agr2 + Lysozyme,3,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,EXO,2,Agr2 + Lysozyme,3,mse,subset,1.0621146030386635e-10,4.717883681244805e-12,186,um^-4
+all_cells,budded_neck,EXO,2,Agr2 + Lysozyme,3,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,EXO,2,Agr2 + Lysozyme,3,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,EXO,2,Agr2 + Lysozyme,3,mae,subset,7.983673306827625e-06,2.1121138217548244e-07,186,um^-2
+all_cells,budded_neck,EXO,2,Agr2 + Lysozyme,3,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,EXO,2,Agr2 + Lysozyme,3,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,KI67,0,KI67,2,mse,subset,1.0783733659949638e-10,4.625048908512224e-12,186,um^-4
+all_cells,budded_neck,KI67,0,KI67,2,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,KI67,0,KI67,2,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,KI67,0,KI67,2,mae,subset,8.029724084466501e-06,2.0895614090763084e-07,186,um^-2
+all_cells,budded_neck,KI67,0,KI67,2,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,KI67,0,KI67,2,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,KI67,2,KI67,2,mse,subset,1.0297980790776302e-10,4.338012232387441e-12,186,um^-4
+all_cells,budded_neck,KI67,2,KI67,2,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,KI67,2,KI67,2,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,KI67,2,KI67,2,mae,subset,7.827280787786092e-06,2.0234264261241554e-07,186,um^-2
+all_cells,budded_neck,KI67,2,KI67,2,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,KI67,2,KI67,2,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5,0,LGR5,1,mse,subset,1.054353795059097e-10,4.478486197078031e-12,186,um^-4
+all_cells,budded_neck,LGR5,0,LGR5,1,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5,0,LGR5,1,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5,0,LGR5,1,mae,subset,7.943210531515895e-06,2.046510396145252e-07,186,um^-2
+all_cells,budded_neck,LGR5,0,LGR5,1,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5,0,LGR5,1,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5,2,LGR5,1,mse,subset,1.0294703273075468e-10,4.397017391093183e-12,186,um^-4
+all_cells,budded_neck,LGR5,2,LGR5,1,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5,2,LGR5,1,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5,2,LGR5,1,mae,subset,7.874832720360939e-06,2.0321033813140947e-07,186,um^-2
+all_cells,budded_neck,LGR5,2,LGR5,1,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5,2,LGR5,1,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mse,subset,1.061841697854697e-10,4.491449959506942e-12,186,um^-4
+all_cells,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mae,subset,7.992831425353136e-06,2.0536794243107234e-07,186,um^-2
+all_cells,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mse,subset,9.050731295773464e-11,3.876767982024801e-12,186,um^-4
+all_cells,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mae,subset,7.350602985665424e-06,1.899838506830283e-07,186,um^-2
+all_cells,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,subset,1.0494469237998326e-10,4.461758163201301e-12,186,um^-4
+all_cells,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,subset,7.926260789636243e-06,2.043638843109353e-07,186,um^-2
+all_cells,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,subset,1.0252569617516564e-10,4.4125861741538525e-12,186,um^-4
+all_cells,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,subset,7.860093377296144e-06,2.0424940070239774e-07,186,um^-2
+all_cells,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,subset,1.0478331778549733e-10,4.471220856619572e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,subset,7.92098512257189e-06,2.0447741213030013e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,subset,1.0203276756344693e-10,4.470810666678469e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,subset,7.84056799591683e-06,2.047249213978032e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,1.0423666408600808e-10,4.445005490611285e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,7.901850129743956e-06,2.040338615900598e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,1.0169512857326973e-10,4.502792177745592e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,8.189710321306778e-11,3.6033363678209748e-12,186,um^-4
+all_cells,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,7.824355685972242e-06,2.0623260970396575e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,all,0,All lineages,12,mse,subset,1.0381864947859972e-10,4.432008434899866e-12,186,um^-4
+all_cells,budded_neck,all,0,All lineages,12,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,all,0,All lineages,12,mse,all_marker,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
+all_cells,budded_neck,all,0,All lineages,12,mae,subset,7.890420283344862e-06,2.038540342876052e-07,186,um^-2
+all_cells,budded_neck,all,0,All lineages,12,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,all,0,All lineages,12,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,all,2,All lineages,12,mse,subset,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
+all_cells,budded_neck,all,2,All lineages,12,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+all_cells,budded_neck,all,2,All lineages,12,mse,all_marker,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
+all_cells,budded_neck,all,2,All lineages,12,mae,subset,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,budded_neck,all,2,All lineages,12,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+all_cells,budded_neck,all,2,All lineages,12,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+all_cells,full,AldoB,0,AldoB,0,mse,subset,2.4787059292977823e-11,7.072478985280236e-13,908,um^-4
+all_cells,full,AldoB,0,AldoB,0,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB,0,AldoB,0,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB,0,AldoB,0,mae,subset,3.3808791141110515e-06,4.843485411937919e-08,908,um^-2
+all_cells,full,AldoB,0,AldoB,0,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB,0,AldoB,0,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB,2,AldoB,0,mse,subset,2.2863308718747867e-11,6.364275982845153e-13,908,um^-4
+all_cells,full,AldoB,2,AldoB,0,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB,2,AldoB,0,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB,2,AldoB,0,mae,subset,3.242541232455071e-06,4.494802983462378e-08,908,um^-2
+all_cells,full,AldoB,2,AldoB,0,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB,2,AldoB,0,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,2.44458747148333e-11,7.003893111177661e-13,908,um^-4
+all_cells,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,3.360983138747268e-06,4.845572388424066e-08,908,um^-2
+all_cells,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,2.037323814583886e-11,5.572698831536212e-13,908,um^-4
+all_cells,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,3.0842860877716376e-06,4.14465210659245e-08,908,um^-2
+all_cells,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB_KI67,0,AldoB + KI67,6,mse,subset,2.4728294859328643e-11,7.067095097755548e-13,908,um^-4
+all_cells,full,AldoB_KI67,0,AldoB + KI67,6,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB_KI67,0,AldoB + KI67,6,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB_KI67,0,AldoB + KI67,6,mae,subset,3.3784106675716227e-06,4.860994937258093e-08,908,um^-2
+all_cells,full,AldoB_KI67,0,AldoB + KI67,6,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB_KI67,0,AldoB + KI67,6,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB_KI67,2,AldoB + KI67,6,mse,subset,2.1839462532761828e-11,6.061294984287823e-13,908,um^-4
+all_cells,full,AldoB_KI67,2,AldoB + KI67,6,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB_KI67,2,AldoB + KI67,6,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB_KI67,2,AldoB + KI67,6,mae,subset,3.160152451684686e-06,4.371375698954645e-08,908,um^-2
+all_cells,full,AldoB_KI67,2,AldoB + KI67,6,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB_KI67,2,AldoB + KI67,6,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,2.4402841046814348e-11,6.978605873541672e-13,908,um^-4
+all_cells,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,3.358442718620645e-06,4.8400550610261536e-08,908,um^-2
+all_cells,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,1.9637583232090572e-11,5.347147471543622e-13,908,um^-4
+all_cells,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,3.0169431363705956e-06,4.022536561906059e-08,908,um^-2
+all_cells,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,ENDO,0,Chroma + Serotonin,4,mse,subset,2.4927925424759628e-11,7.139591567164275e-13,908,um^-4
+all_cells,full,ENDO,0,Chroma + Serotonin,4,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,ENDO,0,Chroma + Serotonin,4,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,ENDO,0,Chroma + Serotonin,4,mae,subset,3.378303902222103e-06,4.8333080793216893e-08,908,um^-2
+all_cells,full,ENDO,0,Chroma + Serotonin,4,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,ENDO,0,Chroma + Serotonin,4,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,ENDO,2,Chroma + Serotonin,4,mse,subset,2.404417631060818e-11,6.895506985852549e-13,908,um^-4
+all_cells,full,ENDO,2,Chroma + Serotonin,4,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,ENDO,2,Chroma + Serotonin,4,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,ENDO,2,Chroma + Serotonin,4,mae,subset,3.3297820694416522e-06,4.731486108186751e-08,908,um^-2
+all_cells,full,ENDO,2,Chroma + Serotonin,4,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,ENDO,2,Chroma + Serotonin,4,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,EXO,0,Agr2 + Lysozyme,3,mse,subset,2.4949988960558428e-11,7.123096911514958e-13,908,um^-4
+all_cells,full,EXO,0,Agr2 + Lysozyme,3,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,EXO,0,Agr2 + Lysozyme,3,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,EXO,0,Agr2 + Lysozyme,3,mae,subset,3.3771230143909744e-06,4.8251855006926365e-08,908,um^-2
+all_cells,full,EXO,0,Agr2 + Lysozyme,3,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,EXO,0,Agr2 + Lysozyme,3,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,EXO,2,Agr2 + Lysozyme,3,mse,subset,2.3392856763181167e-11,6.587915080867615e-13,908,um^-4
+all_cells,full,EXO,2,Agr2 + Lysozyme,3,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,EXO,2,Agr2 + Lysozyme,3,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,EXO,2,Agr2 + Lysozyme,3,mae,subset,3.285990548825506e-06,4.6233634370797075e-08,908,um^-2
+all_cells,full,EXO,2,Agr2 + Lysozyme,3,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,EXO,2,Agr2 + Lysozyme,3,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,KI67,0,KI67,2,mse,subset,2.5042482402996555e-11,7.138702874764267e-13,908,um^-4
+all_cells,full,KI67,0,KI67,2,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,KI67,0,KI67,2,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,KI67,0,KI67,2,mae,subset,3.3842346992339906e-06,4.821494492292156e-08,908,um^-2
+all_cells,full,KI67,0,KI67,2,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,KI67,0,KI67,2,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,KI67,2,KI67,2,mse,subset,2.436217583460956e-11,6.95725818115064e-13,908,um^-4
+all_cells,full,KI67,2,KI67,2,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,KI67,2,KI67,2,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,KI67,2,KI67,2,mae,subset,3.316780191259412e-06,4.718236366628242e-08,908,um^-2
+all_cells,full,KI67,2,KI67,2,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,KI67,2,KI67,2,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5,0,LGR5,1,mse,subset,2.3941197964710256e-11,6.76578231987798e-13,908,um^-4
+all_cells,full,LGR5,0,LGR5,1,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5,0,LGR5,1,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5,0,LGR5,1,mae,subset,3.314889077875037e-06,4.685106291138051e-08,908,um^-2
+all_cells,full,LGR5,0,LGR5,1,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5,0,LGR5,1,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5,2,LGR5,1,mse,subset,2.2728471235444736e-11,6.414382017302605e-13,908,um^-4
+all_cells,full,LGR5,2,LGR5,1,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5,2,LGR5,1,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5,2,LGR5,1,mae,subset,3.241076469289035e-06,4.5882522032454585e-08,908,um^-2
+all_cells,full,LGR5,2,LGR5,1,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5,2,LGR5,1,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_AldoB,0,LGR5 + AldoB,5,mse,subset,2.3832497735287138e-11,6.734737874118653e-13,908,um^-4
+all_cells,full,LGR5_AldoB,0,LGR5 + AldoB,5,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_AldoB,0,LGR5 + AldoB,5,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_AldoB,0,LGR5 + AldoB,5,mae,subset,3.317492670838795e-06,4.714213606686938e-08,908,um^-2
+all_cells,full,LGR5_AldoB,0,LGR5 + AldoB,5,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_AldoB,0,LGR5 + AldoB,5,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_AldoB,2,LGR5 + AldoB,5,mse,subset,2.1174677513871653e-11,5.823707324634761e-13,908,um^-4
+all_cells,full,LGR5_AldoB,2,LGR5 + AldoB,5,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_AldoB,2,LGR5 + AldoB,5,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_AldoB,2,LGR5 + AldoB,5,mae,subset,3.1238020106034957e-06,4.258591535540178e-08,908,um^-2
+all_cells,full,LGR5_AldoB,2,LGR5 + AldoB,5,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_AldoB,2,LGR5 + AldoB,5,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,subset,2.365190528498775e-11,6.702308323169456e-13,908,um^-4
+all_cells,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,subset,3.299447797630165e-06,4.6677406506241575e-08,908,um^-2
+all_cells,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,subset,2.229525334895668e-11,6.307417488274643e-13,908,um^-4
+all_cells,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,subset,3.219092935021381e-06,4.535915671717326e-08,908,um^-2
+all_cells,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,subset,2.3610140430907785e-11,6.661527887854873e-13,908,um^-4
+all_cells,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,subset,3.295755812888737e-06,4.655197422210567e-08,908,um^-2
+all_cells,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,subset,2.1959717301486886e-11,6.174826012778024e-13,908,um^-4
+all_cells,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,subset,3.1934220058327667e-06,4.4995177354239006e-08,908,um^-2
+all_cells,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,2.3304774535960097e-11,6.594631637374419e-13,908,um^-4
+all_cells,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,3.280576478968391e-06,4.637208036416991e-08,908,um^-2
+all_cells,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,2.14655500357571e-11,6.106898517033571e-13,908,um^-4
+all_cells,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,3.1641697806725003e-06,4.452639693265806e-08,908,um^-2
+all_cells,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,all,0,All lineages,12,mse,subset,2.302240014042601e-11,6.479487102883355e-13,908,um^-4
+all_cells,full,all,0,All lineages,12,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,all,0,All lineages,12,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,all,0,All lineages,12,mae,subset,3.267021517310191e-06,4.610419683119833e-08,908,um^-2
+all_cells,full,all,0,All lineages,12,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,all,0,All lineages,12,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,all,2,All lineages,12,mse,subset,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,all,2,All lineages,12,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+all_cells,full,all,2,All lineages,12,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+all_cells,full,all,2,All lineages,12,mae,subset,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+all_cells,full,all,2,All lineages,12,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+all_cells,full,all,2,All lineages,12,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+retained_lineages,budded_crypt,AldoB,0,AldoB,0,mse,subset,3.4850446767172433e-11,5.152773274500395e-12,97,um^-4
+retained_lineages,budded_crypt,AldoB,0,AldoB,0,mse,baseline,3.245608902147131e-11,4.986935435984669e-12,97,um^-4
+retained_lineages,budded_crypt,AldoB,0,AldoB,0,mse,all_marker,3.549057058183645e-11,5.4377128113421655e-12,97,um^-4
+retained_lineages,budded_crypt,AldoB,0,AldoB,0,mae,subset,4.6530269398903855e-06,3.168634838366635e-07,97,um^-2
+retained_lineages,budded_crypt,AldoB,0,AldoB,0,mae,baseline,4.421333385474213e-06,3.130070873425853e-07,97,um^-2
+retained_lineages,budded_crypt,AldoB,0,AldoB,0,mae,all_marker,4.59504287876529e-06,3.3803838186460637e-07,97,um^-2
+retained_lineages,budded_crypt,AldoB,2,AldoB,0,mse,subset,4.148200694292616e-11,6.348898624117382e-12,97,um^-4
+retained_lineages,budded_crypt,AldoB,2,AldoB,0,mse,baseline,3.245608902147131e-11,4.986935435984669e-12,97,um^-4
+retained_lineages,budded_crypt,AldoB,2,AldoB,0,mse,all_marker,3.549057058183645e-11,5.4377128113421655e-12,97,um^-4
+retained_lineages,budded_crypt,AldoB,2,AldoB,0,mae,subset,4.995283140052092e-06,3.665037815454115e-07,97,um^-2
+retained_lineages,budded_crypt,AldoB,2,AldoB,0,mae,baseline,4.421333385474213e-06,3.130070873425853e-07,97,um^-2
+retained_lineages,budded_crypt,AldoB,2,AldoB,0,mae,all_marker,4.59504287876529e-06,3.3803838186460637e-07,97,um^-2
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,7.994904877190976e-11,4.748402123230639e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.0273475103456073e-10,5.83196225493428e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,4.66176062357761e-11,3.5015347402945528e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,7.3177791303069935e-06,2.564973614236604e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,8.378887741015576e-06,2.912153180825544e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,5.305142252196981e-06,2.1946827993779117e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,5.066469595514994e-11,3.620160399490217e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.0273475103456073e-10,5.83196225493428e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,4.66176062357761e-11,3.5015347402945528e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,5.589765217388146e-06,2.2151931931588477e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,8.378887741015576e-06,2.912153180825544e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,5.305142252196981e-06,2.1946827993779117e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mse,subset,6.842116961865532e-11,4.811353735969098e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mse,baseline,7.186183397100547e-11,4.957742106301378e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mse,all_marker,5.161127468829465e-11,4.212041281179901e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mae,subset,6.581100998929387e-06,2.519101405626476e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mae,baseline,6.761594856967177e-06,2.5812891745338877e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67,0,AldoB + KI67,6,mae,all_marker,5.545664749802706e-06,2.3728136846339918e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mse,subset,6.329467435769326e-11,4.819390031543726e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mse,baseline,7.186183397100547e-11,4.957742106301378e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mse,all_marker,5.161127468829465e-11,4.212041281179901e-12,187,um^-4
+retained_lineages,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mae,subset,6.159885837202235e-06,2.6051021396064196e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mae,baseline,6.761594856967177e-06,2.5812891745338877e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67,2,AldoB + KI67,6,mae,all_marker,5.545664749802706e-06,2.3728136846339918e-07,187,um^-2
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,7.353629142646709e-11,4.495572248514587e-12,189,um^-4
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,8.573634039191448e-11,4.871257763089413e-12,189,um^-4
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,5.0721645872705415e-11,3.780893070906051e-12,189,um^-4
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,6.889265519186833e-06,2.3418268908859614e-07,189,um^-2
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.505195914002394e-06,2.478807677933547e-07,189,um^-2
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,5.506183422806214e-06,2.1815509396472122e-07,189,um^-2
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,5.3323587410676685e-11,3.806088757156609e-12,189,um^-4
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,8.573634039191448e-11,4.871257763089413e-12,189,um^-4
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,5.0721645872705415e-11,3.780893070906051e-12,189,um^-4
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,5.677797749312525e-06,2.1690197803735634e-07,189,um^-2
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.505195914002394e-06,2.478807677933547e-07,189,um^-2
+retained_lineages,budded_crypt,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,5.506183422806214e-06,2.1815509396472122e-07,189,um^-2
+retained_lineages,budded_crypt,ENDO,0,Chroma + Serotonin,4,mse,subset,1.2788109156803464e-10,8.61760394680882e-12,145,um^-4
+retained_lineages,budded_crypt,ENDO,0,Chroma + Serotonin,4,mse,baseline,1.696632889180826e-10,1.0217001408683365e-11,145,um^-4
+retained_lineages,budded_crypt,ENDO,0,Chroma + Serotonin,4,mse,all_marker,4.654987431984367e-11,4.6875658818822526e-12,145,um^-4
+retained_lineages,budded_crypt,ENDO,0,Chroma + Serotonin,4,mae,subset,9.824210355101232e-06,4.132086441809642e-07,145,um^-2
+retained_lineages,budded_crypt,ENDO,0,Chroma + Serotonin,4,mae,baseline,1.1699252400404462e-05,4.217819865341151e-07,145,um^-2
+retained_lineages,budded_crypt,ENDO,0,Chroma + Serotonin,4,mae,all_marker,5.4552218373652256e-06,3.0289236427762805e-07,145,um^-2
+retained_lineages,budded_crypt,ENDO,2,Chroma + Serotonin,4,mse,subset,8.300094453380994e-11,6.481631330278907e-12,145,um^-4
+retained_lineages,budded_crypt,ENDO,2,Chroma + Serotonin,4,mse,baseline,1.696632889180826e-10,1.0217001408683365e-11,145,um^-4
+retained_lineages,budded_crypt,ENDO,2,Chroma + Serotonin,4,mse,all_marker,4.654987431984367e-11,4.6875658818822526e-12,145,um^-4
+retained_lineages,budded_crypt,ENDO,2,Chroma + Serotonin,4,mae,subset,7.574638965305989e-06,3.723862457767245e-07,145,um^-2
+retained_lineages,budded_crypt,ENDO,2,Chroma + Serotonin,4,mae,baseline,1.1699252400404462e-05,4.217819865341151e-07,145,um^-2
+retained_lineages,budded_crypt,ENDO,2,Chroma + Serotonin,4,mae,all_marker,5.4552218373652256e-06,3.0289236427762805e-07,145,um^-2
+retained_lineages,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mse,subset,9.089400697297686e-11,5.183429727558821e-12,183,um^-4
+retained_lineages,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mse,baseline,1.0837455591807562e-10,5.7826986898317075e-12,183,um^-4
+retained_lineages,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mse,all_marker,5.31843146292506e-11,4.288582752945041e-12,183,um^-4
+retained_lineages,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mae,subset,7.965099267620617e-06,2.685975433578824e-07,183,um^-2
+retained_lineages,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mae,baseline,8.906854551414825e-06,2.7427342609977727e-07,183,um^-2
+retained_lineages,budded_crypt,EXO,0,Agr2 + Lysozyme,3,mae,all_marker,5.631902435345399e-06,2.488428986967861e-07,183,um^-2
+retained_lineages,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mse,subset,6.621008835065729e-11,4.269911989568041e-12,183,um^-4
+retained_lineages,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mse,baseline,1.0837455591807562e-10,5.7826986898317075e-12,183,um^-4
+retained_lineages,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mse,all_marker,5.31843146292506e-11,4.288582752945041e-12,183,um^-4
+retained_lineages,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mae,subset,6.5409670307170835e-06,2.491269885139681e-07,183,um^-2
+retained_lineages,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mae,baseline,8.906854551414825e-06,2.7427342609977727e-07,183,um^-2
+retained_lineages,budded_crypt,EXO,2,Agr2 + Lysozyme,3,mae,all_marker,5.631902435345399e-06,2.488428986967861e-07,183,um^-2
+retained_lineages,budded_crypt,KI67,0,KI67,2,mse,subset,7.590291942191632e-11,5.086596253481423e-12,181,um^-4
+retained_lineages,budded_crypt,KI67,0,KI67,2,mse,baseline,7.929743926159257e-11,5.180888171654277e-12,181,um^-4
+retained_lineages,budded_crypt,KI67,0,KI67,2,mse,all_marker,5.548373348854513e-11,4.3286449605108056e-12,181,um^-4
+retained_lineages,budded_crypt,KI67,0,KI67,2,mae,subset,6.987693194472717e-06,2.665498701491132e-07,181,um^-2
+retained_lineages,budded_crypt,KI67,0,KI67,2,mae,baseline,7.199119392040847e-06,2.678526942996261e-07,181,um^-2
+retained_lineages,budded_crypt,KI67,0,KI67,2,mae,all_marker,5.812523720664147e-06,2.4565674627265016e-07,181,um^-2
+retained_lineages,budded_crypt,KI67,2,KI67,2,mse,subset,7.673749449042722e-11,5.1086438084046386e-12,181,um^-4
+retained_lineages,budded_crypt,KI67,2,KI67,2,mse,baseline,7.929743926159257e-11,5.180888171654277e-12,181,um^-4
+retained_lineages,budded_crypt,KI67,2,KI67,2,mse,all_marker,5.548373348854513e-11,4.3286449605108056e-12,181,um^-4
+retained_lineages,budded_crypt,KI67,2,KI67,2,mae,subset,7.024357219731342e-06,2.6670465943089893e-07,181,um^-2
+retained_lineages,budded_crypt,KI67,2,KI67,2,mae,baseline,7.199119392040847e-06,2.678526942996261e-07,181,um^-2
+retained_lineages,budded_crypt,KI67,2,KI67,2,mae,all_marker,5.812523720664147e-06,2.4565674627265016e-07,181,um^-2
+retained_lineages,budded_crypt,LGR5,0,LGR5,1,mse,subset,7.531405575331696e-11,5.582418594516371e-12,168,um^-4
+retained_lineages,budded_crypt,LGR5,0,LGR5,1,mse,baseline,1.217833334104269e-10,6.923052500595529e-12,168,um^-4
+retained_lineages,budded_crypt,LGR5,0,LGR5,1,mse,all_marker,4.916879483540227e-11,4.171192092850736e-12,168,um^-4
+retained_lineages,budded_crypt,LGR5,0,LGR5,1,mae,subset,7.011764487482791e-06,2.899333934847573e-07,168,um^-2
+retained_lineages,budded_crypt,LGR5,0,LGR5,1,mae,baseline,9.584193492413115e-06,3.027444037173451e-07,168,um^-2
+retained_lineages,budded_crypt,LGR5,0,LGR5,1,mae,all_marker,5.497706274791106e-06,2.514249071626809e-07,168,um^-2
+retained_lineages,budded_crypt,LGR5,2,LGR5,1,mse,subset,6.441975099162953e-11,5.37839409910962e-12,168,um^-4
+retained_lineages,budded_crypt,LGR5,2,LGR5,1,mse,baseline,1.217833334104269e-10,6.923052500595529e-12,168,um^-4
+retained_lineages,budded_crypt,LGR5,2,LGR5,1,mse,all_marker,4.916879483540227e-11,4.171192092850736e-12,168,um^-4
+retained_lineages,budded_crypt,LGR5,2,LGR5,1,mae,subset,6.325480350267343e-06,2.9449204915722716e-07,168,um^-2
+retained_lineages,budded_crypt,LGR5,2,LGR5,1,mae,baseline,9.584193492413115e-06,3.027444037173451e-07,168,um^-2
+retained_lineages,budded_crypt,LGR5,2,LGR5,1,mae,all_marker,5.497706274791106e-06,2.514249071626809e-07,168,um^-2
+retained_lineages,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mse,subset,6.619101700014901e-11,5.0764129407650275e-12,173,um^-4
+retained_lineages,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mse,baseline,1.01581512050039e-10,6.4310966312020835e-12,173,um^-4
+retained_lineages,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mse,all_marker,4.390055644096432e-11,3.83345399002578e-12,173,um^-4
+retained_lineages,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mae,subset,6.4781582668285245e-06,2.7112981410284365e-07,173,um^-2
+retained_lineages,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mae,baseline,8.379669033000999e-06,3.092203921774434e-07,173,um^-2
+retained_lineages,budded_crypt,LGR5_AldoB,0,LGR5 + AldoB,5,mae,all_marker,5.113730419648237e-06,2.35031389262539e-07,173,um^-2
+retained_lineages,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mse,subset,5.361832723133777e-11,4.5900317118702374e-12,173,um^-4
+retained_lineages,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mse,baseline,1.01581512050039e-10,6.4310966312020835e-12,173,um^-4
+retained_lineages,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mse,all_marker,4.390055644096432e-11,3.83345399002578e-12,173,um^-4
+retained_lineages,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mae,subset,5.667912102233385e-06,2.6467160481739357e-07,173,um^-2
+retained_lineages,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mae,baseline,8.379669033000999e-06,3.092203921774434e-07,173,um^-2
+retained_lineages,budded_crypt,LGR5_AldoB,2,LGR5 + AldoB,5,mae,all_marker,5.113730419648237e-06,2.35031389262539e-07,173,um^-2
+retained_lineages,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,subset,7.589750863277571e-11,5.4347948313360545e-12,176,um^-4
+retained_lineages,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,baseline,1.2651118693951726e-10,6.978088383186229e-12,176,um^-4
+retained_lineages,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,all_marker,4.9950079389320956e-11,4.1926280168448956e-12,176,um^-4
+retained_lineages,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,subset,7.047276171110018e-06,2.846135649049667e-07,176,um^-2
+retained_lineages,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,baseline,9.774845788230226e-06,3.031973348482979e-07,176,um^-2
+retained_lineages,budded_crypt,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,all_marker,5.536754665743037e-06,2.4876544367560694e-07,176,um^-2
+retained_lineages,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,subset,6.283919842056086e-11,5.019254599515627e-12,176,um^-4
+retained_lineages,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,baseline,1.2651118693951726e-10,6.978088383186229e-12,176,um^-4
+retained_lineages,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,all_marker,4.9950079389320956e-11,4.1926280168448956e-12,176,um^-4
+retained_lineages,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,subset,6.2911548888107976e-06,2.806714630446866e-07,176,um^-2
+retained_lineages,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,baseline,9.774845788230226e-06,3.031973348482979e-07,176,um^-2
+retained_lineages,budded_crypt,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,all_marker,5.536754665743037e-06,2.4876544367560694e-07,176,um^-2
+retained_lineages,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,subset,7.776335406892522e-11,4.967151099112951e-12,187,um^-4
+retained_lineages,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,baseline,1.1828594288122235e-10,5.821736060373666e-12,187,um^-4
+retained_lineages,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,all_marker,5.394397286315312e-11,4.056887327133842e-12,187,um^-4
+retained_lineages,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,subset,7.122745058284159e-06,2.6154560227492476e-07,187,um^-2
+retained_lineages,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,baseline,9.39468154760572e-06,2.6265069601616506e-07,187,um^-2
+retained_lineages,budded_crypt,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,all_marker,5.740032763471217e-06,2.371938078884093e-07,187,um^-2
+retained_lineages,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,subset,6.360744214244319e-11,4.650117378455878e-12,187,um^-4
+retained_lineages,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,baseline,1.1828594288122235e-10,5.821736060373666e-12,187,um^-4
+retained_lineages,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,all_marker,5.394397286315312e-11,4.056887327133842e-12,187,um^-4
+retained_lineages,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,subset,6.260963875658026e-06,2.603306531407042e-07,187,um^-2
+retained_lineages,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,baseline,9.39468154760572e-06,2.6265069601616506e-07,187,um^-2
+retained_lineages,budded_crypt,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,all_marker,5.740032763471217e-06,2.371938078884093e-07,187,um^-2
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,7.845886193527271e-11,4.921734430965138e-12,188,um^-4
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,1.2212848431082022e-10,5.850270557106675e-12,188,um^-4
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,5.3932026200232723e-11,3.976212075387916e-12,188,um^-4
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,7.165414224196744e-06,2.600977086968133e-07,188,um^-2
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,9.567250893081318e-06,2.6195588827666644e-07,188,um^-2
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,5.755696912181861e-06,2.3409354069804158e-07,188,um^-2
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,6.036543002151911e-11,4.357107175307467e-12,188,um^-4
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,1.2212848431082022e-10,5.850270557106675e-12,188,um^-4
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,5.3932026200232723e-11,3.976212075387916e-12,188,um^-4
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,6.1272006057860855e-06,2.4870344990661585e-07,188,um^-2
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,9.567250893081318e-06,2.6195588827666644e-07,188,um^-2
+retained_lineages,budded_crypt,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,5.755696912181861e-06,2.3409354069804158e-07,188,um^-2
+retained_lineages,budded_crypt,all,0,All lineages,12,mse,subset,7.581991375623205e-11,4.6646853092250244e-12,190,um^-4
+retained_lineages,budded_crypt,all,0,All lineages,12,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+retained_lineages,budded_crypt,all,0,All lineages,12,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+retained_lineages,budded_crypt,all,0,All lineages,12,mae,subset,6.96011060843624e-06,2.3839005041227434e-07,190,um^-2
+retained_lineages,budded_crypt,all,0,All lineages,12,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+retained_lineages,budded_crypt,all,0,All lineages,12,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+retained_lineages,budded_crypt,all,2,All lineages,12,mse,subset,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+retained_lineages,budded_crypt,all,2,All lineages,12,mse,baseline,9.313089207837167e-11,4.755496536939693e-12,190,um^-4
+retained_lineages,budded_crypt,all,2,All lineages,12,mse,all_marker,5.4453726323427105e-11,3.9136526875464925e-12,190,um^-4
+retained_lineages,budded_crypt,all,2,All lineages,12,mae,subset,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+retained_lineages,budded_crypt,all,2,All lineages,12,mae,baseline,7.949026191441614e-06,2.3510380145659817e-07,190,um^-2
+retained_lineages,budded_crypt,all,2,All lineages,12,mae,all_marker,5.7136975282281775e-06,2.1963850559516956e-07,190,um^-2
+retained_lineages,budded_neck,AldoB,0,AldoB,0,mse,subset,1.4261134854959264e-10,9.087787747868757e-12,162,um^-4
+retained_lineages,budded_neck,AldoB,0,AldoB,0,mse,baseline,1.4869724064824958e-10,9.505163370897095e-12,162,um^-4
+retained_lineages,budded_neck,AldoB,0,AldoB,0,mse,all_marker,9.217658048488384e-11,6.4131781648480435e-12,162,um^-4
+retained_lineages,budded_neck,AldoB,0,AldoB,0,mae,subset,9.697065702680413e-06,4.0625961225875523e-07,162,um^-2
+retained_lineages,budded_neck,AldoB,0,AldoB,0,mae,baseline,9.898465500483174e-06,4.150994853290092e-07,162,um^-2
+retained_lineages,budded_neck,AldoB,0,AldoB,0,mae,all_marker,7.533657550691123e-06,3.3420085760367366e-07,162,um^-2
+retained_lineages,budded_neck,AldoB,2,AldoB,0,mse,subset,1.1210043659317972e-10,7.455076802031401e-12,162,um^-4
+retained_lineages,budded_neck,AldoB,2,AldoB,0,mse,baseline,1.4869724064824958e-10,9.505163370897095e-12,162,um^-4
+retained_lineages,budded_neck,AldoB,2,AldoB,0,mse,all_marker,9.217658048488384e-11,6.4131781648480435e-12,162,um^-4
+retained_lineages,budded_neck,AldoB,2,AldoB,0,mae,subset,8.39246722536018e-06,3.677131534272985e-07,162,um^-2
+retained_lineages,budded_neck,AldoB,2,AldoB,0,mae,baseline,9.898465500483174e-06,4.150994853290092e-07,162,um^-2
+retained_lineages,budded_neck,AldoB,2,AldoB,0,mae,all_marker,7.533657550691123e-06,3.3420085760367366e-07,162,um^-2
+retained_lineages,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,1.2064514776433126e-10,7.560647957477209e-12,177,um^-4
+retained_lineages,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.2424214105612952e-10,7.992784514559336e-12,177,um^-4
+retained_lineages,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,8.844739353041252e-11,5.836248797254828e-12,177,um^-4
+retained_lineages,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,8.559689596421486e-06,3.431496198653562e-07,177,um^-2
+retained_lineages,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,8.658225679646165e-06,3.534029916943324e-07,177,um^-2
+retained_lineages,budded_neck,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,7.224227916400453e-06,2.909247194519777e-07,177,um^-2
+retained_lineages,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,9.875621379779226e-11,6.292844809288693e-12,177,um^-4
+retained_lineages,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,1.2424214105612952e-10,7.992784514559336e-12,177,um^-4
+retained_lineages,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,8.844739353041252e-11,5.836248797254828e-12,177,um^-4
+retained_lineages,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,7.701235384323518e-06,3.0501684552760386e-07,177,um^-2
+retained_lineages,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,8.658225679646165e-06,3.534029916943324e-07,177,um^-2
+retained_lineages,budded_neck,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,7.224227916400453e-06,2.909247194519777e-07,177,um^-2
+retained_lineages,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mse,subset,1.0524475409390247e-10,5.419790543868975e-12,185,um^-4
+retained_lineages,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mse,baseline,1.0632816444454644e-10,5.746120101710802e-12,185,um^-4
+retained_lineages,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mse,all_marker,8.089391475445276e-11,4.283249538971369e-12,185,um^-4
+retained_lineages,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mae,subset,7.914640331033569e-06,2.513944420765631e-07,185,um^-2
+retained_lineages,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mae,baseline,7.911920980916482e-06,2.596308323364773e-07,185,um^-2
+retained_lineages,budded_neck,AldoB_KI67,0,AldoB + KI67,6,mae,all_marker,6.882600259685499e-06,2.211266254501932e-07,185,um^-2
+retained_lineages,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mse,subset,8.527393910497363e-11,4.412828827872847e-12,185,um^-4
+retained_lineages,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mse,baseline,1.0632816444454644e-10,5.746120101710802e-12,185,um^-4
+retained_lineages,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mse,all_marker,8.089391475445276e-11,4.283249538971369e-12,185,um^-4
+retained_lineages,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mae,subset,7.067695124964219e-06,2.248229744315218e-07,185,um^-2
+retained_lineages,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mae,baseline,7.911920980916482e-06,2.596308323364773e-07,185,um^-2
+retained_lineages,budded_neck,AldoB_KI67,2,AldoB + KI67,6,mae,all_marker,6.882600259685499e-06,2.211266254501932e-07,185,um^-2
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,1.0289636898332936e-10,5.21496141708523e-12,186,um^-4
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,1.0328196562861029e-10,5.544787129328474e-12,186,um^-4
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,7.983065024433059e-11,4.0658758663853066e-12,186,um^-4
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,7.796996776816664e-06,2.411781266150241e-07,186,um^-2
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.765317922056351e-06,2.502698107675549e-07,186,um^-2
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,6.82721610689064e-06,2.101318301758746e-07,186,um^-2
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,8.115009001338567e-11,4.131297175070944e-12,186,um^-4
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,1.0328196562861029e-10,5.544787129328474e-12,186,um^-4
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,7.983065024433059e-11,4.0658758663853066e-12,186,um^-4
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,6.884057690346053e-06,2.1225060028385055e-07,186,um^-2
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,7.765317922056351e-06,2.502698107675549e-07,186,um^-2
+retained_lineages,budded_neck,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,6.82721610689064e-06,2.101318301758746e-07,186,um^-2
+retained_lineages,budded_neck,ENDO,0,Chroma + Serotonin,4,mse,subset,7.38258253428688e-11,1.8838459617027935e-11,36,um^-4
+retained_lineages,budded_neck,ENDO,0,Chroma + Serotonin,4,mse,baseline,6.779181986595374e-11,1.592933443342873e-11,36,um^-4
+retained_lineages,budded_neck,ENDO,0,Chroma + Serotonin,4,mse,all_marker,9.75880551509694e-11,2.1457627526132713e-11,36,um^-4
+retained_lineages,budded_neck,ENDO,0,Chroma + Serotonin,4,mae,subset,6.280192412055228e-06,9.290170225680672e-07,36,um^-2
+retained_lineages,budded_neck,ENDO,0,Chroma + Serotonin,4,mae,baseline,6.164008036691771e-06,8.750088334684473e-07,36,um^-2
+retained_lineages,budded_neck,ENDO,0,Chroma + Serotonin,4,mae,all_marker,7.4372607063880075e-06,9.937522706569257e-07,36,um^-2
+retained_lineages,budded_neck,ENDO,2,Chroma + Serotonin,4,mse,subset,9.256706813597905e-11,2.3543398105664798e-11,36,um^-4
+retained_lineages,budded_neck,ENDO,2,Chroma + Serotonin,4,mse,baseline,6.779181986595374e-11,1.592933443342873e-11,36,um^-4
+retained_lineages,budded_neck,ENDO,2,Chroma + Serotonin,4,mse,all_marker,9.75880551509694e-11,2.1457627526132713e-11,36,um^-4
+retained_lineages,budded_neck,ENDO,2,Chroma + Serotonin,4,mae,subset,7.162510424726342e-06,1.014752782788303e-06,36,um^-2
+retained_lineages,budded_neck,ENDO,2,Chroma + Serotonin,4,mae,baseline,6.164008036691771e-06,8.750088334684473e-07,36,um^-2
+retained_lineages,budded_neck,ENDO,2,Chroma + Serotonin,4,mae,all_marker,7.4372607063880075e-06,9.937522706569257e-07,36,um^-2
+retained_lineages,budded_neck,EXO,0,Agr2 + Lysozyme,3,mse,subset,8.093274131015583e-11,7.0454717683944984e-12,152,um^-4
+retained_lineages,budded_neck,EXO,0,Agr2 + Lysozyme,3,mse,baseline,7.486139188392057e-11,6.637340226467264e-12,152,um^-4
+retained_lineages,budded_neck,EXO,0,Agr2 + Lysozyme,3,mse,all_marker,7.524406520106715e-11,6.16222092149439e-12,152,um^-4
+retained_lineages,budded_neck,EXO,0,Agr2 + Lysozyme,3,mae,subset,6.649009161187313e-06,3.398999156682956e-07,152,um^-2
+retained_lineages,budded_neck,EXO,0,Agr2 + Lysozyme,3,mae,baseline,6.382430827855364e-06,3.2876030648832104e-07,152,um^-2
+retained_lineages,budded_neck,EXO,0,Agr2 + Lysozyme,3,mae,all_marker,6.557727593559438e-06,3.07381656241735e-07,152,um^-2
+retained_lineages,budded_neck,EXO,2,Agr2 + Lysozyme,3,mse,subset,8.794070982051666e-11,7.353956466625707e-12,152,um^-4
+retained_lineages,budded_neck,EXO,2,Agr2 + Lysozyme,3,mse,baseline,7.486139188392057e-11,6.637340226467264e-12,152,um^-4
+retained_lineages,budded_neck,EXO,2,Agr2 + Lysozyme,3,mse,all_marker,7.524406520106715e-11,6.16222092149439e-12,152,um^-4
+retained_lineages,budded_neck,EXO,2,Agr2 + Lysozyme,3,mae,subset,7.046031301746199e-06,3.463628972598767e-07,152,um^-2
+retained_lineages,budded_neck,EXO,2,Agr2 + Lysozyme,3,mae,baseline,6.382430827855364e-06,3.2876030648832104e-07,152,um^-2
+retained_lineages,budded_neck,EXO,2,Agr2 + Lysozyme,3,mae,all_marker,6.557727593559438e-06,3.07381656241735e-07,152,um^-2
+retained_lineages,budded_neck,KI67,0,KI67,2,mse,subset,8.332363107649955e-11,4.954312560111213e-12,180,um^-4
+retained_lineages,budded_neck,KI67,0,KI67,2,mse,baseline,8.076983113540944e-11,4.854616598734506e-12,180,um^-4
+retained_lineages,budded_neck,KI67,0,KI67,2,mse,all_marker,6.973010809362528e-11,4.242648319946294e-12,180,um^-4
+retained_lineages,budded_neck,KI67,0,KI67,2,mae,subset,6.876286215152045e-06,2.391631382284983e-07,180,um^-2
+retained_lineages,budded_neck,KI67,0,KI67,2,mae,baseline,6.759436363854368e-06,2.365415256348881e-07,180,um^-2
+retained_lineages,budded_neck,KI67,0,KI67,2,mae,all_marker,6.334938997386959e-06,2.208382376178461e-07,180,um^-2
+retained_lineages,budded_neck,KI67,2,KI67,2,mse,subset,7.958243647782885e-11,4.728488611748856e-12,180,um^-4
+retained_lineages,budded_neck,KI67,2,KI67,2,mse,baseline,8.076983113540944e-11,4.854616598734506e-12,180,um^-4
+retained_lineages,budded_neck,KI67,2,KI67,2,mse,all_marker,6.973010809362528e-11,4.242648319946294e-12,180,um^-4
+retained_lineages,budded_neck,KI67,2,KI67,2,mae,subset,6.701199873643329e-06,2.3471632968630688e-07,180,um^-2
+retained_lineages,budded_neck,KI67,2,KI67,2,mae,baseline,6.759436363854368e-06,2.365415256348881e-07,180,um^-2
+retained_lineages,budded_neck,KI67,2,KI67,2,mae,all_marker,6.334938997386959e-06,2.208382376178461e-07,180,um^-2
+retained_lineages,budded_neck,LGR5,0,LGR5,1,mse,subset,7.141843829136216e-11,5.8437772465390654e-12,124,um^-4
+retained_lineages,budded_neck,LGR5,0,LGR5,1,mse,baseline,5.0274841748625235e-11,4.225146815411757e-12,124,um^-4
+retained_lineages,budded_neck,LGR5,0,LGR5,1,mse,all_marker,6.517603192100662e-11,5.8604676813909394e-12,124,um^-4
+retained_lineages,budded_neck,LGR5,0,LGR5,1,mae,subset,6.42160201585771e-06,3.0672111270275597e-07,124,um^-2
+retained_lineages,budded_neck,LGR5,0,LGR5,1,mae,baseline,5.357557923125239e-06,2.4411479000650605e-07,124,um^-2
+retained_lineages,budded_neck,LGR5,0,LGR5,1,mae,all_marker,6.1027832678223815e-06,3.1444190193052733e-07,124,um^-2
+retained_lineages,budded_neck,LGR5,2,LGR5,1,mse,subset,7.277846506076482e-11,6.180322373588847e-12,124,um^-4
+retained_lineages,budded_neck,LGR5,2,LGR5,1,mse,baseline,5.0274841748625235e-11,4.225146815411757e-12,124,um^-4
+retained_lineages,budded_neck,LGR5,2,LGR5,1,mse,all_marker,6.517603192100662e-11,5.8604676813909394e-12,124,um^-4
+retained_lineages,budded_neck,LGR5,2,LGR5,1,mae,subset,6.538432250060456e-06,3.162672847702696e-07,124,um^-2
+retained_lineages,budded_neck,LGR5,2,LGR5,1,mae,baseline,5.357557923125239e-06,2.4411479000650605e-07,124,um^-2
+retained_lineages,budded_neck,LGR5,2,LGR5,1,mae,all_marker,6.1027832678223815e-06,3.1444190193052733e-07,124,um^-2
+retained_lineages,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mse,subset,1.1437217584196845e-10,7.049385964989557e-12,177,um^-4
+retained_lineages,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mse,baseline,1.1372521401867149e-10,7.700329183140672e-12,177,um^-4
+retained_lineages,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mse,all_marker,8.364893393059605e-11,5.372588495708518e-12,177,um^-4
+retained_lineages,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mae,subset,8.36349497782323e-06,3.196982707894617e-07,177,um^-2
+retained_lineages,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mae,baseline,8.218526439471519e-06,3.362757295150451e-07,177,um^-2
+retained_lineages,budded_neck,LGR5_AldoB,0,LGR5 + AldoB,5,mae,all_marker,7.021915833191906e-06,2.7326602295837234e-07,177,um^-2
+retained_lineages,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mse,subset,9.423785740528103e-11,5.931100772072811e-12,177,um^-4
+retained_lineages,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mse,baseline,1.1372521401867149e-10,7.700329183140672e-12,177,um^-4
+retained_lineages,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mse,all_marker,8.364893393059605e-11,5.372588495708518e-12,177,um^-4
+retained_lineages,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mae,subset,7.512615119738182e-06,2.9126194446644213e-07,177,um^-2
+retained_lineages,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mae,baseline,8.218526439471519e-06,3.362757295150451e-07,177,um^-2
+retained_lineages,budded_neck,LGR5_AldoB,2,LGR5 + AldoB,5,mae,all_marker,7.021915833191906e-06,2.7326602295837234e-07,177,um^-2
+retained_lineages,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,subset,7.695613704355999e-11,6.546693974510512e-12,129,um^-4
+retained_lineages,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,baseline,5.387361159202954e-11,4.737049549242143e-12,129,um^-4
+retained_lineages,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,all_marker,6.779271901938631e-11,5.995816385204123e-12,129,um^-4
+retained_lineages,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,subset,6.6836744397365944e-06,3.2397166641671085e-07,129,um^-2
+retained_lineages,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,baseline,5.511404727732225e-06,2.660478327921631e-07,129,um^-2
+retained_lineages,budded_neck,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,all_marker,6.220927944871437e-06,3.203062959571953e-07,129,um^-2
+retained_lineages,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,subset,7.405125543508767e-11,6.395522113157945e-12,129,um^-4
+retained_lineages,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,baseline,5.387361159202954e-11,4.737049549242143e-12,129,um^-4
+retained_lineages,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,all_marker,6.779271901938631e-11,5.995816385204123e-12,129,um^-4
+retained_lineages,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,subset,6.584365571228635e-06,3.1840931575135497e-07,129,um^-2
+retained_lineages,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,baseline,5.511404727732225e-06,2.660478327921631e-07,129,um^-2
+retained_lineages,budded_neck,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,all_marker,6.220927944871437e-06,3.203062959571953e-07,129,um^-2
+retained_lineages,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,subset,8.449447853214276e-11,5.99873083692733e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,baseline,6.694328942235683e-11,5.372193143549441e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,all_marker,7.196650649703272e-11,5.099837451767017e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,subset,6.974253452721267e-06,2.828615008830296e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,baseline,6.082112508524011e-06,2.6414644102949104e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,all_marker,6.483365322151904e-06,2.5828305310236146e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,subset,8.191865112950994e-11,5.9496061216503046e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,baseline,6.694328942235683e-11,5.372193143549441e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,all_marker,7.196650649703272e-11,5.099837451767017e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,subset,6.896793420135938e-06,2.8061778744594707e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,baseline,6.082112508524011e-06,2.6414644102949104e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,all_marker,6.483365322151904e-06,2.5828305310236146e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,8.632405917518964e-11,6.090636063339938e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,6.79223916850424e-11,5.390708546539882e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,7.329540860900873e-11,5.141132766458452e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,7.051540134510772e-06,2.8345441612046147e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,6.121425664616174e-06,2.6302095224822337e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,6.543488094711292e-06,2.579166705394983e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,8.286514048583752e-11,6.120703774973225e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,6.79223916850424e-11,5.390708546539882e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,7.329540860900873e-11,5.141132766458452e-12,165,um^-4
+retained_lineages,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,6.913348667973258e-06,2.856846952789025e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,6.121425664616174e-06,2.6302095224822337e-07,165,um^-2
+retained_lineages,budded_neck,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,6.543488094711292e-06,2.579166705394983e-07,165,um^-2
+retained_lineages,budded_neck,all,0,All lineages,12,mse,subset,1.0381864947859972e-10,4.432008434899866e-12,186,um^-4
+retained_lineages,budded_neck,all,0,All lineages,12,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+retained_lineages,budded_neck,all,0,All lineages,12,mse,all_marker,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
+retained_lineages,budded_neck,all,0,All lineages,12,mae,subset,7.890420283344862e-06,2.038540342876052e-07,186,um^-2
+retained_lineages,budded_neck,all,0,All lineages,12,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+retained_lineages,budded_neck,all,0,All lineages,12,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+retained_lineages,budded_neck,all,2,All lineages,12,mse,subset,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
+retained_lineages,budded_neck,all,2,All lineages,12,mse,baseline,1.0705444315957835e-10,4.836856492396219e-12,186,um^-4
+retained_lineages,budded_neck,all,2,All lineages,12,mse,all_marker,8.189710321306778e-11,3.6033363678209744e-12,186,um^-4
+retained_lineages,budded_neck,all,2,All lineages,12,mae,subset,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+retained_lineages,budded_neck,all,2,All lineages,12,mae,baseline,7.993778808843267e-06,2.138675984574183e-07,186,um^-2
+retained_lineages,budded_neck,all,2,All lineages,12,mae,all_marker,6.971565356561716e-06,1.8336391410965769e-07,186,um^-2
+retained_lineages,full,AldoB,0,AldoB,0,mse,subset,1.6667977492883582e-11,5.699979624950505e-13,832,um^-4
+retained_lineages,full,AldoB,0,AldoB,0,mse,baseline,1.709555891057087e-11,5.901490847770887e-13,832,um^-4
+retained_lineages,full,AldoB,0,AldoB,0,mse,all_marker,1.350798692951528e-11,4.660571458793526e-13,832,um^-4
+retained_lineages,full,AldoB,0,AldoB,0,mae,subset,2.8314906753461015e-06,4.336555501685535e-08,832,um^-2
+retained_lineages,full,AldoB,0,AldoB,0,mae,baseline,2.8495056935703753e-06,4.312880313309268e-08,832,um^-2
+retained_lineages,full,AldoB,0,AldoB,0,mae,all_marker,2.553640507264203e-06,3.911160827506519e-08,832,um^-2
+retained_lineages,full,AldoB,2,AldoB,0,mse,subset,1.5202229331569378e-11,5.257122143832623e-13,832,um^-4
+retained_lineages,full,AldoB,2,AldoB,0,mse,baseline,1.709555891057087e-11,5.901490847770887e-13,832,um^-4
+retained_lineages,full,AldoB,2,AldoB,0,mse,all_marker,1.350798692951528e-11,4.660571458793526e-13,832,um^-4
+retained_lineages,full,AldoB,2,AldoB,0,mae,subset,2.6993125364394054e-06,4.1144025239371245e-08,832,um^-2
+retained_lineages,full,AldoB,2,AldoB,0,mae,baseline,2.8495056935703753e-06,4.312880313309268e-08,832,um^-2
+retained_lineages,full,AldoB,2,AldoB,0,mae,all_marker,2.553640507264203e-06,3.911160827506519e-08,832,um^-2
+retained_lineages,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,2.0154573718279205e-11,6.578126795355981e-13,907,um^-4
+retained_lineages,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,2.2125029772344013e-11,7.514201197345019e-13,907,um^-4
+retained_lineages,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,1.6075066833886578e-11,5.421156950966229e-13,907,um^-4
+retained_lineages,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,3.10210601119486e-06,4.6845323697498837e-08,907,um^-2
+retained_lineages,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,3.205118684013184e-06,4.944637092101423e-08,907,um^-2
+retained_lineages,full,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,2.765381780503066e-06,4.161650656238687e-08,907,um^-2
+retained_lineages,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,subset,1.74087029440248e-11,5.824961513643492e-13,907,um^-4
+retained_lineages,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,baseline,2.2125029772344013e-11,7.514201197345019e-13,907,um^-4
+retained_lineages,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,all_marker,1.6075066833886578e-11,5.421156950966229e-13,907,um^-4
+retained_lineages,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,subset,2.8954744360767773e-06,4.3148471657228876e-08,907,um^-2
+retained_lineages,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,baseline,3.205118684013184e-06,4.944637092101423e-08,907,um^-2
+retained_lineages,full,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,all_marker,2.765381780503066e-06,4.161650656238687e-08,907,um^-2
+retained_lineages,full,AldoB_KI67,0,AldoB + KI67,6,mse,subset,1.9342306716420584e-11,5.716810663213907e-13,908,um^-4
+retained_lineages,full,AldoB_KI67,0,AldoB + KI67,6,mse,baseline,1.97633566393508e-11,5.878296113779509e-13,908,um^-4
+retained_lineages,full,AldoB_KI67,0,AldoB + KI67,6,mse,all_marker,1.617732382005488e-11,5.042412618379761e-13,908,um^-4
+retained_lineages,full,AldoB_KI67,0,AldoB + KI67,6,mae,subset,3.0107615755967945e-06,4.1665107518386844e-08,908,um^-2
+retained_lineages,full,AldoB_KI67,0,AldoB + KI67,6,mae,baseline,3.0233557069182593e-06,4.137852717393916e-08,908,um^-2
+retained_lineages,full,AldoB_KI67,0,AldoB + KI67,6,mae,all_marker,2.742172546789437e-06,3.8263318708363065e-08,908,um^-2
+retained_lineages,full,AldoB_KI67,2,AldoB + KI67,6,mse,subset,1.7210166916644442e-11,5.166343074080433e-13,908,um^-4
+retained_lineages,full,AldoB_KI67,2,AldoB + KI67,6,mse,baseline,1.97633566393508e-11,5.878296113779509e-13,908,um^-4
+retained_lineages,full,AldoB_KI67,2,AldoB + KI67,6,mse,all_marker,1.617732382005488e-11,5.042412618379761e-13,908,um^-4
+retained_lineages,full,AldoB_KI67,2,AldoB + KI67,6,mae,subset,2.821610217550351e-06,3.859213848582819e-08,908,um^-2
+retained_lineages,full,AldoB_KI67,2,AldoB + KI67,6,mae,baseline,3.0233557069182593e-06,4.137852717393916e-08,908,um^-2
+retained_lineages,full,AldoB_KI67,2,AldoB + KI67,6,mae,all_marker,2.742172546789437e-06,3.8263318708363065e-08,908,um^-2
+retained_lineages,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,2.0792838991781305e-11,5.999862997506563e-13,908,um^-4
+retained_lineages,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,2.1865714810447513e-11,6.32999579799945e-13,908,um^-4
+retained_lineages,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,1.7076624889459135e-11,5.074697025005852e-13,908,um^-4
+retained_lineages,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,3.119820238813244e-06,4.334557438300348e-08,908,um^-2
+retained_lineages,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,3.1710275098995786e-06,4.355230621477292e-08,908,um^-2
+retained_lineages,full,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,2.8185734972343803e-06,3.84142263019432e-08,908,um^-2
+retained_lineages,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,subset,1.7422980665911727e-11,4.928486279300696e-13,908,um^-4
+retained_lineages,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,baseline,2.1865714810447513e-11,6.32999579799945e-13,908,um^-4
+retained_lineages,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,all_marker,1.7076624889459135e-11,5.074697025005852e-13,908,um^-4
+retained_lineages,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,subset,2.8542063994515123e-06,3.7865342772067387e-08,908,um^-2
+retained_lineages,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,baseline,3.1710275098995786e-06,4.355230621477292e-08,908,um^-2
+retained_lineages,full,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,all_marker,2.8185734972343803e-06,3.84142263019432e-08,908,um^-2
+retained_lineages,full,ENDO,0,Chroma + Serotonin,4,mse,subset,6.239086061756162e-11,2.936268331491055e-12,707,um^-4
+retained_lineages,full,ENDO,0,Chroma + Serotonin,4,mse,baseline,8.55286654098448e-11,3.6202754723270703e-12,707,um^-4
+retained_lineages,full,ENDO,0,Chroma + Serotonin,4,mse,all_marker,3.7296651697158634e-11,2.0027468389762435e-12,707,um^-4
+retained_lineages,full,ENDO,0,Chroma + Serotonin,4,mae,subset,6.03342733208153e-06,1.6831094853506148e-07,707,um^-2
+retained_lineages,full,ENDO,0,Chroma + Serotonin,4,mae,baseline,7.3307490631025475e-06,1.8591735737891985e-07,707,um^-2
+retained_lineages,full,ENDO,0,Chroma + Serotonin,4,mae,all_marker,4.62332109195296e-06,1.2776738089621942e-07,707,um^-2
+retained_lineages,full,ENDO,2,Chroma + Serotonin,4,mse,subset,4.925429895638627e-11,2.2992631797281267e-12,707,um^-4
+retained_lineages,full,ENDO,2,Chroma + Serotonin,4,mse,baseline,8.55286654098448e-11,3.6202754723270703e-12,707,um^-4
+retained_lineages,full,ENDO,2,Chroma + Serotonin,4,mse,all_marker,3.7296651697158634e-11,2.0027468389762435e-12,707,um^-4
+retained_lineages,full,ENDO,2,Chroma + Serotonin,4,mae,subset,5.3936060934921205e-06,1.4568423558513248e-07,707,um^-2
+retained_lineages,full,ENDO,2,Chroma + Serotonin,4,mae,baseline,7.3307490631025475e-06,1.8591735737891985e-07,707,um^-2
+retained_lineages,full,ENDO,2,Chroma + Serotonin,4,mae,all_marker,4.62332109195296e-06,1.2776738089621942e-07,707,um^-2
+retained_lineages,full,EXO,0,Agr2 + Lysozyme,3,mse,subset,3.675616176212279e-11,1.4418122601127258e-12,891,um^-4
+retained_lineages,full,EXO,0,Agr2 + Lysozyme,3,mse,baseline,4.011265264128784e-11,1.5564135901103444e-12,891,um^-4
+retained_lineages,full,EXO,0,Agr2 + Lysozyme,3,mse,all_marker,2.7654764200712173e-11,1.1007114528200614e-12,891,um^-4
+retained_lineages,full,EXO,0,Agr2 + Lysozyme,3,mae,subset,4.245730090076999e-06,9.158332625811495e-08,891,um^-2
+retained_lineages,full,EXO,0,Agr2 + Lysozyme,3,mae,baseline,4.468869146212523e-06,9.573443756609025e-08,891,um^-2
+retained_lineages,full,EXO,0,Agr2 + Lysozyme,3,mae,all_marker,3.6643731083228304e-06,7.60095912335849e-08,891,um^-2
+retained_lineages,full,EXO,2,Agr2 + Lysozyme,3,mse,subset,3.2142096470877934e-11,1.2482150798130892e-12,891,um^-4
+retained_lineages,full,EXO,2,Agr2 + Lysozyme,3,mse,baseline,4.011265264128784e-11,1.5564135901103444e-12,891,um^-4
+retained_lineages,full,EXO,2,Agr2 + Lysozyme,3,mse,all_marker,2.7654764200712173e-11,1.1007114528200614e-12,891,um^-4
+retained_lineages,full,EXO,2,Agr2 + Lysozyme,3,mae,subset,3.95981372430731e-06,8.306490168457647e-08,891,um^-2
+retained_lineages,full,EXO,2,Agr2 + Lysozyme,3,mae,baseline,4.468869146212523e-06,9.573443756609025e-08,891,um^-2
+retained_lineages,full,EXO,2,Agr2 + Lysozyme,3,mae,all_marker,3.6643731083228304e-06,7.60095912335849e-08,891,um^-2
+retained_lineages,full,KI67,0,KI67,2,mse,subset,3.6198952225407154e-11,1.4799007012799721e-12,882,um^-4
+retained_lineages,full,KI67,0,KI67,2,mse,baseline,3.647226388862905e-11,1.4791096343150088e-12,882,um^-4
+retained_lineages,full,KI67,0,KI67,2,mse,all_marker,3.000421627787321e-11,1.2336027855387256e-12,882,um^-4
+retained_lineages,full,KI67,0,KI67,2,mae,subset,4.1508809288690226e-06,9.183975267091387e-08,882,um^-2
+retained_lineages,full,KI67,0,KI67,2,mae,baseline,4.180261798835908e-06,9.180563529303983e-08,882,um^-2
+retained_lineages,full,KI67,0,KI67,2,mae,all_marker,3.7926218353099844e-06,8.21372904995256e-08,882,um^-2
+retained_lineages,full,KI67,2,KI67,2,mse,subset,3.532695342776019e-11,1.447502474379187e-12,882,um^-4
+retained_lineages,full,KI67,2,KI67,2,mse,baseline,3.647226388862905e-11,1.4791096343150088e-12,882,um^-4
+retained_lineages,full,KI67,2,KI67,2,mse,all_marker,3.000421627787321e-11,1.2336027855387256e-12,882,um^-4
+retained_lineages,full,KI67,2,KI67,2,mae,subset,4.097822693182586e-06,9.065833193279297e-08,882,um^-2
+retained_lineages,full,KI67,2,KI67,2,mae,baseline,4.180261798835908e-06,9.180563529303983e-08,882,um^-2
+retained_lineages,full,KI67,2,KI67,2,mae,all_marker,3.7926218353099844e-06,8.21372904995256e-08,882,um^-2
+retained_lineages,full,LGR5,0,LGR5,1,mse,subset,4.1836158286482664e-11,1.8115743799992472e-12,782,um^-4
+retained_lineages,full,LGR5,0,LGR5,1,mse,baseline,5.575728490454943e-11,2.403405746328513e-12,782,um^-4
+retained_lineages,full,LGR5,0,LGR5,1,mse,all_marker,3.2439010578817634e-11,1.4512758359637577e-12,782,um^-4
+retained_lineages,full,LGR5,0,LGR5,1,mae,subset,4.6714981367698124e-06,1.1535334248717985e-07,782,um^-2
+retained_lineages,full,LGR5,0,LGR5,1,mae,baseline,5.496928855416044e-06,1.363131051448553e-07,782,um^-2
+retained_lineages,full,LGR5,0,LGR5,1,mae,all_marker,4.090620405375851e-06,9.941705700062501e-08,782,um^-2
+retained_lineages,full,LGR5,2,LGR5,1,mse,subset,3.842785940108398e-11,1.7460616987715406e-12,782,um^-4
+retained_lineages,full,LGR5,2,LGR5,1,mse,baseline,5.575728490454943e-11,2.403405746328513e-12,782,um^-4
+retained_lineages,full,LGR5,2,LGR5,1,mse,all_marker,3.2439010578817634e-11,1.4512758359637577e-12,782,um^-4
+retained_lineages,full,LGR5,2,LGR5,1,mae,subset,4.454259075400726e-06,1.1231262575526013e-07,782,um^-2
+retained_lineages,full,LGR5,2,LGR5,1,mae,baseline,5.496928855416044e-06,1.363131051448553e-07,782,um^-2
+retained_lineages,full,LGR5,2,LGR5,1,mae,all_marker,4.090620405375851e-06,9.941705700062501e-08,782,um^-2
+retained_lineages,full,LGR5_AldoB,0,LGR5 + AldoB,5,mse,subset,2.0482587982615153e-11,6.523781791537717e-13,906,um^-4
+retained_lineages,full,LGR5_AldoB,0,LGR5 + AldoB,5,mse,baseline,2.3303632652852488e-11,7.788763284159064e-13,906,um^-4
+retained_lineages,full,LGR5_AldoB,0,LGR5 + AldoB,5,mse,all_marker,1.6614959778967497e-11,5.62291215209434e-13,906,um^-4
+retained_lineages,full,LGR5_AldoB,0,LGR5 + AldoB,5,mae,subset,3.11756245728207e-06,4.7115106313705054e-08,906,um^-2
+retained_lineages,full,LGR5_AldoB,0,LGR5 + AldoB,5,mae,baseline,3.2834323724383598e-06,5.216413925553506e-08,906,um^-2
+retained_lineages,full,LGR5_AldoB,0,LGR5 + AldoB,5,mae,all_marker,2.7948807033049184e-06,4.224029213875681e-08,906,um^-2
+retained_lineages,full,LGR5_AldoB,2,LGR5 + AldoB,5,mse,subset,1.8057510783546852e-11,5.79935324157107e-13,906,um^-4
+retained_lineages,full,LGR5_AldoB,2,LGR5 + AldoB,5,mse,baseline,2.3303632652852488e-11,7.788763284159064e-13,906,um^-4
+retained_lineages,full,LGR5_AldoB,2,LGR5 + AldoB,5,mse,all_marker,1.6614959778967497e-11,5.62291215209434e-13,906,um^-4
+retained_lineages,full,LGR5_AldoB,2,LGR5 + AldoB,5,mae,subset,2.9183693611426382e-06,4.381059290054232e-08,906,um^-2
+retained_lineages,full,LGR5_AldoB,2,LGR5 + AldoB,5,mae,baseline,3.2834323724383598e-06,5.216413925553506e-08,906,um^-2
+retained_lineages,full,LGR5_AldoB,2,LGR5 + AldoB,5,mae,all_marker,2.7948807033049184e-06,4.224029213875681e-08,906,um^-2
+retained_lineages,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,subset,4.285204115235567e-11,1.7345816690056584e-12,848,um^-4
+retained_lineages,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,baseline,5.993465812130531e-11,2.3760874434048554e-12,848,um^-4
+retained_lineages,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,all_marker,3.349918924406368e-11,1.4134633199539798e-12,848,um^-4
+retained_lineages,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,subset,4.765541847516866e-06,1.1095620161196761e-07,848,um^-2
+retained_lineages,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,baseline,5.759448577752911e-06,1.334403547265994e-07,848,um^-2
+retained_lineages,full,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,all_marker,4.2011717730544605e-06,9.57723801791962e-08,848,um^-2
+retained_lineages,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,subset,3.890272543533439e-11,1.6416069363275185e-12,848,um^-4
+retained_lineages,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,baseline,5.993465812130531e-11,2.3760874434048554e-12,848,um^-4
+retained_lineages,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,all_marker,3.349918924406368e-11,1.4134633199539798e-12,848,um^-4
+retained_lineages,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,subset,4.524812227358716e-06,1.0714038237819243e-07,848,um^-2
+retained_lineages,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,baseline,5.759448577752911e-06,1.334403547265994e-07,848,um^-2
+retained_lineages,full,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,all_marker,4.2011717730544605e-06,9.57723801791962e-08,848,um^-2
+retained_lineages,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,subset,3.8234847399871774e-11,1.4072687078967314e-12,892,um^-4
+retained_lineages,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,baseline,4.7977096485087316e-11,1.7604655513496846e-12,892,um^-4
+retained_lineages,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,all_marker,3.034201017250437e-11,1.1518378273860316e-12,892,um^-4
+retained_lineages,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,subset,4.371285610240341e-06,9.081470279844851e-08,892,um^-2
+retained_lineages,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,baseline,4.971383254476811e-06,1.0427714795627813e-07,892,um^-2
+retained_lineages,full,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,all_marker,3.8862680653670194e-06,7.894018104817876e-08,892,um^-2
+retained_lineages,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,subset,3.408763707768378e-11,1.2906117021643272e-12,892,um^-4
+retained_lineages,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,baseline,4.7977096485087316e-11,1.7604655513496846e-12,892,um^-4
+retained_lineages,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,all_marker,3.034201017250437e-11,1.1518378273860316e-12,892,um^-4
+retained_lineages,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,subset,4.115166118559321e-06,8.534264552086926e-08,892,um^-2
+retained_lineages,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,baseline,4.971383254476811e-06,1.0427714795627813e-07,892,um^-2
+retained_lineages,full,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,all_marker,3.8862680653670194e-06,7.894018104817876e-08,892,um^-2
+retained_lineages,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,3.8781530451896716e-11,1.384987567763723e-12,898,um^-4
+retained_lineages,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,5.013186213426416e-11,1.7734459604170863e-12,898,um^-4
+retained_lineages,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,3.0690805079216624e-11,1.127601168526349e-12,898,um^-4
+retained_lineages,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,4.4241602480635e-06,8.951148701859423e-08,898,um^-2
+retained_lineages,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,5.110864862543722e-06,1.0414763876367941e-07,898,um^-2
+retained_lineages,full,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,3.928755406858489e-06,7.716373533882653e-08,898,um^-2
+retained_lineages,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,subset,3.330867361069265e-11,1.2445275497942238e-12,898,um^-4
+retained_lineages,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,baseline,5.013186213426416e-11,1.7734459604170863e-12,898,um^-4
+retained_lineages,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,all_marker,3.0690805079216624e-11,1.127601168526349e-12,898,um^-4
+retained_lineages,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,subset,4.084593890982348e-06,8.200606290708356e-08,898,um^-2
+retained_lineages,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,baseline,5.110864862543722e-06,1.0414763876367941e-07,898,um^-2
+retained_lineages,full,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,all_marker,3.928755406858489e-06,7.716373533882653e-08,898,um^-2
+retained_lineages,full,all,0,All lineages,12,mse,subset,2.302240014042601e-11,6.479487102883355e-13,908,um^-4
+retained_lineages,full,all,0,All lineages,12,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+retained_lineages,full,all,0,All lineages,12,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+retained_lineages,full,all,0,All lineages,12,mae,subset,3.267021517310191e-06,4.610419683119833e-08,908,um^-2
+retained_lineages,full,all,0,All lineages,12,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+retained_lineages,full,all,0,All lineages,12,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+retained_lineages,full,all,2,All lineages,12,mse,subset,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+retained_lineages,full,all,2,All lineages,12,mse,baseline,2.5086840825396528e-11,7.166984333227389e-13,908,um^-4
+retained_lineages,full,all,2,All lineages,12,mse,all_marker,1.8930643852255467e-11,5.318227349610972e-13,908,um^-4
+retained_lineages,full,all,2,All lineages,12,mae,subset,2.958548476581452e-06,4.000818016973873e-08,908,um^-2
+retained_lineages,full,all,2,All lineages,12,mae,baseline,3.390153973940063e-06,4.8266026312842605e-08,908,um^-2
+retained_lineages,full,all,2,All lineages,12,mae,all_marker,2.958548476581452e-06,4.000818016973873e-08,908,um^-2

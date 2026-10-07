@@ -65,14 +65,16 @@
       }
     },
     "subsets": {
-      "models": 80,
+      "models": 135,
       "folds": 5,
-      "validation_rows": 14528,
+      "validation_rows": 24516,
       "exact_reference_splits": true,
       "all_artifact_hashes_verified": true,
       "all_cell_and_retained_metrics": true,
       "one_model_per_process": true,
-      "peak_host_rss_gib": 2.6094818115234375
+      "peak_host_rss_gib": 2.6094818115234375,
+      "new_depth0_models": 55,
+      "previous_checkpoints_unchanged": true
     }
   },
   "analysis_notebooks": [
@@ -86,6 +88,10 @@
     "source_hop_quotas_met": true,
     "pair_hop_combinations": 128,
     "mesh_exports": 6,
-    "matched_intact_scores": true
+    "matched_intact_scores": true,
+    "subset_comparison_depths": [
+      0,
+      2
+    ]
   }
 }

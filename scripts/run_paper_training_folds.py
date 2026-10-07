@@ -75,6 +75,11 @@ def supervise(args):
     run = Path(args.run)
     (run/'logs').mkdir(parents=True, exist_ok=True)
     jobs = subset_jobs(ROOT/args.notebook, args.folds) if args.per_model else [(f, None) for f in args.folds]
+    if args.per_model and (run/'models.json').exists():
+        completed = json.loads((run/'models.json').read_text())
+        completed_keys = {r['key'] for r in completed
+                          if (run/r['bundle']/'manifest.json').exists()}
+        jobs = [(fold, key) for fold, key in jobs if key not in completed_keys]
     audit_path = run/'execution.json'
     audit = json.loads(audit_path.read_text()) if audit_path.exists() else []
     print(f'Planned {len(jobs)} sequential jobs; memory limit {args.max_gib:g} GiB per worker.', flush=True)

@@ -1,27 +1,53 @@
-scope,subset,subset_label,subset_order,metric,region,value,low,high,units
-all_cells,AldoB,AldoB,0,mse,crypt_minus_neck,-0.021902299935909697,-0.1016419154921196,0.06743826469117355,dimensionless
-all_cells,AldoB,AldoB,0,mae,crypt_minus_neck,0.011589940499559637,-0.07604713153167118,0.10945898823797112,dimensionless
-all_cells,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,crypt_minus_neck,0.16749444585637496,0.10765839483247179,0.23072439893632843,dimensionless
-all_cells,AldoB_EXO_ENDO,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,crypt_minus_neck,0.16812580453714476,0.1021744151599134,0.24955205195894317,dimensionless
-all_cells,AldoB_KI67,AldoB + KI67,6,mse,crypt_minus_neck,-0.21016441393744356,-0.303433023096262,-0.11501906283766482,dimensionless
-all_cells,AldoB_KI67,AldoB + KI67,6,mae,crypt_minus_neck,-0.17469050241653306,-0.2767590135377567,-0.07052215159439437,dimensionless
-all_cells,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,crypt_minus_neck,-0.006174520536549877,-0.0540937487875894,0.04806604160873882,dimensionless
-all_cells,AldoB_KI67_EXO_ENDO,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,crypt_minus_neck,-0.01620584956506732,-0.06957385304733937,0.040416492457422626,dimensionless
-all_cells,ENDO,Chroma + Serotonin,4,mse,crypt_minus_neck,0.28801770381798336,0.20475922838701538,0.3830110468464947,dimensionless
-all_cells,ENDO,Chroma + Serotonin,4,mae,crypt_minus_neck,0.2622601254243358,0.18849477940991927,0.3447136024730951,dimensionless
-all_cells,EXO,Agr2 + Lysozyme,3,mse,crypt_minus_neck,0.4189055564890249,0.32381180634993495,0.516357948353654,dimensionless
-all_cells,EXO,Agr2 + Lysozyme,3,mae,crypt_minus_neck,0.42105025942522667,0.32984894460133596,0.5181908862805217,dimensionless
-all_cells,KI67,KI67,2,mse,crypt_minus_neck,-0.13384307411396695,-0.21781882813701572,-0.049668056687602505,dimensionless
-all_cells,KI67,KI67,2,mae,crypt_minus_neck,-0.11108329867423987,-0.18015597314916357,-0.039355991396385855,dimensionless
-all_cells,LGR5,LGR5,1,mse,crypt_minus_neck,0.3671155217630898,0.2582506753525953,0.47089973594500173,dimensionless
-all_cells,LGR5,LGR5,1,mae,crypt_minus_neck,0.41958505562429915,0.3072316238489378,0.5253016423757483,dimensionless
-all_cells,LGR5_AldoB,LGR5 + AldoB,5,mse,crypt_minus_neck,0.0039290472412061295,-0.09463310729776292,0.09568945125222023,dimensionless
-all_cells,LGR5_AldoB,LGR5 + AldoB,5,mae,crypt_minus_neck,0.047049307210495606,-0.053754356750182655,0.1410748008934651,dimensionless
-all_cells,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mse,crypt_minus_neck,0.43287435762159643,0.3395995813393919,0.5284545698850732,dimensionless
-all_cells,LGR5_ENDO,LGR5 + Serotonin + Chroma,7,mae,crypt_minus_neck,0.46823447701106463,0.3720627269810312,0.5702173361100026,dimensionless
-all_cells,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mse,crypt_minus_neck,0.5266328048459668,0.43528884607611373,0.610821150546521,dimensionless
-all_cells,LGR5_EXO,LGR5 + Lysozyme + Agr2,8,mae,crypt_minus_neck,0.5588557077777584,0.4577305055733272,0.6475277269955911,dimensionless
-all_cells,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,crypt_minus_neck,0.6124965949642924,0.5431600618221558,0.6851209663570785,dimensionless
-all_cells,LGR5_EXO_ENDO,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,crypt_minus_neck,0.6203857454928776,0.5428086800111785,0.7070288098443079,dimensionless
-all_cells,all,All lineages,12,mse,crypt_minus_neck,0.0,0.0,0.0,dimensionless
-all_cells,all,All lineages,12,mae,crypt_minus_neck,0.0,0.0,0.0,dimensionless
+scope,subset,depth,subset_label,subset_order,metric,region,value,low,high,units
+all_cells,AldoB,0,AldoB,0,mse,crypt_minus_neck,0.217697260058843,0.14745462420508001,0.2959401839112585,dimensionless
+all_cells,AldoB,0,AldoB,0,mae,crypt_minus_neck,0.24097628974858115,0.17431095577252922,0.31230425258992667,dimensionless
+all_cells,AldoB,2,AldoB,0,mse,crypt_minus_neck,-0.021902299935909697,-0.1016419154921196,0.06743826469117355,dimensionless
+all_cells,AldoB,2,AldoB,0,mae,crypt_minus_neck,0.011589940499559637,-0.07604713153167118,0.10945898823797112,dimensionless
+all_cells,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,crypt_minus_neck,0.26168066448333177,0.18993780355250822,0.3380179788362284,dimensionless
+all_cells,AldoB_EXO_ENDO,0,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,crypt_minus_neck,0.2788941061825507,0.20821283372436736,0.3474591133476028,dimensionless
+all_cells,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mse,crypt_minus_neck,0.16749444585637496,0.10597724441193893,0.23112805567011016,dimensionless
+all_cells,AldoB_EXO_ENDO,2,AldoB + Lysozyme + Agr2 + Serotonin + Chroma,9,mae,crypt_minus_neck,0.16812580453714476,0.10295937431587213,0.24334604750040742,dimensionless
+all_cells,AldoB_KI67,0,AldoB + KI67,6,mse,crypt_minus_neck,0.22765290019452483,0.1518563874776694,0.30845498796158477,dimensionless
+all_cells,AldoB_KI67,0,AldoB + KI67,6,mae,crypt_minus_neck,0.25102590340986075,0.1814030922962374,0.3305666535777894,dimensionless
+all_cells,AldoB_KI67,2,AldoB + KI67,6,mse,crypt_minus_neck,-0.21016441393744356,-0.3085928311268714,-0.11892817077103522,dimensionless
+all_cells,AldoB_KI67,2,AldoB + KI67,6,mae,crypt_minus_neck,-0.17469050241653306,-0.2687800663414705,-0.0776980135493675,dimensionless
+all_cells,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,crypt_minus_neck,0.2757967855840041,0.19857179376182316,0.3594324014277532,dimensionless
+all_cells,AldoB_KI67_EXO_ENDO,0,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,crypt_minus_neck,0.29648245971108683,0.22015784771978386,0.3769094198483769,dimensionless
+all_cells,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mse,crypt_minus_neck,-0.006174520536549877,-0.05538569374704163,0.04504965241213075,dimensionless
+all_cells,AldoB_KI67_EXO_ENDO,2,AldoB + KI67 + Lysozyme + Agr2 + Serotonin + Chroma,11,mae,crypt_minus_neck,-0.01620584956506732,-0.0702363336792728,0.03610514073881728,dimensionless
+all_cells,ENDO,0,Chroma + Serotonin,4,mse,crypt_minus_neck,0.06342005740051838,-0.010217306050049191,0.14417174797114965,dimensionless
+all_cells,ENDO,0,Chroma + Serotonin,4,mae,crypt_minus_neck,0.07818646650293123,0.012355914261489603,0.14238682320916798,dimensionless
+all_cells,ENDO,2,Chroma + Serotonin,4,mse,crypt_minus_neck,0.28801770381798336,0.20526180001365518,0.3832581971361188,dimensionless
+all_cells,ENDO,2,Chroma + Serotonin,4,mae,crypt_minus_neck,0.2622601254243358,0.18907873019855928,0.3401165250473177,dimensionless
+all_cells,EXO,0,Agr2 + Lysozyme,3,mse,crypt_minus_neck,0.08441070966519312,0.011493992409311846,0.15699291383214092,dimensionless
+all_cells,EXO,0,Agr2 + Lysozyme,3,mae,crypt_minus_neck,0.09435141977027134,0.02619247199747454,0.15818419210614465,dimensionless
+all_cells,EXO,2,Agr2 + Lysozyme,3,mse,crypt_minus_neck,0.4189055564890249,0.3381618424300241,0.5161533521443559,dimensionless
+all_cells,EXO,2,Agr2 + Lysozyme,3,mae,crypt_minus_neck,0.42105025942522667,0.3430470856344908,0.5240071680284429,dimensionless
+all_cells,KI67,0,KI67,2,mse,crypt_minus_neck,0.0700625023988724,0.00029497699477180634,0.1391754199684299,dimensionless
+all_cells,KI67,0,KI67,2,mae,crypt_minus_neck,0.08659534385496975,0.023067826695513202,0.14823765775471295,dimensionless
+all_cells,KI67,2,KI67,2,mse,crypt_minus_neck,-0.13384307411396695,-0.20614289168824784,-0.04969194243763206,dimensionless
+all_cells,KI67,2,KI67,2,mae,crypt_minus_neck,-0.11108329867423987,-0.17651206469208822,-0.03718324377427203,dimensionless
+all_cells,LGR5,0,LGR5,1,mse,crypt_minus_neck,0.21020170466166188,0.11535290084481714,0.2932209305608269,dimensionless
+all_cells,LGR5,0,LGR5,1,mae,crypt_minus_neck,0.23531917284305237,0.16287754700951282,0.3116377262643309,dimensionless
+all_cells,LGR5,2,LGR5,1,mse,crypt_minus_neck,0.3671155217630898,0.2653892628126707,0.4773573890519554,dimensionless
+all_cells,LGR5,2,LGR5,1,mae,crypt_minus_neck,0.41958505562429915,0.326330433897181,0.5329444797262011,dimensionless
+all_cells,LGR5_AldoB,0,LGR5 + AldoB,5,mse,crypt_minus_neck,0.2855985591063723,0.19998063951298112,0.3673044093002489,dimensionless
+all_cells,LGR5_AldoB,0,LGR5 + AldoB,5,mae,crypt_minus_neck,0.32138837526639896,0.2422808482248029,0.4065299615394576,dimensionless
+all_cells,LGR5_AldoB,2,LGR5 + AldoB,5,mse,crypt_minus_neck,0.0039290472412061295,-0.09913673806114218,0.09946186893985591,dimensionless
+all_cells,LGR5_AldoB,2,LGR5 + AldoB,5,mae,crypt_minus_neck,0.047049307210495606,-0.05735911010876747,0.14626616999927539,dimensionless
+all_cells,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mse,crypt_minus_neck,0.23384604634103795,0.13985253464626543,0.32422042455921024,dimensionless
+all_cells,LGR5_ENDO,0,LGR5 + Serotonin + Chroma,7,mae,crypt_minus_neck,0.2536710869892095,0.16954746620055647,0.3306369583121353,dimensionless
+all_cells,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mse,crypt_minus_neck,0.43287435762159643,0.3307879032029343,0.5323387945900835,dimensionless
+all_cells,LGR5_ENDO,2,LGR5 + Serotonin + Chroma,7,mae,crypt_minus_neck,0.46823447701106463,0.36356580742627015,0.563022497823271,dimensionless
+all_cells,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mse,crypt_minus_neck,0.2536162220658384,0.1733234916327253,0.3322087303189895,dimensionless
+all_cells,LGR5_EXO,0,LGR5 + Lysozyme + Agr2,8,mae,crypt_minus_neck,0.2778244001242955,0.20142160752654392,0.3567599421946755,dimensionless
+all_cells,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mse,crypt_minus_neck,0.5266328048459668,0.4397503756154235,0.6214132785022722,dimensionless
+all_cells,LGR5_EXO,2,LGR5 + Lysozyme + Agr2,8,mae,crypt_minus_neck,0.5588557077777584,0.4642389566621613,0.6668634992308976,dimensionless
+all_cells,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,crypt_minus_neck,0.2736232704460755,0.19594027969665473,0.35988985197207224,dimensionless
+all_cells,LGR5_EXO_ENDO,0,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,crypt_minus_neck,0.2893492355820907,0.21509077934547458,0.3741554579485534,dimensionless
+all_cells,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mse,crypt_minus_neck,0.6124965949642924,0.5399603681026042,0.67688858531017,dimensionless
+all_cells,LGR5_EXO_ENDO,2,LGR5 + Lysozyme + Agr2 + Serotonin + Chroma,10,mae,crypt_minus_neck,0.6203857454928776,0.5335740142581631,0.6987509111463289,dimensionless
+all_cells,all,0,All lineages,12,mse,crypt_minus_neck,0.3189539351777683,0.23420820988870095,0.39416924988687013,dimensionless
+all_cells,all,0,All lineages,12,mae,crypt_minus_neck,0.34129029726345206,0.2641972606892268,0.4202632190171977,dimensionless
+all_cells,all,2,All lineages,12,mse,crypt_minus_neck,0.0,0.0,0.0,dimensionless
+all_cells,all,2,All lineages,12,mae,crypt_minus_neck,0.0,0.0,0.0,dimensionless
